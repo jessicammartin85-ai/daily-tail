@@ -80,6 +80,31 @@ service cloud.firestore {
       }
     }
 
+    // Deliberately published, read-only Friend View snapshots.
+    // Only documents with a hard-to-guess link ID and active=true can be read
+    // without signing in. No listing or access to private user data.
+    match /publicProfiles/{shareId} {
+      allow get: if resource.data.active == true
+        || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.keys().hasOnly([
+          'ownerUid','dogId','active','name','breed','dob','personality',
+          'favorites','cuteFact','photo','posts','updatedAt'
+        ]);
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.dogId == resource.data.dogId
+        && request.resource.data.keys().hasOnly([
+          'ownerUid','dogId','active','name','breed','dob','personality',
+          'favorites','cuteFact','photo','posts','updatedAt'
+        ]);
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
     // Unpredictable invitation IDs serve as one-time entry links to request
     // approval; possession alone does not grant access to a dog's information.
     match /invites/{inviteId} {
