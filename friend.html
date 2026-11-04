@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#a76a43">
+<title>Daily Tail | Friend View</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#34495b;background:#d9e6ef}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:repeating-linear-gradient(90deg,#dce9f1 0 48px,#f5f2e9 48px 96px);padding:20px 12px 40px}
+header{max-width:620px;margin:0 auto 16px;text-align:center}header strong{font:700 33px Georgia,serif;color:#68432d;text-shadow:0 2px #fff5ec}header p{margin:5px;color:#526b7b}
+main{max-width:620px;margin:0 auto;background:#fff9ee;border:3px solid #a9c5d6;border-radius:25px;padding:clamp(18px,5vw,34px);box-shadow:0 9px 26px #39495133}
+#status{font-size:15px;line-height:1.6;text-align:center}h1{font:700 clamp(31px,8vw,46px) Georgia,serif;color:#774b32;text-align:center;margin:10px 0}
+.portrait{margin:15px auto;display:block;width:min(58vw,230px);height:min(58vw,230px);object-fit:cover;border-radius:50%;border:9px solid #bed7e5;box-shadow:0 4px 16px #66503a44}
+.tag{display:inline-block;background:#e9eff3;border:1px solid #aec4d4;border-radius:999px;padding:7px 13px;margin:7px 5px 5px 0;font-size:14px}
+.section{margin-top:20px;padding:14px 0 0;border-top:1px solid #d5cbbb}.section h2{font:700 22px Georgia,serif;color:#77553b;margin:0 0 9px}
+.section p{line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.memory{padding:11px 13px;background:#e7f0f5;border-radius:13px;margin:10px 0}.memory strong{display:block;color:#4c5966}
+footer{max-width:620px;text-align:center;margin:22px auto;color:#586a7c;font-size:12px}
+a{color:#385f78}#content[hidden]{display:none}
+</style></head><body>
+<header><strong>Daily Tail 🐾</strong><p>A little window into a dog's world</p></header>
+<main><p id="status">Loading your friend's dog profile…</p><section id="content" hidden><h1 id="dogName"></h1><img id="dogPhoto" class="portrait" alt="Dog portrait" hidden><div style="text-align:center" id="tags"></div><div id="details"></div><div id="memories"></div></section></main>
+<footer>Friend View is read-only. You don't need to sign in to see a profile shared with you.</footer>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {getFirestore,doc,getDoc} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+const firebase=initializeApp({apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'},'daily-tail-public-friend');
+const db=getFirestore(firebase),id=new URLSearchParams(location.search).get('share'),el=x=>document.getElementById(x);
+function section(title,text){if(!text)return;const root=document.createElement('section');root.className='section';const h=document.createElement('h2');h.textContent=title;const p=document.createElement('p');p.textContent=String(text);root.append(h,p);el('details').append(root)}
+async function start(){
+ if(!id||!/^[a-zA-Z0-9]{16,40}$/.test(id)){el('status').textContent='This sharing link is incomplete. Ask the owner for a new Friend View link.';return}
+ try{
+  const result=await getDoc(doc(db,'publicProfiles',id));
+  if(!result.exists()||result.data().active!==true){el('status').textContent='This link is no longer available. Ask the owner for an updated Friend View link.';return}
+  const d=result.data();el('dogName').textContent=d.name||'A Daily Tail friend';
+  if(d.photo&&typeof d.photo==='string'&&d.photo.startsWith('data:image/')){el('dogPhoto').src=d.photo;el('dogPhoto').hidden=false}
+  for(const value of [d.breed,d.dob])if(value){const tag=document.createElement('span');tag.className='tag';tag.textContent=value;el('tags').append(tag)}
+  section('About me',d.personality);section('Favorite things',d.favorites);section('Fun fact',d.cuteFact);
+  if(Array.isArray(d.posts)&&d.posts.length){
+   const outer=document.createElement('section');outer.className='section';const title=document.createElement('h2');title.textContent='Memories';outer.append(title);
+   for(const p of d.posts){const card=document.createElement('div');card.className='memory';const strong=document.createElement('strong');strong.textContent=p.title||'A little memory';const description=document.createElement('p');description.textContent=p.text||'';card.append(strong,description);outer.append(card)}el('memories').append(outer)
+  }
+  el('status').hidden=true;el('content').hidden=false;
+ }catch(e){el('status').textContent=e?.code==='permission-denied'?'This link is waiting for the owner to enable public Friend View sharing in Firebase.':'Unable to load this profile right now. Please try again later.';console.error('Daily Tail Friend View',e)}
+}
+start();
+</script></body></html>
