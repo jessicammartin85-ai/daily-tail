@@ -15,6 +15,9 @@
  'body:has(#dtBottomNav):not(.dt-locked) #dtRoleStrip>div{display:none!important}',
  'body:has(#dtBottomNav):not(.dt-locked) #dtRoleLabel{font-size:12px!important;line-height:1.35}',
  '#dtBottomNav button{touch-action:manipulation}',
+ 'body.friend-view #dtBottomNav [data-dt-tab=plan],body.friend-view #dtBottomNav [data-dt-tab=more]{display:none!important}',
+ 'body.friend-view #dtBottomNav{grid-template-columns:repeat(2,minmax(0,1fr))}',
+ 'body.friend-view #dtBottomNav button{min-height:54px}',
  '#dtBottomNav button:focus-visible,.dt-nav-menu button:focus-visible{outline:3px solid #b6784a;outline-offset:2px}',
  'body.dt-locked #dtBottomNav,body.dt-locked #dtNavSheet{display:none!important}',
  'body:has(#dtBottomNav) #cloudLaunch,body:has(#dtBottomNav) #shareLaunch,body:has(#dtBottomNav) #findLaunch{display:none!important}',
@@ -57,6 +60,7 @@
   nav.addEventListener('click',e=>{
    const btn=e.target.closest('[data-dt-tab]');if(!btn)return;
    const tab=btn.dataset.dtTab;
+   if(document.body.classList.contains('friend-view')&&(tab==='more'||tab==='plan'))return;
    if(tab==='more'){open();return}
    nav.querySelectorAll('button').forEach(b=>b.removeAttribute('aria-current'));btn.setAttribute('aria-current','page');
    if(tab==='home'){window.scrollTo({top:0,behavior:'smooth'});return}
