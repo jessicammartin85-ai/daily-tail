@@ -1,4 +1,4 @@
-/* Daily Tail: single mobile navigation and consolidated utilities.
+/* Daily Tail: single mobile navigation and consolidated utilities.\n * Nov 4: compact redundant owner actions; keep them in More; safe bottom spacing.
  * Does not modify saved profile data or intercept authentication. */
 (function(){
  const $=id=>document.getElementById(id);
@@ -8,7 +8,14 @@
  '#dtBottomNav button{display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;border:0;background:transparent;color:#405b70;font:700 11px/1.2 Arial,sans-serif;padding:8px 2px;border-radius:12px;min-height:50px;cursor:pointer}',
  '#dtBottomNav button[aria-current=page]{background:#365c76;color:#fff}',
  '#dtBottomNav .dt-nav-icon{font-size:21px;line-height:1}',
- 'body:not(.dt-locked){padding-bottom:85px!important}',
+ 'body:not(.dt-locked){padding-bottom:110px!important}',
+ 'body:not(.dt-locked) .shell{padding-bottom:105px!important}',
+ 'body:not(.dt-locked) .snapshot-wrap{scroll-margin-bottom:112px}',
+ 'body:has(#dtBottomNav):not(.dt-locked) #dtRoleStrip{padding:8px 14px!important;gap:0!important;min-height:36px}',
+ 'body:has(#dtBottomNav):not(.dt-locked) #dtRoleStrip>div{display:none!important}',
+ 'body:has(#dtBottomNav):not(.dt-locked) #dtRoleLabel{font-size:12px!important;line-height:1.35}',
+ '#dtBottomNav button{touch-action:manipulation}',
+ '#dtBottomNav button:focus-visible,.dt-nav-menu button:focus-visible{outline:3px solid #b6784a;outline-offset:2px}',
  'body.dt-locked #dtBottomNav,body.dt-locked #dtNavSheet{display:none!important}',
  'body:has(#dtBottomNav) #cloudLaunch,body:has(#dtBottomNav) #shareLaunch,body:has(#dtBottomNav) #findLaunch{display:none!important}',
  '#dtNavSheet[hidden]{display:none!important}',
