@@ -45,7 +45,7 @@
   const head=document.createElement('div');head.className='dt-notes-head';heading.parentNode.insertBefore(head,heading);head.appendChild(heading);
   const toggle=document.createElement('button');toggle.type='button';toggle.id='dtNotesToggle';toggle.setAttribute('aria-controls','journalText');head.appendChild(toggle);
   const summary=document.createElement('p');summary.className='dt-notes-summary';head.after(summary);
-  function preview(){const value=notes.value.trim().replace(/\\s+/g,' ');summary.textContent=value?('Latest note: '+(value.length>105?value.slice(0,105)+'…':value)):'No notes yet. Tap to add an update about today.';}
+  function preview(){const value=notes.value.trim().replace(/\s+/g,' ');summary.textContent=value?('Latest note: '+(value.length>105?value.slice(0,105)+'…':value)):'No notes yet. Tap to add an update about today.';}
   function setOpen(open){card.classList.toggle('dt-notes-closed',!open);toggle.textContent=open?'Close notes':'Edit notes';toggle.setAttribute('aria-expanded',String(open));if(!open)preview();}
   toggle.addEventListener('click',()=>{const open=card.classList.contains('dt-notes-closed');setOpen(open);if(open)notes.focus({preventScroll:true});});
   notes.addEventListener('input',preview);
