@@ -148,7 +148,11 @@ function open(){
  refreshMine();loadDirectory();if(current)loadInbox();loadConnections();
 }
 function init(){
- const button=document.createElement('button');button.id='findLaunch';button.textContent='🐶 Find Friends';button.type='button';document.body.append(button);
+ const button=$('dtFindDogFriends');
+ if(button){
+  button.textContent='🔎 Find Dog Friends';
+  button.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();open()},true);
+ }
  const shade=document.createElement('div');shade.id='findShade';shade.hidden=true;
  shade.innerHTML='<section class="find-box" role="dialog" aria-modal="true" aria-labelledby="findTitle">'+
  '<button id="findClose" type="button" aria-label="Close">×</button><h2 id="findTitle">Find Dog Friends</h2>'+
@@ -164,7 +168,7 @@ function init(){
  '<details class="find-settings"><summary>Friend requests and connections</summary><button id="findLoadInbox" type="button">Refresh requests</button><div id="findInbox"></div><h3>My connections</h3><div id="findConnections"></div></details>'+
  '<p id="findStatus" role="status"></p><p class="find-help">Only public profiles appear here. Friends can view a public profile without logging in; sending a request requires an account.</p>'+
  '</section>';document.body.append(shade);
- button.onclick=open;$('findClose').onclick=()=>{displayed=false;shade.hidden=true};
+ $('findClose').onclick=()=>{displayed=false;shade.hidden=true};
  shade.onclick=e=>{if(e.target===shade){displayed=false;shade.hidden=true}};
  $('findSearch').oninput=renderCards;$('findRefresh').onclick=loadDirectory;
  $('findGoogle').onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){status(err(e),true)}};
