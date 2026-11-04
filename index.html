@@ -1656,6 +1656,8 @@ function friendReadOnlyFeed(){
 }
 function syncFriendView({keepModal=false}={}){
  document.body.classList.toggle('friend-view',friendPreview);
+ const roleLabel=document.getElementById('dtRoleLabel');
+ if(roleLabel&&window.dtRole){const dogName=String(dtDog()?.name||appMeta.petName||'Dog');roleLabel.textContent=friendPreview?(dogName+' · Friend View preview'):(String(window.dtPerson||'Owner')+' · '+dogName+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[window.dtRole]||'Owner'));}
  const friendAction=document.getElementById('dtFriendAction'),ownerSearch=document.getElementById('dtOwnerFriendSearch');
  if(friendAction)friendAction.hidden=!friendPreview;
  if(ownerSearch)ownerSearch.hidden=friendPreview||window.dtRole!=='adult';
@@ -2183,4 +2185,4 @@ try{dtSignInGate()}catch(err){
  window.DailyTailPush={attach};
 })();
 </script>
-<script type="module" src="./cloud-sync.js"></script><script type="module" src="./sharing.js"></script><script type="module" src="./find-friends.js?v=single-entry-20261104b"></script><script src="./navigation.js?v=20261104-nav2" defer></script></body></html>
+<script type="module" src="./cloud-sync.js"></script><script type="module" src="./sharing.js"></script><script type="module" src="./find-friends.js?v=single-entry-20261104b"></script><script src="./navigation.js?v=20261104-nav3" defer></script></body></html>
