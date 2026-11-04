@@ -1,0 +1,86 @@
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {getFirestore,doc,getDoc,onSnapshot,writeBatch,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+const app=initializeApp({apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',storageBucket:'daily-tail.firebasestorage.app',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'},'daily-tail-cloud');
+const auth=getAuth(app),db=getFirestore(app),provider=new GoogleAuthProvider();
+const SETTINGS='daily_tail_cloud_sync_settings_v1',skip=new Set([SETTINGS,'daily_tail_remembered_identity_v1']),prefix=/^(daily.tail|dailytail|loubear|lou_bear|dt_)/i;
+const el=id=>document.getElementById(id);let user=null,remote=null,unsubscribe=null,active=false,busy=false,baseline='',changed=0,watch=null,error='';
+let settings={};try{settings=JSON.parse(localStorage.getItem(SETTINGS)||'{}')}catch{}
+function remember(v){settings={...settings,...v};localStorage.setItem(SETTINGS,JSON.stringify(settings))}
+function collect(){const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(prefix.test(k)&&!skip.has(k))data[k]=localStorage.getItem(k)}return data}
+function serialize(){return JSON.stringify(collect())}
+function hash(str){let h=2166136261;for(let i=0;i<str.length;i+=Math.max(1,Math.floor(str.length/20000))){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return str.length.toString(36)+'-'+(h>>>0).toString(36)}
+const ref=()=>doc(db,'users',user.uid,'sync','current');
+function status(t,bad=false){error=bad?t:'';if(el('cloudStatus')){el('cloudStatus').textContent=t;el('cloudStatus').style.color=bad?'#a3352e':'#37576b'}if(el('cloudLaunch'))el('cloudLaunch').textContent=active?'☁ Synced':user?'☁ Cloud Setup':'☁ Cloud Sync'}
+function message(e){const code=e?.code||'';if(code.includes('unauthorized-domain'))return 'Add jessicammartin85-ai.github.io in Firebase Authentication → Settings → Authorized domains.';if(code.includes('permission-denied'))return 'Firestore denied access. Check the published Rules.';return (e?.message||String(e)).slice(0,280)}
+function lock(on){busy=on;document.querySelectorAll('.cloud-action').forEach(b=>b.disabled=on)}
+function ui(){
+ const a=el('cloudAccount'),b=el('cloudOptions');if(!a)return;
+ if(!user){
+ a.innerHTML='<button class="cloud-action primary" id="cloudGoogle">Continue with Google</button><p>Or sign in with email:</p><form id="cloudEmail"><input required type="email" name="email" autocomplete="email" placeholder="Email"><input required minlength="6" type="password" name="password" autocomplete="current-password" placeholder="Password"><div class="cloud-row"><button class="cloud-action" type="submit" name="mode" value="in">Sign in</button><button class="cloud-action" type="submit" name="mode" value="up">Create account</button></div></form>';b.innerHTML='';
+ el('cloudGoogle').onclick=async()=>{try{lock(true);await signInWithPopup(auth,provider)}catch(e){status(message(e),true)}finally{lock(false)}};
+ el('cloudEmail').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget;try{lock(true);if(e.submitter?.value==='up')await createUserWithEmailAndPassword(auth,f.elements.email.value,f.elements.password.value);else await signInWithEmailAndPassword(auth,f.elements.email.value,f.elements.password.value)}catch(e){status(message(e),true)}finally{lock(false)}};
+ }else{
+ a.innerHTML='<p>Signed in as <strong id="cloudEmailLabel"></strong> <button class="cloud-action" id="cloudSignOut">Sign out</button></p>';el('cloudEmailLabel').textContent=user.email||'Google account';el('cloudSignOut').onclick=()=>signOut(auth);
+ if(active){
+ b.innerHTML='<p class="cloud-good">✓ Sync enabled on this device</p><div class="cloud-row"><button class="cloud-action" id="cloudSave">Sync now</button><button class="cloud-action" id="cloudRestore">Restore from cloud</button></div><small>Restoring downloads a backup of this device before replacing anything.</small>';
+ el('cloudSave').onclick=()=>upload(true);el('cloudRestore').onclick=restore;
+ }else{
+ b.innerHTML='<p class="cloud-warning">Choose which copy has the correct information. On the original phone, upload its data. On other devices, restore your cloud copy.</p><div class="cloud-row"><button class="cloud-action" id="cloudUpload">Use this device’s data</button><button class="cloud-action" id="cloudDownload">Use saved cloud data</button></div><small>Nothing is replaced without your approval.</small>';
+ el('cloudUpload').disabled=!collect()['daily_tail_roles_v2'];el('cloudDownload').disabled=!remote;
+ el('cloudUpload').onclick=()=>upload(false);el('cloudDownload').onclick=restore;
+ }}
+ if(error)status(error,true);else status(user?(active?'Automatic sync is active.':'Choose a copy to begin syncing.'):'Sign in using the same account on each device.');
+}
+function downloadBackup(){
+ const blob=new Blob([JSON.stringify({format:'daily-tail-complete-backup-v1',createdAt:new Date().toISOString(),data:collect()})],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='Daily_Tail_Before_Cloud_Restore_'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+async function restore(){
+ if(!remote)return status('No cloud copy yet. Upload from the original device first.',true);
+ if(!confirm('Replace this device’s saved Daily Tail information with the cloud copy? A local backup will download first.'))return;
+ lock(true);try{
+ const parts=[];for(let i=0;i<remote.parts;i++){const r=await getDoc(doc(db,'users',user.uid,'cloudSnapshots',remote.generation,'parts',String(i).padStart(4,'0')));if(!r.exists())throw Error('Missing cloud data. No changes made.');parts.push(r.data().value)}
+ const data=JSON.parse(parts.join(''));if(!data||!data['daily_tail_roles_v2'])throw Error('Cloud profile not found. No changes made.');
+ downloadBackup();for(const k of Object.keys(collect()))if(!(k in data))localStorage.removeItem(k);
+ for(const [k,v] of Object.entries(data))if(prefix.test(k)&&!skip.has(k)&&typeof v==='string')localStorage.setItem(k,v);
+ remember({uid:user.uid,enabled:true,generation:remote.generation,hash:hash(serialize())});location.reload();
+ }catch(e){status(message(e),true)}finally{lock(false)}
+}
+async function upload(force){
+ if(!user)return;if(!force&&!confirm('Use this device’s saved profiles as the cloud copy? Choose this on the original device where Lou’s information is complete.'))return;
+ lock(true);try{
+ const latest=await getDoc(ref());
+ if(force&&latest.exists()&&latest.data().generation!==settings.generation)throw Error('Another device updated the cloud. Restore that copy before syncing.');
+ if(!force&&latest.exists()&&!confirm('Cloud data already exists. Replace it with this device’s version?'))return;
+ const json=serialize();if(json.length>12000000)throw Error('Your saved photos are too large for this sync version. Do not delete your local copy.');
+ const parts=json.match(/[\s\S]{1,150000}/g)||['{}'];if(parts.length>300)throw Error('Too much data for one cloud update.');
+ const generation='v'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),batch=writeBatch(db);
+ parts.forEach((value,i)=>batch.set(doc(db,'users',user.uid,'cloudSnapshots',generation,'parts',String(i).padStart(4,'0')),{value}));
+ batch.set(ref(),{generation,parts:parts.length,updatedAt:serverTimestamp(),schema:1});await batch.commit();
+ remote={generation,parts:parts.length};active=true;baseline=hash(json);changed=0;remember({uid:user.uid,enabled:true,generation,hash:baseline});ui();status('Saved to cloud. Other devices can restore this copy.');
+ }catch(e){status(message(e),true)}finally{lock(false)}
+}
+function listen(s){
+ if(!user)return;
+ if(!s.exists()){remote=null;active=false;ui();return}
+ const next=s.data();if(!next.generation||!next.parts)return;
+ const prev=remote?.generation;remote=next;
+ if(settings.uid===user.uid&&settings.enabled&&settings.generation===next.generation){active=true;baseline=hash(serialize());ui();return}
+ if(active&&prev!==next.generation){active=false;remember({enabled:false});ui();status('Cloud data changed on another device. Open Cloud Sync to restore the latest copy.')}
+ else ui();
+}
+onAuthStateChanged(auth,u=>{
+ if(unsubscribe){unsubscribe();unsubscribe=null}
+ user=u;active=false;remote=null;changed=0;error='';
+ if(u)unsubscribe=onSnapshot(ref(),listen,e=>status(message(e),true));
+ ui();
+});
+function start(){
+ const btn=document.createElement('button');btn.id='cloudLaunch';btn.textContent='☁ Cloud Sync';btn.type='button';document.body.append(btn);
+ const shade=document.createElement('div');shade.id='cloudShade';shade.hidden=true;shade.innerHTML='<section class="cloudBox" role="dialog" aria-modal="true" aria-labelledby="cloudTitle"><button type="button" id="cloudClose" aria-label="Close">×</button><h2 id="cloudTitle">Daily Tail Cloud</h2><p>Keep Lou’s information together across devices.</p><div id="cloudAccount"></div><div id="cloudOptions"></div><p id="cloudStatus" role="status"></p><details><summary>About syncing</summary><p>Data is private to your signed-in Firebase account. You choose which copy to use first. Changes sync while the app is open; important changes should still be backed up.</p></details></section>';document.body.append(shade);
+ btn.onclick=()=>{shade.hidden=false;ui()};el('cloudClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
+ watch=setInterval(async()=>{if(!active||!user||busy||document.hidden)return;const h=hash(serialize());if(h===baseline){changed=0;return}if(!changed){changed=Date.now();return}if(Date.now()-changed>12000)await upload(true)},4000);
+ ui();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
