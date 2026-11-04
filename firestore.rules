@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(ownerUid) {
+      return signedIn() && request.auth.uid == ownerUid;
+    }
+    function hasDogRole(ownerUid, dogId, role) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId))
+        && get(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId)).data.role == role;
+    }
+    function isDogMember(ownerUid, dogId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId));
+    }
+
+    // The original cloud sync snapshot belongs only to its Firebase account.
+    // Do not grant invited members access to this private subtree.
+    match /users/{ownerUid} {
+      allow read, write: if isOwner(ownerUid);
+
+      match /{privateDocument=**} {
+        allow read, write: if isOwner(ownerUid);
+      }
+
+      // Only the owner may issue/revoke memberships.
+      match /members/{memberUid}/dogs/{dogId} {
+        allow get: if isOwner(ownerUid)
+          || (signedIn() && request.auth.uid == memberUid);
+        allow list, create, update, delete: if isOwner(ownerUid);
+      }
+
+      // A deliberately limited, owner-published shared view. No private
+      // schedules, journal, emergency contacts, access codes, or cloud backups.
+      match /sharedProfiles/{dogId} {
+        allow get: if isOwner(ownerUid) || isDogMember(ownerUid, dogId);
+        allow list: if isOwner(ownerUid);
+        allow create, delete: if isOwner(ownerUid);
+        allow update: if isOwner(ownerUid)
+          || (hasDogRole(ownerUid, dogId, 'adult')
+            && request.resource.data.keys().hasOnly(['name', 'breed', 'dob', 'personality', 'favorites', 'cuteFact', 'photo', 'posts', 'updatedAt']));
+      }
+
+      match /joinRequests/{requestId} {
+        allow get: if isOwner(ownerUid)
+          || (signedIn() && resource.data.requesterUid == request.auth.uid);
+        allow list: if isOwner(ownerUid);
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['ownerUid', 'dogId', 'requesterUid', 'requesterName', 'inviteId', 'role', 'status', 'createdAt'])
+          && request.resource.data.ownerUid == ownerUid
+          && request.resource.data.requesterUid == request.auth.uid
+          && request.resource.data.status == 'pending'
+          && request.resource.data.role in ['adult', 'child', 'friend']
+          && request.resource.data.inviteId is string
+          && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteId))
+          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.ownerUid == ownerUid
+          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.dogId == request.resource.data.dogId
+          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.role == request.resource.data.role
+          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.active == true;
+        allow update, delete: if isOwner(ownerUid);
+      }
+
+      // Child edits are proposals only. They never directly modify a profile.
+      match /proposedChanges/{proposalId} {
+        allow get: if isOwner(ownerUid)
+          || (signedIn() && resource.data.authorUid == request.auth.uid);
+        allow list: if isOwner(ownerUid);
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['authorUid', 'dogId', 'kind', 'payload', 'status', 'createdAt'])
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.dogId is string
+          && request.resource.data.kind in ['photo', 'post', 'profile']
+          && request.resource.data.status == 'pending'
+          && hasDogRole(ownerUid, request.resource.data.dogId, 'child');
+        allow update, delete: if isOwner(ownerUid);
+      }
+    }
+
+    // Unpredictable invitation IDs serve as one-time entry links to request
+    // approval; possession alone does not grant access to a dog's information.
+    match /invites/{inviteId} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['ownerUid', 'dogId', 'name', 'role', 'active', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.dogId is string
+        && request.resource.data.role in ['adult', 'child', 'friend']
+        && request.resource.data.active == true;
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.dogId == resource.data.dogId
+        && request.resource.data.role == resource.data.role;
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+  }
+}
