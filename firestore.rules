@@ -105,6 +105,68 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
+    // Discovery is strictly opt-in. Only a small public card is exposed.
+    // Search and browse queries must filter discoverable == true.
+    match /directory/{listingId} {
+      allow get, list: if resource.data.discoverable == true
+        || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.dogId is string
+        && request.resource.data.discoverable == true
+        && request.resource.data.keys().hasOnly([
+          'ownerUid','dogId','discoverable','dogName','dogNameLower',
+          'username','usernameLower','breed','photo','shareId','updatedAt'
+        ])
+        && request.resource.data.dogName is string
+        && request.resource.data.username is string
+        && request.resource.data.shareId is string
+        && exists(/databases/$(database)/documents/publicProfiles/$(request.resource.data.shareId))
+        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.shareId)).data.ownerUid == request.auth.uid
+        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.shareId)).data.dogId == request.resource.data.dogId
+        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.shareId)).data.active == true;
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.dogId == resource.data.dogId
+        && request.resource.data.keys().hasOnly([
+          'ownerUid','dogId','discoverable','dogName','dogNameLower',
+          'username','usernameLower','breed','photo','shareId','updatedAt'
+        ]);
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Only a signed-in requester can ask to connect. Owners approve or
+    // decline their own dog requests. Requests are not public.
+    match /friendRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'requesterUid','requesterName','targetOwnerUid','dogId','listingId',
+          'status','createdAt','updatedAt'
+        ])
+        && request.resource.data.requesterUid == request.auth.uid
+        && request.resource.data.targetOwnerUid != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requesterName is string
+        && request.resource.data.dogId is string
+        && request.resource.data.listingId is string
+        && exists(/databases/$(database)/documents/directory/$(request.resource.data.listingId))
+        && get(/databases/$(database)/documents/directory/$(request.resource.data.listingId)).data.ownerUid == request.resource.data.targetOwnerUid
+        && get(/databases/$(database)/documents/directory/$(request.resource.data.listingId)).data.dogId == request.resource.data.dogId
+        && get(/databases/$(database)/documents/directory/$(request.resource.data.listingId)).data.discoverable == true;
+      allow get, list: if signedIn()
+        && (resource.data.requesterUid == request.auth.uid
+          || resource.data.targetOwnerUid == request.auth.uid);
+      allow update: if signedIn()
+        && resource.data.targetOwnerUid == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+        && request.resource.data.status in ['approved','declined'];
+      allow delete: if signedIn()
+        && (resource.data.requesterUid == request.auth.uid
+          || resource.data.targetOwnerUid == request.auth.uid);
+    }
+
     // Unpredictable invitation IDs serve as one-time entry links to request
     // approval; possession alone does not grant access to a dog's information.
     match /invites/{inviteId} {
