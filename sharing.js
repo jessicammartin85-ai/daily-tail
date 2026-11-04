@@ -54,12 +54,46 @@ async function publish(d){
  return d;
 }
 async function createInvitation(){
- const d=dog();if(!d)return status('Open Lou’s profile first.',true);
+ const d=dog();if(!d)return status('Open the dog’s profile first.',true);
+ if(!user||!isAdult())return status('Sign in to Cloud Sync and open Adult Owner view first.',true);
  try{
-  const current=await publish(d),role=$('shareRole').value,r=doc(collection(db,'invites'));
-  await setDoc(r,{ownerUid:user.uid,dogId:current.id,name:current.name,role,active:true,createdAt:serverTimestamp()});
-  $('shareLink').value=location.origin+location.pathname+'?dtInvite='+encodeURIComponent(r.id);
-  $('shareCopy').hidden=false;status('Link created! Send it to your guest, then approve their request.');
+  const current=await publish(d),role=$('shareRole').value;
+  if(role==='friend'){
+   const linkRef=doc(db,'users',user.uid,'publicShareLinks',current.id);
+   const existing=await getDoc(linkRef);
+   const shareId=existing.exists()&&typeof existing.data().shareId==='string'?existing.data().shareId:doc(collection(db,'publicProfiles')).id;
+   const shared=await getDoc(doc(db,'users',user.uid,'sharedProfiles',current.id));
+   if(!shared.exists())throw Error('Could not prepare the shared profile.');
+   const p=shared.data();
+   await setDoc(doc(db,'publicProfiles',shareId),{
+    ownerUid:user.uid,dogId:current.id,active:true,name:p.name||current.name,
+    breed:p.breed||'',dob:p.dob||'',personality:p.personality||'',
+    favorites:p.favorites||'',cuteFact:p.cuteFact||'',photo:p.photo||'',
+    posts:Array.isArray(p.posts)?p.posts:[],updatedAt:serverTimestamp()
+   });
+   await setDoc(linkRef,{shareId,createdAt:serverTimestamp()});
+   $('shareLink').value=location.origin+location.pathname.replace(/[^/]*$/,'')+'friend.html?share='+encodeURIComponent(shareId);
+   $('shareCopy').hidden=false;
+   $('shareRevoke').hidden=false;
+   status('Friend link is ready! Anyone with this link can view the shared details without signing in.');
+  }else{
+   const r=doc(collection(db,'invites'));
+   await setDoc(r,{ownerUid:user.uid,dogId:current.id,name:current.name,role,active:true,createdAt:serverTimestamp()});
+   $('shareLink').value=location.origin+location.pathname+'?dtInvite='+encodeURIComponent(r.id);
+   $('shareCopy').hidden=false;$('shareRevoke').hidden=true;
+   status('Invitation ready. The person signs in and requests your approval.');
+  }
+ }catch(e){status(error(e),true)}
+}
+async function revokeFriendLink(){
+ if(!user||!isAdult()||!dog())return status('Open your Adult Owner profile first.',true);
+ if(!confirm('Turn off this dog’s Friend View link? People with the link will no longer be able to open it.'))return;
+ try{
+  const r=await getDoc(doc(db,'users',user.uid,'publicShareLinks',dog().id));
+  if(!r.exists())return status('No Friend View link is registered for this dog.');
+  await updateDoc(doc(db,'publicProfiles',r.data().shareId),{active:false,updatedAt:serverTimestamp()});
+  $('shareLink').value='';$('shareCopy').hidden=true;$('shareRevoke').hidden=true;
+  status('Friend View link disabled. You can enable it again by creating a new Friend link.');
  }catch(e){status(error(e),true)}
 }
 async function decide(r,approve){
@@ -88,15 +122,15 @@ function openShare(){
  $('shareOwner').hidden=!!inviteId;$('shareInvite').hidden=!inviteId;
  $('shareTitle').textContent=inviteId?'Join a Dog Profile':'Share a Dog Profile';
  if(inviteId)loadInvitation();
- else status(!user?'Sign into Cloud Sync with Google first.':!isAdult()?'Open your Adult Owner profile first.':'Create an invitation and approve incoming requests.');
+ else status(!user?'Sign into Cloud Sync with Google first.':!isAdult()?'Open your Adult Owner profile first.':'Friends do not need an account. Adult and Child invitations require approval.');
 }
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
- shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Send an invitation link. Guests sign in and request approval.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only</option><option value="child">Child · Approval required</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><h3>Approval requests</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p><small>Cloud invitations are separate from browser-only codes. Approved members can view the shared profile here. Full collaborative editing is not active yet.</small></section>';
+ shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in and request approval.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Approval required</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Approval requests</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p><small>Friend links share only the published profile. Anyone who has the link can view it. Adult and Child accounts still require approval; collaborative editing is being developed.</small></section>';
  document.body.append(shade);
  btn.onclick=openShare;$('shareClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
- $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;
+ $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;$('shareRevoke').onclick=revokeFriendLink;
  $('shareCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('shareLink').value);status('Link copied.')}catch{status('Select and copy the link manually.')}};
  if(inviteId)openShare();
 }
