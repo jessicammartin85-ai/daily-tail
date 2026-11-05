@@ -36,9 +36,9 @@ function build(home){
  slots.post.append(source.post);slots.next.append(source.next);slots.actions.append(source.actions);
  const emergency=document.createElement('button');emergency.type='button';emergency.id='dtDesignEmergency';emergency.setAttribute('aria-label','Open emergency information');
  emergency.innerHTML='<span aria-hidden="true" class="dt-design-plus">✚</span><span>Emergency Info</span>';
- emergency.onclick=()=>$('dtConceptEmergency')?.click()||$('emergencyArt')?.click();
+ emergency.onclick=()=>{const target=$('dtConceptEmergency')||$('emergencyArt');target?.click();};
  host.querySelector('.dt-design-emergency').append(emergency);
- $('dtDesignPortrait').onclick=()=>$('dtConceptProfile')?.click()||$('portraitBtn')?.click();
+ $('dtDesignPortrait').onclick=()=>{const target=$('dtConceptProfile')||$('portraitBtn');target?.click();};
  function syncPhoto(){
   const src=$('profileThumb')?.getAttribute('src')||$('dtRefPhoto')?.getAttribute('src')||'';
   const photo=$('dtDesignPhoto');if(src && photo.getAttribute('src')!==src)photo.setAttribute('src',src);
