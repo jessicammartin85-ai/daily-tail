@@ -165,3 +165,85 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready);else ready();
 })();
+
+
+/* Compact home layout inspired by the approved concept. Private app state is untouched. */
+(function(){
+ function build(){
+  const $=id=>document.getElementById(id);
+  const shell=document.querySelector('main.shell'),art=document.querySelector('.art');
+  if(!shell||!art||$('dtConceptHome'))return;
+  const css=document.createElement('style');
+  css.textContent=[
+  'body:not(.friend-view):not(.dt-locked) .art{display:none!important}',
+  'body:not(.friend-view):not(.dt-locked) #dtHomeQuick,body:not(.friend-view):not(.dt-locked) .dt-home-secondary{display:none!important}',
+  'body:not(.friend-view):not(.dt-locked) #dtConceptHome{display:block!important}',
+  '#dtConceptHome{display:none;margin:12px 14px 2px;font-family:Arial,sans-serif;color:#2c4659}',
+  '.dt-concept-profile{position:relative;overflow:hidden;min-height:172px;display:flex;align-items:center;gap:16px;padding:18px 19px;background:#ae7249;border:3px solid #1f1a17;border-radius:24px;box-shadow:0 3px 0 #708ea2,0 6px 14px #21374425;color:#fff9f0}',
+  '.dt-concept-profile:before{content:"";position:absolute;inset:8px;border:2px dotted #cbd9e2;border-radius:17px;opacity:.45;pointer-events:none}',
+  '.dt-concept-profile-photo{width:118px;height:118px;flex:0 0 118px;object-fit:cover;border:4px solid #c7d7e1;border-radius:50%;background:#f1e4d2;box-shadow:0 3px 8px #39281c55}',
+  '.dt-concept-profile-copy{flex:1;min-width:0;position:relative;z-index:1}',
+  '.dt-concept-profile-copy h2{font:700 clamp(25px,6vw,35px)/1.1 Georgia,serif;margin:0 0 10px;color:white;text-shadow:0 2px 2px #613e2b}',
+  '.dt-concept-profile-copy p{font:14px/1.4 Arial,sans-serif;margin:0 0 12px;color:#fff8ed}',
+  '.dt-concept-open{padding:8px 12px;background:#f8f0e4;color:#355570;border:1px solid #a7c4d5;border-radius:999px;font:700 12px Arial,sans-serif;cursor:pointer}',
+  '.dt-concept-tag{position:absolute;right:9px;bottom:4px;width:64px;height:54px;object-fit:contain;pointer-events:none;opacity:.95}',
+  '.dt-concept-next{margin-top:13px;padding:15px;background:#fffaf2;border:1.5px solid #a5bac9;border-radius:18px;box-shadow:0 3px 9px #25374819}',
+  '.dt-concept-head{display:flex;align-items:center;justify-content:space-between;gap:8px}',
+  '.dt-concept-head h3{font:700 24px Georgia,serif;margin:0;color:#62432e}',
+  '.dt-concept-time{font:700 12px Arial,sans-serif;color:#5b7080}',
+  '.dt-concept-task{display:flex;align-items:center;gap:13px;margin-top:12px}',
+  '#dtConceptCheck{flex:0 0 28px;width:28px;height:28px;accent-color:#365c76;cursor:pointer}',
+  '#dtConceptTask{flex:1;min-width:0;text-align:left;border:0;background:none;color:#293b48;font:700 18px/1.2 Georgia,serif;padding:6px 0;cursor:pointer}',
+  '.dt-concept-chev{font-size:22px;color:#365c76}',
+  '.dt-concept-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}',
+  '.dt-concept-actions button{min-height:80px;padding:12px 6px;border:1.5px solid #9aafbc;border-radius:15px;background:#e1eaf0;color:#2c4c63;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font:700 13px Arial,sans-serif;cursor:pointer}',
+  '.dt-concept-actions button:first-child{background:#365c76;color:white;border-color:#365c76}',
+  '.dt-concept-actions .dt-icon{font-size:24px;line-height:1}',
+  '.dt-concept-extras{display:flex;gap:10px;justify-content:center;margin:11px 0 0}',
+  '.dt-concept-extras button{min-height:36px;padding:8px 12px;border:1px solid #9bafba;border-radius:999px;background:#f5efe7;color:#3d5b70;font:700 12px Arial,sans-serif;cursor:pointer}',
+  '#dtConceptHome button:focus-visible{outline:3px solid #264e6d;outline-offset:3px}',
+  'body:not(.friend-view):not(.dt-locked) .dog-friends-section{margin-top:12px!important}',
+  'body:not(.friend-view):not(.dt-locked) .snapshot-wrap{margin-top:5px!important}',
+  '@media(max-width:390px){.dt-concept-profile{gap:11px;padding:14px}.dt-concept-profile-photo{width:100px;height:100px;flex-basis:100px}.dt-concept-profile-copy h2{font-size:25px}.dt-concept-profile-copy p{font-size:12px}}'
+  ].join('\n');document.head.appendChild(css);
+  const home=document.createElement('section');home.id='dtConceptHome';home.setAttribute('aria-label','Daily Tail home dashboard');
+  home.innerHTML='<div class="dt-concept-profile"><img id="dtConceptPhoto" class="dt-concept-profile-photo" alt="Lou profile photo"><div class="dt-concept-profile-copy"><h2 id="dtConceptName">Lou</h2><p>My profile · Recent memories</p><button type="button" id="dtConceptProfile" class="dt-concept-open">View profile ›</button></div><img id="dtConceptTag" class="dt-concept-tag" alt="" aria-hidden="true"></div><div class="dt-concept-next"><div class="dt-concept-head"><h3>Up Next</h3><span class="dt-concept-time" id="dtConceptTime">Loading plan…</span></div><div class="dt-concept-task"><input type="checkbox" id="dtConceptCheck" aria-label="Complete next care task"><button type="button" id="dtConceptTask">Check the daily plan</button><span class="dt-concept-chev" aria-hidden="true">›</span></div></div><div class="dt-concept-actions"><button type="button" id="dtConceptCare"><span class="dt-icon" aria-hidden="true">🐾</span>Log Care</button><button type="button" id="dtConceptPlan"><span class="dt-icon" aria-hidden="true">▣</span>Daily Plan</button><button type="button" id="dtConceptMemory"><span class="dt-icon" aria-hidden="true">♡</span>Memory</button></div><div class="dt-concept-extras"><button type="button" id="dtConceptTraining">Training ›</button><button type="button" id="dtConceptEmergency">Emergency Info ›</button></div>';
+  art.before(home);
+  const action=(source,id)=>$(source)?.addEventListener('click',()=>$(id)?.click());
+  action('dtConceptProfile','portraitBtn');
+  action('dtConceptCare','scheduleArt');
+  action('dtConceptPlan','scheduleArt');
+  action('dtConceptMemory','recent');
+  action('dtConceptTraining','trainingArt');
+  action('dtConceptEmergency','emergencyArt');
+  action('dtConceptTask','upNextActivity');
+  $('dtConceptCheck').addEventListener('change',e=>{
+    const original=$('upNextCheck');
+    if(original&&original.checked!==e.target.checked)original.click();
+    requestAnimationFrame(sync);
+  });
+  function sync(){
+    const thumb=$('profileThumb'),tag=$('tagOverlayFront');
+    const image=$('dtConceptPhoto');
+    if(thumb&&thumb.getAttribute('src')&&image.getAttribute('src')!==thumb.getAttribute('src'))image.src=thumb.getAttribute('src');
+    if(tag&&tag.getAttribute('src')&&$('dtConceptTag').getAttribute('src')!==tag.getAttribute('src'))$('dtConceptTag').src=tag.getAttribute('src');
+    const name=$('tagName')?.textContent?.trim()||$('publicDogName')?.textContent?.trim()||'My Dog';
+    if($('dtConceptName').textContent!==name)$('dtConceptName').textContent=name;
+    const originalTime=$('upNextTime')?.textContent?.trim();
+    const originalTask=$('upNextActivity')?.textContent?.trim();
+    $('dtConceptTime').textContent=originalTime||'Today';
+    $('dtConceptTask').textContent=originalTask||'Daily Plan';
+    const checked=!!$('upNextCheck')?.checked;
+    if($('dtConceptCheck').checked!==checked)$('dtConceptCheck').checked=checked;
+  }
+  sync();
+  // Reflect changes made by existing app features without duplicating their data.
+  const observed=['profileThumb','tagOverlayFront','tagName','upNextTime','upNextActivity','upNextCheck'];
+  const mo=new MutationObserver(sync);
+  observed.forEach(id=>{const el=$(id);if(el)mo.observe(el,{attributes:true,characterData:true,childList:true,subtree:true});});
+  document.addEventListener('change',e=>{if(e.target?.id==='upNextCheck')requestAnimationFrame(sync);});
+  window.addEventListener('daily-tail-schedule-change',sync);
+  window.addEventListener('focus',sync);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
+})();
