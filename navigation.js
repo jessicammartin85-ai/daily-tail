@@ -703,3 +703,33 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);else apply();
 })();
+
+
+/* Daily Tails approved leather artwork: load from a single image file.
+   Keeps the previous live header visible until the new asset is uploaded. */
+(function(){
+ function init(){
+  const hero=document.querySelector('#dtConceptHome>.dt-reference-hero');
+  if(!hero||document.getElementById('dtApprovedLogo'))return;
+  const img=document.createElement('img');
+  img.id='dtApprovedLogo';img.alt='Daily Tails leather banner with hanging blank bone tag';
+  img.style.display='none';img.src='./daily-tails-logo.webp';
+  img.onload=()=>{
+   if(!img.naturalWidth)return;
+   const style=document.createElement('style');
+   style.id='dtApprovedLogoStyle';
+   style.textContent=[
+    '#dtConceptHome>.dt-reference-hero{overflow:hidden!important}',
+    '#dtApprovedLogo{display:block!important;position:relative;width:min(78%,350px);height:auto;margin:0 auto -18px;z-index:9;pointer-events:none}',
+    '#dtConceptHome>.dt-reference-hero .dt-ref-head,#dtConceptHome>.dt-reference-hero .dt-ref-bone{display:none!important}',
+    '#dtConceptHome>.dt-reference-hero .dt-ref-inner{min-height:0!important}',
+    '#dtConceptHome>.dt-reference-hero .dt-ref-side{padding:12px 2px 3px 3px!important}',
+    '@media(max-width:400px){#dtApprovedLogo{width:80%;margin-bottom:-12px}.dt-ref-inner{min-height:0!important}}'
+   ].join('\n');
+   document.head.append(style);
+   img.style.display='block';
+  };
+  hero.prepend(img);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
