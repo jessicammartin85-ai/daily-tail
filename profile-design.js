@@ -8,11 +8,11 @@ function start(){
  const home=$('dtConceptHome');
  if(!home||$('dtImageDesignedHome'))return;
  const test=new Image();
- test.onload=()=>{if(test.naturalWidth)build(home);};
+ test.onload=()=>{if(test.naturalWidth)build(home,test);};
  test.onerror=()=>console.warn('Full design art not uploaded yet: retaining previous working dashboard');
  test.src=asset;
 }
-function build(home){
+function build(home,test){
  const source={
   post:$('dtRefRecent'),
   next:home.querySelector('.dt-concept-next'),
