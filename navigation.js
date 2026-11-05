@@ -114,9 +114,10 @@
    "body.friend-view .dt-friend-facts .dt-friend-fact-grid{display:grid!important;grid-template-columns:1fr 1.25fr!important;gap:8px!important}",
    "body.friend-view .dt-friend-facts .dt-friend-fact-grid>div{padding:9px!important;background:#fffaf3!important;border:1px solid #c7d2da!important;border-radius:11px!important}",
    "body.friend-view .dt-friend-facts .dt-facts-quote{margin:8px 0 0!important}",
-   "body.friend-view .art .dt-meet-lou{position:absolute;display:flex;align-items:center;justify-content:center;top:77.5%;left:33%;width:34%;min-height:38px;border:1.5px solid #b7c6ce;border-radius:999px;background:#f8f1e6;color:#35536b;font:700 clamp(11px,2.9vw,14px) Arial,sans-serif;box-shadow:0 2px 7px #35271b35;z-index:12;cursor:pointer}",
+   "body.friend-view .art .dt-meet-lou{position:absolute;display:flex;align-items:center;justify-content:center;top:74%;left:31%;width:38%;min-height:42px;border:1.5px solid #b7c6ce;border-radius:999px;background:#f8f1e6;color:#35536b;font:700 clamp(11px,2.9vw,14px) Arial,sans-serif;box-shadow:0 2px 7px #35271b35;z-index:12;cursor:pointer}",
    "body:not(.friend-view) .art .dt-meet-lou{display:none!important}",
    "body.friend-view .art .dt-meet-lou:focus-visible{outline:3px solid #365c76;outline-offset:3px}",
+   "body.friend-view #dtRoleStrip{display:none!important}",
    "body.friend-view .dog-friends-section{margin-top:12px!important}",
    "@media(max-width:380px){body.friend-view .dt-friend-facts .dt-friend-fact-grid{grid-template-columns:1fr!important}}",
    '@media(min-width:591px){.dt-home-quick{max-width:550px;margin-left:auto!important;margin-right:auto!important}}',
@@ -136,7 +137,7 @@
   });
   art.after(actions);
   const meet=document.createElement('button');meet.type='button';meet.className='dt-meet-lou';
-  meet.textContent='About Lou ↓';meet.setAttribute('aria-label','Jump to Lou’s profile details');
+  meet.textContent='Meet Lou ↓';meet.setAttribute('aria-label','Jump to Lou’s profile details');
   meet.addEventListener('click',()=>facts?.scrollIntoView({behavior:'smooth',block:'start'}));
   art.appendChild(meet);
   const extras=document.createElement('div');extras.className='dt-home-secondary';
