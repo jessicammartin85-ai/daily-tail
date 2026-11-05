@@ -559,3 +559,100 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+
+
+/* One authoritative reference-style header. Retire the legacy header instead of
+   stacking more absolute-position fixes. Preserve original data and event handlers. */
+(function(){
+ function install(){
+  const $=id=>document.getElementById(id);
+  const home=$('dtConceptHome'),legacy=home?.querySelector('.dt-concept-profile');
+  if(!home||!legacy||home.querySelector('.dt-reference-hero'))return;
+  const style=document.createElement('style');style.id='dtReferenceHeroStyles';
+  style.textContent=[
+   '#dtConceptHome>.dt-concept-profile{display:none!important}',
+   '#dtConceptHome>.dt-reference-hero{display:block!important;position:relative;isolation:isolate;background:#b4774a;border:3px solid #171717;border-radius:24px;overflow:hidden;box-shadow:0 4px 0 #829aaa,0 7px 12px #1d344526;color:#fff7ed;min-height:0;padding:12px 13px 17px}',
+   '.dt-reference-hero:before{content:"";position:absolute;inset:8px;border:1.5px dotted #e0c3a5;border-radius:17px;pointer-events:none;opacity:.83}',
+   '.dt-ref-head{font:700 clamp(24px,5.9vw,31px)/1.15 Georgia,serif;text-align:center;margin:0 28px 13px;color:#fff9ef;text-shadow:0 2px 2px #724529;position:relative;z-index:3}',
+   '.dt-ref-inner{display:grid;grid-template-columns:minmax(0,39%) minmax(0,61%);gap:0;align-items:center;position:relative;z-index:3}',
+   '.dt-ref-photo-col{display:flex;align-items:center;justify-content:center;min-width:0;padding:0 8px 0 2px}',
+   '.dt-ref-photo{display:block;width:100%;max-width:175px;aspect-ratio:1;object-fit:cover;background:#e9d6bd;border:4px solid #cadce7;border-radius:50%;box-shadow:0 2px 7px #4e392a6b}',
+   '.dt-ref-side{min-width:0;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:8px;padding:0 2px 0 4px}',
+   '.dt-ref-bone{position:relative;width:100%;height:91px;display:flex;align-items:center;justify-content:center}',
+   '.dt-ref-bone img{height:100%;width:min(100%,165px);object-fit:contain;filter:drop-shadow(0 2px 2px #4a352952)}',
+   '.dt-ref-bone span{position:absolute;left:50%;top:49%;transform:translate(-50%,-50%) rotate(-12deg);max-width:125px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font:700 clamp(17px,4.2vw,23px)/1 Georgia,serif;color:#565c61;text-shadow:0 1px 1px #fff;pointer-events:none}',
+   '.dt-ref-memory{position:relative;display:flex;flex-direction:column;width:100%;background:#fff8ef;color:#243b4c;border:2px solid #a8c4d6;border-radius:15px;padding:10px 9px 8px;min-height:73px;text-align:left;box-shadow:0 2px 4px #3f281e50;cursor:pointer}',
+   '.dt-ref-memory-label{display:inline-block;align-self:flex-start;background:#b4ccd9;color:#263f51;font:700 10px/1.2 Arial,sans-serif;padding:3px 9px;border-radius:20px;margin:-22px 0 5px -2px;white-space:nowrap}',
+   '.dt-ref-memory-line{display:flex;align-items:center;gap:8px;width:100%;min-width:0}',
+   '.dt-ref-memory-thumb{width:39px;height:39px;flex:0 0 39px;border-radius:8px;object-fit:cover;border:1px solid #bdcbd2}',
+   '.dt-ref-memory-text{flex:1;min-width:0}',
+   '.dt-ref-memory-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:700 clamp(14px,3.3vw,19px)/1.12 Georgia,serif}',
+   '.dt-ref-memory-sub{display:block;font:italic clamp(10px,2.4vw,13px)/1.2 Georgia,serif;color:#65594f;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+   '.dt-ref-memory-arrow{font:24px Georgia,serif;color:#456479}',
+   '.dt-ref-watercolor{position:absolute;inset:0;pointer-events:none;z-index:2}',
+   '.dt-ref-watercolor img{position:absolute;width:32px;height:32px;object-fit:contain}',
+   '.dt-ref-watercolor .one{left:8%;top:15%;transform:rotate(-19deg)}',
+   '.dt-ref-watercolor .two{right:7%;top:15%;transform:rotate(23deg)}',
+   '.dt-ref-watercolor .three{left:7%;bottom:7%;transform:rotate(-25deg);width:27px;height:27px}',
+   '.dt-ref-watercolor .four{right:7%;bottom:6%;transform:rotate(22deg);width:27px;height:27px}',
+   '#dtConceptHome .dt-reference-hero button:focus-visible{outline:3px solid #e8f2f8;outline-offset:3px}',
+   '@media(max-width:400px){#dtConceptHome>.dt-reference-hero{padding:11px 9px 13px}.dt-ref-head{margin-bottom:12px}.dt-ref-inner{grid-template-columns:minmax(0,38%) minmax(0,62%)}.dt-ref-photo-col{padding-right:5px}.dt-ref-side{gap:7px;padding-left:3px}.dt-ref-bone{height:78px}.dt-ref-memory{min-height:67px;padding:9px 6px 6px}.dt-ref-memory-thumb{width:32px;height:32px;flex-basis:32px}.dt-ref-memory-line{gap:5px}.dt-ref-memory-title{font-size:14px}.dt-ref-memory-sub{font-size:10px}.dt-ref-memory-label{font-size:9px}.dt-ref-watercolor .one{left:6%}.dt-ref-watercolor .two{right:6%}}'
+  ].join('\n');document.head.appendChild(style);
+  const section=document.createElement('section');section.className='dt-reference-hero';section.setAttribute('aria-label','Dog profile and latest memory');
+  section.innerHTML='<h2 class="dt-ref-head">Daily Tail</h2><div class="dt-ref-inner"><div class="dt-ref-photo-col"><img class="dt-ref-photo" id="dtRefPhoto" alt="Dog profile photo"></div><div class="dt-ref-side"><div class="dt-ref-bone"><img id="dtRefBone" alt=""><span id="dtRefName"></span></div><button type="button" class="dt-ref-memory" id="dtRefRecent"><span class="dt-ref-memory-label">✦ RECENT POST</span><span class="dt-ref-memory-line"><img id="dtRefThumb" class="dt-ref-memory-thumb" alt="" hidden><span class="dt-ref-memory-text"><strong id="dtRefTitle" class="dt-ref-memory-title">Recent memory</strong><small id="dtRefSummary" class="dt-ref-memory-sub">Tap to explore</small></span><span class="dt-ref-memory-arrow" aria-hidden="true">›</span></span></button></div></div><div class="dt-ref-watercolor" id="dtRefWatercolor" aria-hidden="true"></div>';
+  legacy.before(section);
+  $('dtRefRecent').addEventListener('click',()=>$('recent')?.click());
+  function sync(){
+   const from=$('profileThumb'),photo=$('dtRefPhoto'),bone=$('tagOverlayFront'),tag=$('dtRefBone');
+   if(from?.getAttribute('src')&&photo.getAttribute('src')!==from.getAttribute('src'))photo.src=from.src;
+   if(bone?.getAttribute('src')&&tag.getAttribute('src')!==bone.getAttribute('src'))tag.src=bone.src;
+   const name=$('tagName')?.textContent?.trim()||'My Dog';$('dtRefName').textContent=name;
+   const recent=$('recentPostThumb'),thumb=$('dtRefThumb');
+   if(recent?.getAttribute('src')){if(thumb.src!==recent.src)thumb.src=recent.src;thumb.hidden=false;}else thumb.hidden=true;
+   $('dtRefTitle').textContent=$('recentPostTitle')?.textContent?.trim()||'Recent memory';
+   $('dtRefSummary').textContent=$('recentPostSummary')?.textContent?.trim()||'Tap to explore';
+  }
+  sync();
+  const obs=new MutationObserver(sync);
+  ['profileThumb','tagOverlayFront','tagName','recentPostThumb','recentPostTitle','recentPostSummary'].forEach(id=>{
+   if($(id))obs.observe($(id),{attributes:true,childList:true,characterData:true,subtree:true});
+  });
+  // Paint the exact original watercolor paws, never substitute emoji glyphs.
+  // Select a small corner of the existing artwork and make the plain brown paint transparent.
+  const artwork=$('themeArtwork'),paint=$('dtRefWatercolor');
+  function extract(){
+   if(!artwork?.naturalWidth||paint.childElementCount)return;
+   const w=artwork.naturalWidth,h=artwork.naturalHeight;
+   // Upper-left painted paw on the original terracotta art.
+   const cx=Math.round(w*.257),cy=Math.round(h*.175);
+   const size=Math.round(Math.min(w*.16,h*.12));
+   const sx=Math.max(0,cx-size/2),sy=Math.max(0,cy-size/2);
+   const c=document.createElement('canvas');c.width=size;c.height=size;
+   const ctx=c.getContext('2d',{willReadFrequently:true});if(!ctx)return;
+   try{
+    ctx.drawImage(artwork,sx,sy,size,size,0,0,size,size);
+    const image=ctx.getImageData(0,0,size,size),v=image.data;
+    let minx=size,miny=size,maxx=-1,maxy=-1,count=0;
+    for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+     const p=4*(y*size+x),R=v[p],G=v[p+1],B=v[p+2];
+     // Original paw paint is pale blue and blue-gray, unlike the terracotta background.
+     const isBlue=(B>125&&B>=R-5&&B>=G-10&&G>105&&R>80&&!(R>225&&G>220&&B>215));
+     if(!isBlue){v[p+3]=0;continue;}
+     count++;minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y);
+    }
+    if(count<70||maxx-minx<15||maxy-miny<15)return;
+    ctx.putImageData(image,0,0);
+    const pad=6,ww=maxx-minx+1+2*pad,hh=maxy-miny+1+2*pad;
+    const out=document.createElement('canvas');out.width=ww;out.height=hh;
+    out.getContext('2d').drawImage(c,minx-pad,miny-pad,ww,hh,0,0,ww,hh);
+    const url=out.toDataURL('image/png');
+    for(const cls of ['one','two','three','four']){
+     const img=document.createElement('img');img.className=cls;img.alt='';img.src=url;paint.appendChild(img);
+    }
+   }catch(e){console.warn('Cannot read original watercolor artwork for paw decoration.',e);}
+  }
+  if(artwork?.complete&&artwork.naturalWidth)extract();
+  else artwork?.addEventListener('load',extract,{once:true});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+})();
