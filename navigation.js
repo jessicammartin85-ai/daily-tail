@@ -658,3 +658,48 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
+
+/* Nov 5: a single real-looking tag connection, without a drawn connector line.
+   This only restyles the reference hero and leaves all care and profile events intact. */
+(function(){
+ function apply(){
+  const hero=document.querySelector('#dtConceptHome>.dt-reference-hero');
+  if(!hero||document.getElementById('dtHangingTagFix'))return;
+  const css=document.createElement('style');css.id='dtHangingTagFix';
+  css.textContent=`
+   #dtConceptHome>.dt-reference-hero{overflow:visible!important}
+   .dt-ref-head{position:relative!important;z-index:5!important;width:max-content!important;max-width:90%!important;padding:7px 20px 8px!important;margin:0 auto 5px!important;font-size:clamp(23px,5.7vw,33px)!important;line-height:1.1!important}
+   .dt-ref-head:after,#dtConceptHome .dt-ref-head:after{
+     content:""!important;position:absolute!important;display:block!important;
+     left:86%!important;bottom:-7px!important;top:auto!important;
+     width:12px!important;height:12px!important;border-radius:50%!important;
+     transform:translateX(-50%)!important;
+     border:3px solid #9b7755!important;
+     background:radial-gradient(circle,#503523 0 52%,#72492e 57% 100%)!important;
+     box-shadow:inset 0 1px 3px #29170f,0 1px 1px #fff7df!important;
+     z-index:8!important;pointer-events:none!important;
+   }
+   .dt-ref-inner{position:relative!important;min-height:172px!important;align-items:end!important}
+   .dt-ref-photo-col{align-self:center!important}
+   .dt-ref-side{align-self:stretch!important;justify-content:flex-end!important;padding:71px 2px 3px 3px!important}
+   .dt-ref-bone{position:absolute!important;left:calc(74% - 49px)!important;top:-9px!important;
+      margin:0!important;width:98px!important;height:78px!important;
+      display:flex!important;align-items:center!important;justify-content:center!important;
+      z-index:6!important;pointer-events:none!important}
+   .dt-ref-bone img{width:100%!important;height:100%!important;object-fit:contain!important;
+      filter:drop-shadow(0 2px 2px #38251a70)!important}
+   .dt-ref-bone span{top:66%!important;left:50%!important;max-width:70px!important;
+      font:700 clamp(12px,3vw,16px)/1 Georgia,serif!important}
+   .dt-ref-memory{margin-top:0!important}
+   @media(max-width:400px){
+      .dt-ref-head{font-size:clamp(21px,6vw,28px)!important;padding:7px 15px!important}
+      .dt-ref-inner{min-height:151px!important}
+      .dt-ref-side{padding-top:66px!important}
+      .dt-ref-bone{left:calc(74% - 43px)!important;width:86px!important;height:72px!important;top:-7px!important}
+      .dt-ref-bone span{font-size:13px!important;top:65%!important}
+   }
+  `;
+  document.head.appendChild(css);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);else apply();
+})();
