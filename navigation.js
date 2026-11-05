@@ -90,7 +90,9 @@
    '.dt-home-quick button:first-child{background:#365c76;color:#fff;border-color:#365c76}',
    '.dt-home-quick .dt-quick-symbol{font-size:25px;line-height:1}',
    '.dt-home-quick button:focus-visible{outline:3px solid #bc855c;outline-offset:2px}',
-   'body.friend-view .dt-home-quick,body.dt-locked .dt-home-quick{display:none!important}',
+   'body.friend-view .dt-home-quick,body.dt-locked .dt-home-quick,body.friend-view .dt-home-secondary,body.dt-locked .dt-home-secondary{display:none!important}',
+   '.dt-home-secondary{display:flex;justify-content:center;gap:8px;padding:9px 15px 0}',
+   '.dt-home-secondary button{background:#e4edf2;border:1px solid #9caebb;border-radius:999px;color:#334f60;font:700 12px Arial,sans-serif;padding:8px 16px;min-height:36px;cursor:pointer}',
    'body:not(.friend-view):not(.dt-locked) .art .art-nav{display:none!important}',
    'body:not(.friend-view):not(.dt-locked) .snapshot-wrap{margin-top:0!important;padding-top:8px!important}',
    'body:not(.friend-view):not(.dt-locked) .dog-friends-section{width:auto;margin:13px 15px 0!important;padding:14px!important;border-radius:18px;box-shadow:0 3px 9px #273b4820}',
@@ -107,7 +109,7 @@
    '#dtBottomNav [data-dt-tab=more] .dt-nav-icon{font-size:22px}',
    '@media(min-width:591px){.dt-home-quick{max-width:550px;margin-left:auto!important;margin-right:auto!important}}',
    '@media(max-width:360px){.dt-home-quick{gap:6px!important;margin-left:10px!important;margin-right:10px!important}.dt-home-quick button{font-size:12px!important}}'
-  ].join('\\n');
+  ].join('\n');
   document.head.appendChild(style);
   const actions=document.createElement('div');actions.id='dtHomeQuick';actions.className='dt-home-quick';actions.setAttribute('aria-label','Quick actions');
   const links=[
@@ -121,6 +123,12 @@
    actions.appendChild(b);
   });
   art.after(actions);
+  const extras=document.createElement('div');extras.className='dt-home-secondary';
+  [['Training','trainingArt'],['Emergency Info','emergencyArt']].forEach(([label,target])=>{
+   const b=document.createElement('button');b.type='button';b.textContent=label+' ›';
+   b.addEventListener('click',()=>$(target)?.click());extras.appendChild(b);
+  });
+  actions.after(extras);
   // Move the original friends panel, not a copy, so profiles and request handlers stay connected.
   function positionFriends(){
    if(document.body.classList.contains('friend-view')){
