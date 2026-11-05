@@ -152,7 +152,7 @@
    if(document.body.classList.contains('friend-view')){
     if(facts&&facts.parentNode&&facts.nextElementSibling!==friends)facts.after(friends);
    }else{
-    if(extras.nextElementSibling!==friends)extras.after(friends);
+    const timeline=document.getElementById('dtTimelineDashboard');const anchor=timeline||extras;if(anchor.nextElementSibling!==friends)anchor.after(friends);
    }
   }
   positionFriends();
