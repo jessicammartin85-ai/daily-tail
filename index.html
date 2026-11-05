@@ -1433,7 +1433,7 @@ if($('upNextCheck')) $('upNextCheck').onchange=e=>{
  if(!id)return;
  if(e.currentTarget.checked)state.done[id]=true;else delete state.done[id];
  save();updateUpNext();
-}; window.DailyTailSchedule={getEntries:()=>plan(weeks()).flatMap(g=>g[1]),getDone:()=>state.done};updateUpNext();window.addEventListener('focus',updateUpNext);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateUpNext()});window.setInterval(updateUpNext,60000);window.addEventListener('storage',e=>{if(e.key===KEY){try{state={done:{},...JSON.parse(e.newValue||'{}')}}catch{state={done:{}}}updateUpNext()}});
+}; window.DailyTailSchedule={getEntries:()=>plan(weeks()).flatMap(g=>g[1]),getDone:()=>state.done,setDone:(index,checked)=>{const events=plan(weeks()).flatMap(g=>g[1]);if(!Number.isInteger(index)||index<0||index>=events.length)return false;const id=day()+'|'+index;if(checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();return true;}};updateUpNext();window.addEventListener('focus',updateUpNext);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateUpNext()});window.setInterval(updateUpNext,60000);window.addEventListener('storage',e=>{if(e.key===KEY){try{state={done:{},...JSON.parse(e.newValue||'{}')}}catch{state={done:{}}}updateUpNext()}});
 })();
 
 /* Daily journal and snapshot. All entries are local to this browser. */
