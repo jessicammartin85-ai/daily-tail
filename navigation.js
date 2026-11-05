@@ -457,13 +457,20 @@
   toggle.addEventListener('click',()=>{
     expanded=!expanded;
     renderExpanded();
+    if(expanded)update();
   });
   renderExpanded();
   $('dtTimelineAll').addEventListener('click',()=>$('scheduleArt')?.click());
   const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
   function update(){
    if(document.body.classList.contains('friend-view')||document.body.classList.contains('dt-locked'))return;
-   const sch=window.DailyTailSchedule;if(!sch)return;
+   const sch=window.DailyTailSchedule;
+   if(!sch?.getEntries||!sch?.getDone){
+    if(!items.children.length){
+     const li=document.createElement('li');li.textContent='Loading today’s activities…';items.append(li);
+    }
+    return;
+   }
    const entries=sch.getEntries(),done=sch.getDone(),key=today();
    const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
    const toMinutes=t=>{const m=/^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(t||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3]==='PM'?720:0):Number.MAX_SAFE_INTEGER};
@@ -490,8 +497,22 @@
   // The original plan UI fires custom updates; this also catches returning from the plan dialog.
   $('close')?.addEventListener('click',update);
   $('dtTimelineAll').addEventListener('click',()=>setTimeout(update,300));
-  update();
-  requestAnimationFrame(()=>{const friendsNow=document.querySelector('.dog-friends-section');if(friendsNow&&section.nextElementSibling!==friendsNow)friendsNow.before(section);update();});
+  // The source schedule can initialize after this dashboard. Keep the expanded
+  // list honest and retry until the shared schedule API is actually ready.
+  let initAttempts=0;
+  const initialLoad=()=>{
+   if(window.DailyTailSchedule?.getEntries){
+    update();
+    return;
+   }
+   if(++initAttempts<60)setTimeout(initialLoad,200);
+  };
+  initialLoad();
+  requestAnimationFrame(()=>{
+   const friendsNow=document.querySelector('.dog-friends-section');
+   if(friendsNow&&section.nextElementSibling!==friendsNow)friendsNow.before(section);
+   if(window.DailyTailSchedule?.getEntries)update();
+  });
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
