@@ -16,7 +16,7 @@ function start(){
    '<div class="dt-friend-design-logo" role="img" aria-label="Daily Tails leather nameplate with hanging silver bone"><span id="dtFriendTagName" class="dt-friend-tag-name" aria-label="Dog name"></span></div>'+
   '</div>'+
   '<div class="dt-friend-design-right">'+
-   '<button class="dt-friend-design-recent" type="button" id="dtFriendDesignRecent" aria-label="Read recent shared posts"><span class="dt-friend-design-eyebrow">✦ RECENT POST</span><strong id="dtFriendDesignTitle">Recent post</strong><em id="dtFriendDesignSummary">Tap to read shared memories</em><span class="dt-friend-design-chevron" aria-hidden="true">›</span></button>'+
+   '<button class="dt-friend-design-recent" type="button" id="dtFriendDesignRecent" aria-label="Read recent shared posts"><span class="dt-friend-design-eyebrow">✦ RECENT POST</span><span class="dt-friend-recent-body"><img class="dt-friend-recent-thumb" id="dtFriendDesignThumb" alt="Photo from recent shared post" hidden><span class="dt-friend-recent-copy"><strong id="dtFriendDesignTitle">Recent post</strong><em id="dtFriendDesignSummary">Tap to read shared memories</em></span></span><span class="dt-friend-design-chevron" aria-hidden="true">›</span></button>'+
    '<div class="dt-friend-design-facts" aria-label="About this dog"><h2><img class="dt-friend-dog-face" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAZCAMAAAAc9R5vAAAASFBMVEVaWFMgHh2dmZOrqaT///3y8e95fHzz7uSDgXzU0MhCQD1APTurq6tgX12AfHb/f3/CwbzGw74qKSeIiIIAAAACAgL///84NjTQLIe3AAAAGHRSTlP4/fCpMVcD6PKY/v4Drf4CbJm0WgD+CP2QBnPPAAABLElEQVR42lVSCXLEMAgTvuIce7UG/v/TCifbdplMHKNIIGyMd9jHMvDOt2G1lGpv5AIeY5TcgZ7sIuHi2xOiDMFq4/hjWIVeEYidgFHmN6/6lQNB5GsSFQkth4h6NmtT6im+OxHqiGwuXscRDMva3ZOHDhdSSQENsHASLLMMFzJ7HWChzG+on6VdAdILjlGAqU8T0woohheB1Ylwp2ldu0R35HyjWd4oBNZeGOKJGyBj1L5H97SCZUnKD9KRYJnCG6Y9MlXuzIfdcnYZOU0ppuhnxm4sqzu586GI+Jxy7TEeeKrr63bLlXODRMOZvW16d56QMVohEMpYt3DnkqzNkylJY1qCORDWyvZoQbG86/TYrOYwdN0CvmLLWcXGSvl/i0qxOEGbfzb7vF/2A+FtHczsmsouAAAAAElFTkSuQmCC" alt="" aria-hidden="true"> About <span id="dtFriendDesignName">My Dog</span></h2><div class="dt-friend-design-factgrid"><div><small>BREED</small><strong id="dtFriendDesignBreed">Not added yet</strong></div><div><small>BIRTHDAY & AGE</small><strong id="dtFriendDesignBirthday">Not added yet</strong></div></div><p id="dtFriendDesignQuote"></p></div>'+
   '</div>'+
  '</div>';
@@ -37,6 +37,11 @@ function start(){
  '#dtFriendDesignHome .dt-friend-design-right{display:flex;flex-direction:column;gap:12px;min-width:0;position:relative;z-index:3}',
  '#dtFriendDesignHome .dt-friend-design-recent{position:relative;display:flex;flex-direction:column;min-height:113px;text-align:left;background:#fffaf1;border:2px solid #e3cfb4;box-shadow:0 2px 5px #4b31202c;border-radius:18px;padding:24px 27px 12px 14px;color:#294b63;cursor:pointer;max-width:100%;min-width:0}',
  '#dtFriendDesignHome .dt-friend-design-eyebrow{position:absolute;top:-14px;left:10px;border-radius:999px;background:#35617b;color:white;padding:5px 11px;font:700 12px Arial,sans-serif;box-shadow:0 2px 3px #2c43514a}',
+ '#dtFriendDesignHome .dt-friend-recent-body{display:flex;align-items:center;gap:11px;width:100%;min-width:0}',
+ '#dtFriendDesignHome .dt-friend-recent-thumb{display:block;flex:0 0 61px;width:61px;height:61px;object-fit:cover;border-radius:11px;border:1px solid #d4c5b2;background:#e7ded2}',
+ '#dtFriendDesignHome .dt-friend-recent-thumb[hidden]{display:none!important}',
+ '#dtFriendDesignHome .dt-friend-recent-copy{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1}',
+ '#dtFriendDesignHome.dt-friend-narrow .dt-friend-recent-thumb{flex-basis:55px;width:55px;height:55px}',
  '#dtFriendDesignHome .dt-friend-design-recent strong{font:700 clamp(17px,3.1vw,23px)/1.12 Georgia,serif;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;max-width:100%;overflow-wrap:break-word}',
  '#dtFriendDesignHome .dt-friend-design-recent em{font:italic clamp(11px,2.1vw,16px)/1.3 Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;margin-top:5px}',
  '#dtFriendDesignHome .dt-friend-design-chevron{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:27px;color:#365f79}',
@@ -109,13 +114,26 @@ function start(){
    dtFriendDesignQuote:$('dtFactsQuote')?.textContent?.trim()||''
   };
   for(const [id,value] of Object.entries(values)){const el=$(id);if(el&&el.textContent!==value)el.textContent=value;}
+  // Use the thumbnail already selected by Friend View's public-memory filter.
+  // Never substitute a private owner-only post image.
+  const sharedThumb=$('recentPostThumb'),previewThumb=$('dtFriendDesignThumb');
+  if(previewThumb){
+   const source=sharedThumb&&!sharedThumb.hidden?sharedThumb.getAttribute('src'):null;
+   if(source){
+    if(previewThumb.getAttribute('src')!==source)previewThumb.setAttribute('src',source);
+    previewThumb.hidden=false;
+   }else{
+    previewThumb.hidden=true;
+    previewThumb.removeAttribute('src');
+   }
+  }
   copyPaws();
   requestAnimationFrame(fitTagName);
  };
  sync();
- const tracked=['profileThumb','recentPostTitle','recentPostSummary','dtFactsDogName','dtFactsBreed','dtFactsBirthday','dtFactsQuote'];
+ const tracked=['profileThumb','recentPostTitle','recentPostSummary','recentPostThumb','dtFactsDogName','dtFactsBreed','dtFactsBirthday','dtFactsQuote'];
  const observer=new MutationObserver(sync);
- for(const id of tracked){const el=$(id);if(el)observer.observe(el,{childList:true,characterData:true,attributes:id==='profileThumb',subtree:true});}
+ for(const id of tracked){const el=$(id);if(el)observer.observe(el,{childList:true,characterData:true,attributes:id==='profileThumb'||id==='recentPostThumb',attributeFilter:id==='recentPostThumb'?['src','hidden']:id==='profileThumb'?['src']:undefined,subtree:true});}
  const artPaw=$('dtImageDesignedHome')?.querySelector('.dt-design-paws');
  if(artPaw)observer.observe(artPaw,{childList:true});
  new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
