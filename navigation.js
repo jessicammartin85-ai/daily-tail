@@ -107,13 +107,16 @@
    'body:not(.friend-view):not(.dt-locked) .snapshot-head{position:relative}',
    'body:not(.friend-view):not(.dt-locked) #themeSettingsBtn{display:none!important}',
    '#dtBottomNav [data-dt-tab=more] .dt-nav-icon{font-size:22px}',
-   "body.friend-view .art .tag-overlay-front,body.friend-view .art .tag-zone{top:41.5%!important;left:38%!important;width:24%!important;height:7%!important}",
-   "body.friend-view .art .tag-zone .tag-name{font-size:clamp(14px,3.4vw,22px)!important}",
+   "body.friend-view .art .tag-overlay-front,body.friend-view .art .tag-zone{top:58.5%!important;left:34.5%!important;width:31%!important;height:12%!important}",
+   "body.friend-view .art .tag-zone .tag-name{font-size:clamp(17px,4.2vw,27px)!important}",
    "body.friend-view .dt-friend-facts{position:relative!important;display:block!important;left:auto!important;top:auto!important;right:auto!important;width:calc(100% - 30px)!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:12px 15px 0!important;padding:14px!important;background:#dce7ee!important;border:1.5px solid #9eb4c3!important;border-radius:18px!important;z-index:auto!important}",
    "body.friend-view .dt-friend-facts .dt-friend-facts-head{display:flex!important;margin-bottom:10px!important}",
    "body.friend-view .dt-friend-facts .dt-friend-fact-grid{display:grid!important;grid-template-columns:1fr 1.25fr!important;gap:8px!important}",
    "body.friend-view .dt-friend-facts .dt-friend-fact-grid>div{padding:9px!important;background:#fffaf3!important;border:1px solid #c7d2da!important;border-radius:11px!important}",
    "body.friend-view .dt-friend-facts .dt-facts-quote{margin:8px 0 0!important}",
+   "body.friend-view .art .dt-meet-lou{position:absolute;display:flex;align-items:center;justify-content:center;top:77.5%;left:33%;width:34%;min-height:38px;border:1.5px solid #b7c6ce;border-radius:999px;background:#f8f1e6;color:#35536b;font:700 clamp(11px,2.9vw,14px) Arial,sans-serif;box-shadow:0 2px 7px #35271b35;z-index:12;cursor:pointer}",
+   "body:not(.friend-view) .art .dt-meet-lou{display:none!important}",
+   "body.friend-view .art .dt-meet-lou:focus-visible{outline:3px solid #365c76;outline-offset:3px}",
    "body.friend-view .dog-friends-section{margin-top:12px!important}",
    "@media(max-width:380px){body.friend-view .dt-friend-facts .dt-friend-fact-grid{grid-template-columns:1fr!important}}",
    '@media(min-width:591px){.dt-home-quick{max-width:550px;margin-left:auto!important;margin-right:auto!important}}',
@@ -132,6 +135,10 @@
    actions.appendChild(b);
   });
   art.after(actions);
+  const meet=document.createElement('button');meet.type='button';meet.className='dt-meet-lou';
+  meet.textContent='About Lou ↓';meet.setAttribute('aria-label','Jump to Lou’s profile details');
+  meet.addEventListener('click',()=>facts?.scrollIntoView({behavior:'smooth',block:'start'}));
+  art.appendChild(meet);
   const extras=document.createElement('div');extras.className='dt-home-secondary';
   [['Training','trainingArt'],['Emergency Info','emergencyArt']].forEach(([label,target])=>{
    const b=document.createElement('button');b.type='button';b.textContent=label+' ›';
