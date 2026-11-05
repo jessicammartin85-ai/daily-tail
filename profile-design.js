@@ -38,6 +38,25 @@ function build(home,test){
  emergency.innerHTML='<span aria-hidden="true" class="dt-design-plus">✚</span><span>Emergency Info</span>';
  emergency.onclick=()=>{const target=$('dtConceptEmergency')||$('emergencyArt');target?.click();};
  host.querySelector('.dt-design-emergency').append(emergency);
+ const tagButton=document.createElement('button');
+ tagButton.type='button';tagButton.id='dtDesignDogName';tagButton.className='dt-design-dogname';
+ tagButton.setAttribute('aria-label','Edit dog name on silver bone tag');
+ const nameSpan=document.createElement('span');nameSpan.id='dtDesignDogNameText';tagButton.append(nameSpan);
+ host.querySelector('.dt-design-logo').append(tagButton);
+ const syncDogName=()=>{
+  const dogName=$('tagName')?.textContent?.trim()||$('publicDogName')?.textContent?.trim()||'My Dog';
+  nameSpan.textContent=dogName;tagButton.title='Edit name: '+dogName;
+  tagButton.setAttribute('aria-label','Edit dog name: '+dogName);
+  nameSpan.style.fontSize=dogName.length>18?'clamp(8px,1.65vw,12px)':dogName.length>12?'clamp(10px,1.9vw,14px)':'clamp(12px,2.3vw,18px)';
+ };
+ syncDogName();
+ const originalName=$('tagName');
+ if(originalName)new MutationObserver(syncDogName).observe(originalName,{characterData:true,childList:true,subtree:true});
+ tagButton.addEventListener('click',()=>{
+  if(document.body.classList.contains('dt-locked')||document.body.classList.contains('friend-view'))return;
+  $('tag')?.click();
+ });
+
  $('dtDesignPortrait').onclick=()=>{const target=$('dtConceptProfile')||$('portraitBtn');target?.click();};
  function syncPhoto(){
   const src=$('profileThumb')?.getAttribute('src')||$('dtRefPhoto')?.getAttribute('src')||'';
@@ -80,6 +99,10 @@ function build(home,test){
  '#dtImageDesignedHome .dt-design-portrait{position:absolute;left:3.7%;top:9.5%;width:26%;aspect-ratio:1;border-radius:50%;border:4px solid #1d1714;overflow:hidden;background:#ead5b6;cursor:pointer;padding:0;z-index:2}',
  '#dtImageDesignedHome .dt-design-portrait img{width:100%;height:100%;object-fit:cover;display:block}',
  '#dtImageDesignedHome .dt-design-logo{position:absolute;left:3.7%;top:48%;width:27.5%;height:48%;z-index:3;pointer-events:none;background:url("./daily-tails-design.webp") no-repeat;background-size:100cqw 43.24cqw;background-position:-3.7cqw -20.75cqw}',
+ '#dtImageDesignedHome .dt-design-logo{pointer-events:auto!important}',
+ '#dtImageDesignedHome .dt-design-dogname{position:absolute;top:66%;left:29%;width:47%;height:30%;display:flex;align-items:center;justify-content:center;padding:12px 5px 4px;border:0;background:transparent;cursor:pointer;color:#52565a;text-shadow:0 1px 1px #ffffffd9;font:700 clamp(12px,2.3vw,18px)/1 Georgia,serif;z-index:7;transform:rotate(-5deg)}',
+ '#dtImageDesignedHome .dt-design-dogname span{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+ '#dtImageDesignedHome .dt-design-dogname:focus-visible{outline:2px solid #275773!important;border-radius:40%;outline-offset:2px}',
  '#dtImageDesignedHome .dt-design-recent{position:absolute;left:32.3%;top:7%;width:58.5%;z-index:4}',
  '#dtImageDesignedHome .dt-design-next{position:absolute;left:32.3%;top:43%;width:58.5%;z-index:4}',
  '#dtImageDesignedHome .dt-design-actions{position:absolute;left:32.3%;top:66%;width:58.5%;z-index:4}',
@@ -123,6 +146,7 @@ function build(home,test){
  '#dtImageDesignedHome .dt-design-content{position:relative;display:flex;flex-direction:column;inset:auto;align-items:stretch;gap:12px;z-index:2}',
  '#dtImageDesignedHome .dt-design-portrait{position:relative;left:auto;top:auto;align-self:center;width:min(48%,190px);border:4px solid #d1dfeb;margin:10px 0 0;z-index:3}',
  '#dtImageDesignedHome .dt-design-logo{position:relative;left:auto;top:auto;width:min(72%,260px);height:auto;aspect-ratio:780/586;margin:-35px auto -20px;background:url("./daily-tails-logo.webp") center/contain no-repeat;z-index:5}',
+ '#dtImageDesignedHome .dt-design-dogname{top:66%;left:30%;width:45%;height:30%;padding:14px 3px 3px;pointer-events:auto}',
  '#dtImageDesignedHome .dt-design-recent,#dtImageDesignedHome .dt-design-next,#dtImageDesignedHome .dt-design-actions{position:relative;left:auto;top:auto;width:100%;padding:0 3px}',
  '#dtImageDesignedHome .dt-design-emergency{position:relative;left:auto;top:auto;width:100%;height:auto;align-self:center;max-width:180px}',
  '#dtImageDesignedHome .dt-ref-memory{min-height:90px!important;padding:16px 10px 11px!important}',
