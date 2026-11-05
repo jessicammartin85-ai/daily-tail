@@ -39,3 +39,26 @@ This is an **isolated account connection lab**, not a cloud migration or product
 
 ## Next coding milestone
 Introduce a feature-flagged authentication adapter in the main UI on the development branch, retaining local login as the default. Follow with a separate cloud data adapter and a test dog. Do not replace existing local data or publish to main until verified.
+
+## Deploy an isolated preview (Windows, one-time manual procedure)
+
+The development branch now includes `firebase-preview/index.html` and `firebase.json`. The Hosting configuration serves **only** the lab folder, never `index.html` or dog data.
+
+1. From the branch page on GitHub, choose **Code → Download ZIP**, then extract it. Ensure the extracted folder contains `firebase.json` and `firebase-preview`.
+2. If Node.js is not installed, install the current LTS version from https://nodejs.org/. In Windows File Explorer, open the extracted project folder, click the address bar, type `cmd`, and press Enter to open Command Prompt in that directory.
+3. Run `npx --yes firebase-tools login`, then sign in with the Google account that owns the **daily-tail** Firebase project. Confirm the project with `npx --yes firebase-tools projects:list`.
+4. Run **only** this preview command:
+
+   ```shell
+   npx --yes firebase-tools hosting:channel:deploy account-lab --project daily-tail --expires 7d
+   ```
+
+   Never use `firebase deploy` or `--only hosting` here: those target the live Firebase Hosting channel.
+5. Copy the actual preview URL printed by the command. Do not guess it.
+6. Email/password can be tested first. For Google sign-in, add the **exact preview hostname** (not URL/path) to Firebase Authentication → Settings → Authorized domains if needed; do not authorize unrelated domains.
+7. Use a disposable test account. Run the private database smoke test and verify success.
+8. When the preview expires, its link stops working; re-deploy only with the preview command when testing further.
+
+**Notes:** Firebase Hosting preview URLs are publicly accessible to anyone with the URL. The lab only contains the Firebase public web config and test UI, not Lou's data. However, the lab connects to the same real Firebase Authentication and Firestore project. Never test with real private dog data. If Firebase Hosting hasn't been activated in the Firebase Console, visit Build → Hosting and complete Get started without deploying to live.
+
+Official guidance: https://firebase.google.com/docs/hosting/test-preview-deploy and https://firebase.google.com/docs/cli.
