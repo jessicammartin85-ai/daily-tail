@@ -47,11 +47,29 @@ function build(home,test){
   const dogName=$('tagName')?.textContent?.trim()||$('publicDogName')?.textContent?.trim()||'My Dog';
   nameSpan.textContent=dogName;tagButton.title='Edit name: '+dogName;
   tagButton.setAttribute('aria-label','Edit dog name: '+dogName);
-  nameSpan.style.fontSize=dogName.length>18?'clamp(8px,1.65vw,12px)':dogName.length>12?'clamp(10px,1.9vw,14px)':'clamp(12px,2.3vw,18px)';
+  // Fit to the rendered silver tag, not viewport width or a character-count guess.
+  // Actual glyph widths differ substantially (for example, "Willow" vs "Mimi").
+  const fit=()=>{
+   const width=tagButton.clientWidth-9,height=tagButton.clientHeight;
+   if(width<=0||height<=0)return;
+   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+   if(!ctx)return;
+   const max=Math.min(26,Math.max(12,host.querySelector('.dt-design-logo').clientWidth*.105),height*.78);
+   let size=Math.max(8,max);
+   while(size>8){
+    ctx.font='700 '+size+'px Georgia, serif';
+    if(ctx.measureText(dogName).width<=width*.94)break;
+    size-=.5;
+   }
+   nameSpan.style.fontSize=Math.max(8,Math.round(size*10)/10)+'px';
+  };
+  requestAnimationFrame(fit);
  };
  syncDogName();
  const originalName=$('tagName');
  if(originalName)new MutationObserver(syncDogName).observe(originalName,{characterData:true,childList:true,subtree:true});
+ if(typeof ResizeObserver!=='undefined')new ResizeObserver(syncDogName).observe(host.querySelector('.dt-design-logo'));
+ window.addEventListener('resize',syncDogName);
  tagButton.addEventListener('click',()=>{
   if(document.body.classList.contains('dt-locked')||document.body.classList.contains('friend-view'))return;
   $('tag')?.click();
@@ -100,7 +118,7 @@ function build(home,test){
  '#dtImageDesignedHome .dt-design-portrait img{width:100%;height:100%;object-fit:cover;display:block}',
  '#dtImageDesignedHome .dt-design-logo{position:absolute;left:3.7%;top:48%;width:27.5%;height:48%;z-index:3;pointer-events:none;background:url("./daily-tails-design.webp") no-repeat;background-size:100cqw 43.24cqw;background-position:-3.7cqw -20.75cqw}',
  '#dtImageDesignedHome .dt-design-logo{pointer-events:auto!important}',
- '#dtImageDesignedHome .dt-design-dogname{position:absolute;top:66%;left:29%;width:47%;height:30%;display:flex;align-items:center;justify-content:center;padding:12px 5px 4px;border:0;background:transparent;cursor:pointer;color:#52565a;text-shadow:0 1px 1px #ffffffd9;font:700 clamp(12px,2.3vw,18px)/1 Georgia,serif;z-index:7;transform:rotate(-5deg)}',
+ '#dtImageDesignedHome .dt-design-dogname{position:absolute;top:70%;left:33%;width:40%;height:19%;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;cursor:pointer;color:#52565a;text-shadow:0 1px 1px #ffffffd9;font:700 18px/1.1 Georgia,serif;z-index:7;transform:rotate(-8deg);transform-origin:center center}',
  '#dtImageDesignedHome .dt-design-dogname span{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
  '#dtImageDesignedHome .dt-design-dogname:focus-visible{outline:2px solid #275773!important;border-radius:40%;outline-offset:2px}',
  '#dtImageDesignedHome .dt-design-recent{position:absolute;left:32.3%;top:7%;width:58.5%;z-index:4}',
@@ -146,7 +164,7 @@ function build(home,test){
  '#dtImageDesignedHome .dt-design-content{position:relative;display:flex;flex-direction:column;inset:auto;align-items:stretch;gap:12px;z-index:2}',
  '#dtImageDesignedHome .dt-design-portrait{position:relative;left:auto;top:auto;align-self:center;width:min(48%,190px);border:4px solid #d1dfeb;margin:10px 0 0;z-index:3}',
  '#dtImageDesignedHome .dt-design-logo{position:relative;left:auto;top:auto;width:min(72%,260px);height:auto;aspect-ratio:780/586;margin:-35px auto -20px;background:url("./daily-tails-logo.webp") center/contain no-repeat;z-index:5}',
- '#dtImageDesignedHome .dt-design-dogname{top:66%;left:30%;width:45%;height:30%;padding:14px 3px 3px;pointer-events:auto}',
+ '#dtImageDesignedHome .dt-design-dogname{top:70%;left:33%;width:40%;height:19%;padding:0;pointer-events:auto}',
  '#dtImageDesignedHome .dt-design-recent,#dtImageDesignedHome .dt-design-next,#dtImageDesignedHome .dt-design-actions{position:relative;left:auto;top:auto;width:100%;padding:0 3px}',
  '#dtImageDesignedHome .dt-design-emergency{position:relative;left:auto;top:auto;width:100%;height:auto;align-self:center;max-width:180px}',
  '#dtImageDesignedHome .dt-ref-memory{min-height:90px!important;padding:16px 10px 11px!important}',
