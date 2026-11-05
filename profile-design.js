@@ -135,7 +135,26 @@ function build(home,test){
  '#dtDesignEmergency .dt-design-plus{font-size:19px;padding:3px}',
  '}'
  ].join('\n');
+ // Apply compact design based on the dashboard's actual width, not browser viewport.
+ // The app's desktop shell is only ~590px wide even on a large monitor.
+ const responsive=style.textContent.match(/@media\(max-width:1000px\)\{([\s\S]*?)\n\}/);
+ if(responsive){
+  const scoped=responsive[1].replace(/(^|\n)([^{}\n]+)\{/g,(_match,start,selectors)=>{
+   const rewritten=selectors.split(',').map(part=>{
+    const selector=part.trim();
+    if(selector.includes('#dtImageDesignedHome'))return selector.replace('#dtImageDesignedHome','#dtImageDesignedHome.dt-mobile');
+    if(selector.startsWith('#dtDesignEmergency'))return '#dtImageDesignedHome.dt-mobile '+selector;
+    return '#dtImageDesignedHome.dt-mobile '+selector;
+   }).join(',');
+   return start+rewritten+'{';
+  });
+  style.textContent+='\n'+scoped;
+ }
  document.head.appendChild(style);
+ const updateCompact=()=>host.classList.toggle('dt-mobile',host.getBoundingClientRect().width<730);
+ updateCompact();
+ if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateCompact).observe(host);
+ window.addEventListener('resize',updateCompact);
  // Maintain privacy when switching between owner and friend views.
  const originals=()=>Object.values(source).filter(Boolean);
  function relocate(){
