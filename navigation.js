@@ -446,12 +446,19 @@
   const friends=document.querySelector('.dog-friends-section');
   if(friends)friends.before(section);else extras.after(section);
   const items=$('dtTimelineItems');let expanded=true;
-  $('dtTimelineToggle').addEventListener('click',()=>{
-    expanded=!expanded;items.hidden=!expanded;$('dtTimelineAll').hidden=!expanded;
+  const toggle=$('dtTimelineToggle'),fullPlan=$('dtTimelineAll');
+  const renderExpanded=()=>{
+    items.hidden=!expanded;
+    fullPlan.hidden=!expanded;
     section.querySelector('.dt-timeline-card')?.classList.toggle('dt-is-collapsed',!expanded);
-    $('dtTimelineToggle').setAttribute('aria-expanded',String(expanded));
+    toggle.setAttribute('aria-expanded',String(expanded));
     $('dtTimelineToggleText').textContent=expanded?'Collapse ⌃':'Expand ⌄';
+  };
+  toggle.addEventListener('click',()=>{
+    expanded=!expanded;
+    renderExpanded();
   });
+  renderExpanded();
   $('dtTimelineAll').addEventListener('click',()=>$('scheduleArt')?.click());
   const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
   function update(){
@@ -460,12 +467,10 @@
    const entries=sch.getEntries(),done=sch.getDone(),key=today();
    const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
    const toMinutes=t=>{const m=/^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(t||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3]==='PM'?720:0):Number.MAX_SAFE_INTEGER};
-   // Show 2 most recent completed, followed by next 4 unfinished.
-   const completed=entries.map((e,i)=>({...e,i})).filter(e=>done[key+'|'+e.i]).slice(-2);
-   const outstanding=entries.map((e,i)=>({...e,i})).filter(e=>!done[key+'|'+e.i]);
-   const upcoming=outstanding.filter(e=>toMinutes(e.time)>=minutes);
-   const remaining=outstanding.filter(e=>toMinutes(e.time)<minutes);
-   const selected=[...completed,...remaining.slice(0,2),...upcoming.slice(0,4)].sort((a,b)=>a.i-b.i).slice(0,7);
+   // The dashboard's Expand control shows the entire daily schedule.
+   // Previously, only six or seven tasks were ever rendered, which made
+   // Expand appear ineffective unless the user opened Full Daily Plan.
+   const selected=entries.map((entry,i)=>({...entry,i}));
    items.replaceChildren();
    selected.forEach(e=>{
     const complete=!!done[key+'|'+e.i],current=!complete&&toMinutes(e.time)<=minutes;
