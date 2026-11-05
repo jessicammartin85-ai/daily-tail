@@ -261,3 +261,103 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
 })();
+
+
+/* Phase 1-2 concept dashboard: hero, memory preview and five journal quick logs. */
+(function(){
+ function start(){
+  const $=id=>document.getElementById(id);
+  const home=$('dtConceptHome'),profile=home?.querySelector('.dt-concept-profile'),actions=home?.querySelector('.dt-concept-actions');
+  if(!home||!profile||!actions||$('dtQuickLogDialog'))return;
+  const style=document.createElement('style');
+  style.textContent=[
+   '.dt-concept-profile{min-height:205px!important;padding:14px!important;align-items:center!important;gap:11px!important;border-radius:22px!important}',
+   '.dt-concept-profile:before{inset:7px!important;border-radius:17px!important}',
+   '.dt-concept-profile-photo{width:118px!important;height:118px!important;flex-basis:118px!important}',
+   '.dt-concept-profile-copy{align-self:stretch!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:6px!important;padding:9px 0!important}',
+   '.dt-concept-profile-copy p{display:none!important}',
+   '.dt-concept-open{min-height:36px!important;align-self:flex-start!important;padding:7px 12px!important}',
+   '.dt-concept-tag{right:13%!important;top:5px!important;width:120px!important;height:89px!important}',
+   '.dt-concept-tag-label{right:calc(13% + 15px)!important;top:45px!important;width:90px!important;font-size:19px!important}',
+   '.dt-hero-heading{position:absolute;top:12px;left:0;right:0;text-align:center;font:700 21px Georgia,serif;color:#fff8ec;text-shadow:0 1px 2px #51331e}',
+   '.dt-hero-paw{position:absolute;font-size:21px;top:12px;color:#d7e5ed}',
+   '.dt-hero-paw.left{left:21px}.dt-hero-paw.right{right:21px}',
+   '.dt-hero-memory{border:1.5px solid #9cb5c5;border-radius:11px;background:#fff8ec;color:#304658;padding:7px 9px;display:flex;align-items:center;gap:7px;min-height:47px;width:100%;max-width:240px;cursor:pointer;box-shadow:0 2px 4px #3c261b35;text-align:left}',
+   '.dt-hero-memory img{width:34px;height:34px;flex:none;object-fit:cover;border-radius:6px}',
+   '.dt-hero-memory span{min-width:0;flex:1}',
+   '.dt-hero-memory b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 13px Georgia,serif}',
+   '.dt-hero-memory small{display:block;font:11px/1.2 Arial,sans-serif;color:#526678}',
+   '.dt-concept-actions{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:5px!important;margin-top:12px!important}',
+   '.dt-concept-actions button{min-height:72px!important;font-size:11px!important;padding:8px 2px!important;gap:6px!important}',
+   '.dt-concept-actions .dt-icon{font-size:22px!important}',
+   '.dt-quick-title{margin:13px 1px 0;font:700 21px Georgia,serif;color:#553b2b}',
+   '.dt-quick-subtitle{font:12px Arial,sans-serif;color:#5e6e79;margin:4px 1px 0}',
+   '#dtQuickLogDialog[hidden]{display:none!important}',
+   '#dtQuickLogDialog{position:fixed;inset:0;z-index:25000;background:#162b3fa6;display:flex;align-items:flex-end;justify-content:center}',
+   '.dt-quick-sheet{width:min(100%,590px);background:#fff9ef;border-radius:24px 24px 0 0;padding:22px 18px max(26px,env(safe-area-inset-bottom));border:2px solid #b1c3d0;color:#304b5c}',
+   '.dt-quick-sheet h2{font:700 25px Georgia,serif;margin:0 0 7px;color:#704a33}',
+   '.dt-quick-sheet p{font:13px/1.5 Arial,sans-serif;margin:0 0 14px;color:#566b78}',
+   '.dt-quick-sheet label{font:700 13px Arial,sans-serif;display:block}',
+   '.dt-quick-sheet textarea{display:block;width:100%;min-height:86px;resize:vertical;margin:7px 0 13px;border:1.5px solid #8ca5b6;border-radius:12px;background:#fff;padding:11px;font:16px Arial,sans-serif}',
+   '.dt-quick-buttons{display:flex;justify-content:flex-end;gap:10px}',
+   '.dt-quick-buttons button{padding:11px 16px;border-radius:11px;border:1px solid #9cb2bf;background:#e5eff4;color:#30546b;font-weight:700;cursor:pointer}',
+   '.dt-quick-buttons button:last-child{background:#365c76;color:white}',
+   'body.friend-view .dt-quick-title,body.friend-view .dt-quick-subtitle{display:none!important}',
+   '@media(max-width:390px){.dt-concept-profile-photo{width:97px!important;height:97px!important;flex-basis:97px!important}.dt-concept-profile{min-height:193px!important}.dt-concept-tag{right:10%!important;width:106px!important}.dt-concept-tag-label{right:calc(10% + 11px)!important;width:84px!important;font-size:17px!important}.dt-concept-actions button{font-size:10px!important}}'
+  ].join('\n');
+  document.head.appendChild(style);
+  const heading=document.createElement('div');heading.className='dt-hero-heading';heading.textContent='Daily Tail';profile.appendChild(heading);
+  const paw1=document.createElement('span'),paw2=document.createElement('span');
+  paw1.className='dt-hero-paw left';paw2.className='dt-hero-paw right';
+  paw1.textContent='🐾';paw2.textContent='🐾';profile.append(paw1,paw2);
+  const memory=document.createElement('button');memory.type='button';memory.className='dt-hero-memory';
+  memory.innerHTML='<img alt="" id="dtHeroMemoryThumb" hidden><span><b id="dtHeroMemoryTitle">Recent memory</b><small>Recent post ›</small></span>';
+  profile.querySelector('.dt-concept-profile-copy').insertBefore(memory,$('dtConceptProfile'));
+  memory.addEventListener('click',()=>$('recent')?.click());
+  function updateMemory(){
+    const src=$('recentPostThumb'),dest=$('dtHeroMemoryThumb');
+    if(src?.getAttribute('src')){dest.src=src.src;dest.hidden=false}else dest.hidden=true;
+    $('dtHeroMemoryTitle').textContent=$('recentPostTitle')?.textContent||'Recent memory';
+  }
+  updateMemory();
+  const mo=new MutationObserver(updateMemory);
+  ['recentPostThumb','recentPostTitle'].forEach(id=>{const el=$(id);if(el)mo.observe(el,{attributes:true,childList:true,subtree:true,characterData:true});});
+
+  const title=document.createElement('h3');title.className='dt-quick-title';title.textContent='Quick Actions';
+  const subtitle=document.createElement('p');subtitle.className='dt-quick-subtitle';subtitle.textContent='Tap to save a care note for today';
+  actions.before(title,subtitle);
+  actions.replaceChildren();
+  const types=[['Potty','🚽'],['Meal','🥣'],['Walk','🦮'],['Meds','💊'],['Training','🎓']];
+  const dialog=document.createElement('div');dialog.id='dtQuickLogDialog';dialog.hidden=true;
+  dialog.innerHTML='<section class="dt-quick-sheet" role="dialog" aria-modal="true" aria-labelledby="dtQuickTitle"><h2 id="dtQuickTitle">Care note</h2><p>Save a time-stamped entry to Daily Notes. This does not complete a scheduled task.</p><label for="dtQuickDetails">Details (optional)<textarea id="dtQuickDetails" placeholder="What should the family know?"></textarea></label><div class="dt-quick-buttons"><button id="dtQuickCancel" type="button">Cancel</button><button id="dtQuickSave" type="button">Save note</button></div></section>';
+  document.body.appendChild(dialog);
+  let active='';const close=()=>{dialog.hidden=true;active='';};
+  $('dtQuickCancel').onclick=close;
+  dialog.addEventListener('click',e=>{if(e.target===dialog)close()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!dialog.hidden)close()});
+  types.forEach(([label,icon])=>{
+   const b=document.createElement('button');b.type='button';
+   b.innerHTML='<span class="dt-icon" aria-hidden="true">'+icon+'</span>'+label;
+   b.addEventListener('click',()=>{
+    if(document.body.classList.contains('friend-view')||document.body.classList.contains('dt-locked'))return;
+    active=label;$('dtQuickTitle').textContent='Log '+label;$('dtQuickDetails').value='';
+    dialog.hidden=false;$('dtQuickDetails').focus();
+   });actions.appendChild(b);
+  });
+  $('dtQuickSave').addEventListener('click',()=>{
+   if(!active)return;
+   const notes=$('journalText'),date=$('journalDate');
+   if(!notes||!date){alert('Daily Notes is unavailable. No entry was saved.');return;}
+   const d=new Date(),today=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+   if(date.value!==today){date.value=today;date.dispatchEvent(new Event('change',{bubbles:true}));}
+   const detail=$('dtQuickDetails').value.trim();
+   const entry='['+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'] '+active+(detail?': '+detail:'');
+   notes.value+=(notes.value.trim()?'\n':'')+entry;
+   notes.dispatchEvent(new Event('input',{bubbles:true}));
+   const status=$('journalStatus')?.textContent||'';
+   if(status.includes('Could not save')){alert('Could not save the note on this device.');return;}
+   close();
+  });
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
