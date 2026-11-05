@@ -425,6 +425,8 @@
    '.dt-timeline-toggle span{font:700 12px Arial,sans-serif;color:#45647b}',
    '.dt-timeline-items{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:7px}',
    '#dtTimelineDashboard #dtTimelineItems[hidden],#dtTimelineDashboard #dtTimelineAll[hidden]{display:none!important}',
+   '#dtTimelineDashboard .dt-timeline-check{width:22px;height:22px;flex:0 0 22px;accent-color:#365f79;cursor:pointer;margin:0}',
+   '#dtTimelineDashboard .dt-timeline-items li.dt-complete .dt-timeline-entry strong{text-decoration:line-through;text-decoration-color:#6b8490}',
    '#dtTimelineDashboard .dt-timeline-card.dt-is-collapsed{padding-top:11px;padding-bottom:11px}',
    '#dtTimelineDashboard .dt-timeline-card.dt-is-collapsed .dt-timeline-toggle{min-height:35px}',
    '.dt-timeline-items li{display:flex;align-items:center;gap:10px;padding:10px;border-radius:11px;background:#f4eee5;border:1px solid #d1d8d9}',
@@ -439,25 +441,26 @@
    '.dt-timeline-open{border:0;background:transparent;color:#365f79;padding:8px;font-size:22px;cursor:pointer}',
    '.dt-timeline-all{width:100%;margin-top:10px;border:1px solid #9fb2bf;background:#e2ecf1;border-radius:11px;padding:10px;font-weight:700;color:#35566f;cursor:pointer}',
    'body.friend-view #dtTimelineDashboard,body.dt-locked #dtTimelineDashboard{display:none!important}',
+   '#dtTimelineDashboard .dt-timeline-card.dt-is-collapsed{padding-top:15px;padding-bottom:15px}',
    '#dtTimelineDashboard button:focus-visible{outline:3px solid #365f79;outline-offset:3px}'
   ].join('\n');document.head.appendChild(css);
   const section=document.createElement('section');section.id='dtTimelineDashboard';section.setAttribute('aria-label','Today progress and schedule');
-  section.innerHTML='<div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="true" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Collapse ⌃</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
+  section.innerHTML='<div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="false" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Show full day ⌄</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
   const friends=document.querySelector('.dog-friends-section');
   if(friends)friends.before(section);else extras.after(section);
-  const items=$('dtTimelineItems');let expanded=true;
+  const items=$('dtTimelineItems');let expanded=false;
   const toggle=$('dtTimelineToggle'),fullPlan=$('dtTimelineAll');
   const renderExpanded=()=>{
-    items.hidden=!expanded;
+    items.hidden=false;
     fullPlan.hidden=!expanded;
     section.querySelector('.dt-timeline-card')?.classList.toggle('dt-is-collapsed',!expanded);
     toggle.setAttribute('aria-expanded',String(expanded));
-    $('dtTimelineToggleText').textContent=expanded?'Collapse ⌃':'Expand ⌄';
+    $('dtTimelineToggleText').textContent=expanded?'Show next three ⌃':'Show full day ⌄';
   };
   toggle.addEventListener('click',()=>{
     expanded=!expanded;
     renderExpanded();
-    if(expanded)update();
+    update();
   });
   renderExpanded();
   $('dtTimelineAll').addEventListener('click',()=>$('scheduleArt')?.click());
@@ -474,20 +477,35 @@
    const entries=sch.getEntries(),done=sch.getDone(),key=today();
    const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
    const toMinutes=t=>{const m=/^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(t||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3]==='PM'?720:0):Number.MAX_SAFE_INTEGER};
-   // The dashboard's Expand control shows the entire daily schedule.
-   // Previously, only six or seven tasks were ever rendered, which made
-   // Expand appear ineffective unless the user opened Full Daily Plan.
-   const selected=entries.map((entry,i)=>({...entry,i}));
+   // Show the next three unfinished activities while compact.
+   // Prioritize future appointments, then overdue ones if fewer than three remain.
+   // The expanded view lists every activity, including completed tasks.
+   const all=entries.map((entry,i)=>({...entry,i}));
+   const unfinished=all.filter(e=>!done[key+'|'+e.i]);
+   const upcoming=unfinished.filter(e=>toMinutes(e.time)>=minutes);
+   const overdue=unfinished.filter(e=>toMinutes(e.time)<minutes);
+   const selected=expanded?all:[...upcoming,...overdue].slice(0,3);
    items.replaceChildren();
    selected.forEach(e=>{
     const complete=!!done[key+'|'+e.i],current=!complete&&toMinutes(e.time)<=minutes;
     const li=document.createElement('li');li.className=complete?'dt-complete':current?'dt-current':'';
-    const dot=document.createElement('span');dot.className='dt-timeline-dot';dot.textContent=complete?'✓':'';
+    const check=document.createElement('input');
+    check.type='checkbox';check.className='dt-timeline-check';check.checked=complete;
+    check.setAttribute('aria-label',(complete?'Mark incomplete: ':'Mark complete: ')+(e.title||'Care activity')+' at '+(e.time||''));
+    check.addEventListener('change',()=>{
+     const sch=window.DailyTailSchedule;
+     if(!sch?.setDone||!sch.setDone(e.i,check.checked)){
+      check.checked=!check.checked;
+      alert('Could not save this activity. Please try the Daily Plan.');
+      return;
+     }
+     // Save broadcasts a schedule-change event, which rerenders this view.
+    });
     const info=document.createElement('div');info.className='dt-timeline-entry';
     const time=document.createElement('time');time.textContent=e.time||'';
     const label=document.createElement('strong');label.textContent=e.title||'Care activity';info.append(time,label);
     const open=document.createElement('button');open.type='button';open.className='dt-timeline-open';open.textContent='›';open.setAttribute('aria-label','Open Daily Plan for '+(e.title||'care activity'));open.onclick=()=>$('scheduleArt')?.click();
-    li.append(dot,info,open);items.append(li);
+    li.append(check,info,open);items.append(li);
    });
    if(!selected.length){const li=document.createElement('li');li.textContent=entries.length?'Everything is complete for today!':'Nothing scheduled yet.';items.append(li);}
   }
