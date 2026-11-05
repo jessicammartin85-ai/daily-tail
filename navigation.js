@@ -413,7 +413,6 @@
   const css=document.createElement('style');css.id='dtTimelineStyle';
   css.textContent=[
    '#dtTimelineDashboard{display:block!important;position:relative;z-index:3;margin:12px 14px 0;color:#324858;font-family:Arial,sans-serif}',
-   '#dtTimelineDashboard>.dt-timeline-card:first-child{display:none!important}',
    '.dt-timeline-card{background:#fffaf2;border:1.5px solid #b3c4ce;border-radius:18px;padding:15px;margin-top:11px;box-shadow:0 3px 9px #263c491b}',
    '.dt-timeline-head{display:flex;align-items:center;justify-content:space-between;gap:10px}',
    '.dt-timeline-head h3{font:700 22px Georgia,serif;color:#60402c;margin:0}',
@@ -440,7 +439,7 @@
    '#dtTimelineDashboard button:focus-visible{outline:3px solid #365f79;outline-offset:3px}'
   ].join('\n');document.head.appendChild(css);
   const section=document.createElement('section');section.id='dtTimelineDashboard';section.setAttribute('aria-label','Today progress and schedule');
-  section.innerHTML='<div class="dt-timeline-card"><div class="dt-timeline-head"><h3>🏆 Today’s Progress</h3><span id="dtTodayCount" class="dt-timeline-count">Checking…</span></div><div class="dt-timeline-meter" aria-label="Daily schedule completion"><span id="dtTodayBar"></span></div><p class="dt-timeline-summary" id="dtTodaySummary">Progress follows the Daily Plan.</p></div><div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="true" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Collapse ⌃</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
+  section.innerHTML='<div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="true" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Collapse ⌃</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
   const friends=document.querySelector('.dog-friends-section');
   if(friends)friends.before(section);else extras.after(section);
   const items=$('dtTimelineItems');let expanded=true;
@@ -455,10 +454,6 @@
    if(document.body.classList.contains('friend-view')||document.body.classList.contains('dt-locked'))return;
    const sch=window.DailyTailSchedule;if(!sch)return;
    const entries=sch.getEntries(),done=sch.getDone(),key=today();
-   const finished=entries.reduce((n,e,i)=>n+(done[key+'|'+i]?1:0),0);
-   $('dtTodayCount').textContent=finished+' of '+entries.length+' complete';
-   $('dtTodayBar').style.width=(entries.length?Math.round(finished*100/entries.length):0)+'%';
-   $('dtTodaySummary').textContent=entries.length?'Based on today’s scheduled activities. Tap a task to update it in Daily Plan.':'No scheduled activities today.';
    const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
    const toMinutes=t=>{const m=/^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(t||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3]==='PM'?720:0):Number.MAX_SAFE_INTEGER};
    // Show 2 most recent completed, followed by next 4 unfinished.
