@@ -50,7 +50,7 @@ function build(home,test){
  try{
   const original=document.createElement('canvas');const ctx=original.getContext('2d',{willReadFrequently:true});
   original.width=test.naturalWidth;original.height=test.naturalHeight;ctx.drawImage(test,0,0);
-  const corners=[[12,17,135,145,'tl'],[1300,13,145,145,'tr'],[12,445,143,166,'bl'],[1300,442,145,169,'br']];
+  const corners=[[12,17,135,145,'tl'],[12,17,135,145,'left-mid'],[12,17,135,145,'left-edge'],[12,17,135,145,'left-low'],[1300,13,145,145,'tr'],[1300,13,145,145,'right-edge'],[12,445,143,166,'right-mid'],[1300,442,145,169,'right-low']];
   for(const [x,y,w,h,cls] of corners){
    const frame=document.createElement('canvas');frame.width=w;frame.height=h;
    const brush=frame.getContext('2d');brush.drawImage(original,x,y,w,h,0,0,w,h);
@@ -104,12 +104,16 @@ function build(home,test){
  // The app shell is always compact, even in a wide desktop viewport.
  'body:not(.friend-view):not(.dt-locked) #dtImageDesignedHome{width:calc(100% - 24px);height:auto!important;aspect-ratio:auto!important;margin:10px 12px 4px;overflow:hidden;background:#bd895e;border:3px solid #33251e;border-radius:24px;padding:15px 12px}',
  '#dtImageDesignedHome .dt-original-art{background:none!important}',
- '#dtImageDesignedHome .dt-design-paws{position:absolute;inset:0;display:block;pointer-events:none;overflow:hidden}',
- '#dtImageDesignedHome .dt-design-paw{position:absolute;width:65px;height:70px;object-fit:contain;opacity:.86}',
- '#dtImageDesignedHome .dt-design-paw.tl{top:10px;left:5px}',
- '#dtImageDesignedHome .dt-design-paw.tr{top:10px;right:5px}',
- '#dtImageDesignedHome .dt-design-paw.bl{bottom:11px;left:8px}',
- '#dtImageDesignedHome .dt-design-paw.br{bottom:11px;right:8px}',
+ '#dtImageDesignedHome .dt-design-paws{position:absolute;inset:0;display:block;pointer-events:none;overflow:hidden;z-index:0}',
+ '#dtImageDesignedHome .dt-design-paw{position:absolute;width:67px;height:72px;object-fit:contain;opacity:.94;pointer-events:none;filter:drop-shadow(0 1px 1px #7b584a20)}',
+ '#dtImageDesignedHome .dt-design-paw.tl{top:25px;left:6%;transform:rotate(-12deg)}',
+ '#dtImageDesignedHome .dt-design-paw.left-mid{top:103px;left:18%;transform:rotate(8deg)}',
+ '#dtImageDesignedHome .dt-design-paw.left-edge{top:143px;left:-25px;transform:rotate(22deg)}',
+ '#dtImageDesignedHome .dt-design-paw.left-low{top:219px;left:4%;transform:rotate(-16deg)}',
+ '#dtImageDesignedHome .dt-design-paw.tr{top:30px;right:6%;transform:rotate(16deg)}',
+ '#dtImageDesignedHome .dt-design-paw.right-edge{top:125px;right:-22px;transform:rotate(-24deg)}',
+ '#dtImageDesignedHome .dt-design-paw.right-mid{top:165px;right:19%;transform:rotate(18deg)}',
+ '#dtImageDesignedHome .dt-design-paw.right-low{top:236px;right:12%;transform:rotate(-12deg)}',
  '#dtImageDesignedHome:before{content:"";position:absolute;inset:8px;border:2px dashed #e7c9aa;border-radius:17px;pointer-events:none}',
  '#dtImageDesignedHome .dt-design-content{position:relative;display:flex;flex-direction:column;inset:auto;align-items:stretch;gap:12px}',
  '#dtImageDesignedHome .dt-design-portrait{position:relative;left:auto;top:auto;align-self:center;width:min(48%,190px);border:4px solid #d1dfeb;margin:10px 0 0;z-index:3}',
