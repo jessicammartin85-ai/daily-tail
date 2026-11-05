@@ -107,6 +107,15 @@
    'body:not(.friend-view):not(.dt-locked) .snapshot-head{position:relative}',
    'body:not(.friend-view):not(.dt-locked) #themeSettingsBtn{display:none!important}',
    '#dtBottomNav [data-dt-tab=more] .dt-nav-icon{font-size:22px}',
+   "body.friend-view .art .tag-overlay-front,body.friend-view .art .tag-zone{top:41.5%!important;left:38%!important;width:24%!important;height:7%!important}",
+   "body.friend-view .art .tag-zone .tag-name{font-size:clamp(14px,3.4vw,22px)!important}",
+   "body.friend-view .dt-friend-facts{position:relative!important;display:block!important;left:auto!important;top:auto!important;right:auto!important;width:calc(100% - 30px)!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:12px 15px 0!important;padding:14px!important;background:#dce7ee!important;border:1.5px solid #9eb4c3!important;border-radius:18px!important;z-index:auto!important}",
+   "body.friend-view .dt-friend-facts .dt-friend-facts-head{display:flex!important;margin-bottom:10px!important}",
+   "body.friend-view .dt-friend-facts .dt-friend-fact-grid{display:grid!important;grid-template-columns:1fr 1.25fr!important;gap:8px!important}",
+   "body.friend-view .dt-friend-facts .dt-friend-fact-grid>div{padding:9px!important;background:#fffaf3!important;border:1px solid #c7d2da!important;border-radius:11px!important}",
+   "body.friend-view .dt-friend-facts .dt-facts-quote{margin:8px 0 0!important}",
+   "body.friend-view .dog-friends-section{margin-top:12px!important}",
+   "@media(max-width:380px){body.friend-view .dt-friend-facts .dt-friend-fact-grid{grid-template-columns:1fr!important}}",
    '@media(min-width:591px){.dt-home-quick{max-width:550px;margin-left:auto!important;margin-right:auto!important}}',
    '@media(max-width:360px){.dt-home-quick{gap:6px!important;margin-left:10px!important;margin-right:10px!important}.dt-home-quick button{font-size:12px!important}}'
   ].join('\n');
@@ -131,6 +140,7 @@
   actions.after(extras);
   // Move the original friends panel, not a copy, so profiles and request handlers stay connected.
   function positionFriends(){
+   if(facts&&facts.parentNode===art)art.after(facts);
    if(document.body.classList.contains('friend-view')){
     if(facts&&facts.parentNode&&facts.nextElementSibling!==friends)facts.after(friends);
    }else{
