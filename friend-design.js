@@ -17,7 +17,7 @@ function start(){
   '</div>'+
   '<div class="dt-friend-design-right">'+
    '<button class="dt-friend-design-recent" type="button" id="dtFriendDesignRecent" aria-label="Read recent shared posts"><span class="dt-friend-design-eyebrow">✦ RECENT POST</span><strong id="dtFriendDesignTitle">Recent post</strong><em id="dtFriendDesignSummary">Tap to read shared memories</em><span class="dt-friend-design-chevron" aria-hidden="true">›</span></button>'+
-   '<div class="dt-friend-design-facts" aria-label="About this dog"><h2><span aria-hidden="true">🐾</span> About <span id="dtFriendDesignName">My Dog</span></h2><div class="dt-friend-design-factgrid"><div><small>BREED</small><strong id="dtFriendDesignBreed">Not added yet</strong></div><div><small>BIRTHDAY & AGE</small><strong id="dtFriendDesignBirthday">Not added yet</strong></div></div><p id="dtFriendDesignQuote"></p></div>'+
+   '<div class="dt-friend-design-facts" aria-label="About this dog"><h2><img class="dt-friend-dog-face" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAZCAMAAAAc9R5vAAAASFBMVEVaWFMgHh2dmZOrqaT///3y8e95fHzz7uSDgXzU0MhCQD1APTurq6tgX12AfHb/f3/CwbzGw74qKSeIiIIAAAACAgL///84NjTQLIe3AAAAGHRSTlP4/fCpMVcD6PKY/v4Drf4CbJm0WgD+CP2QBnPPAAABLElEQVR42lVSCXLEMAgTvuIce7UG/v/TCifbdplMHKNIIGyMd9jHMvDOt2G1lGpv5AIeY5TcgZ7sIuHi2xOiDMFq4/hjWIVeEYidgFHmN6/6lQNB5GsSFQkth4h6NmtT6im+OxHqiGwuXscRDMva3ZOHDhdSSQENsHASLLMMFzJ7HWChzG+on6VdAdILjlGAqU8T0woohheB1Ylwp2ldu0R35HyjWd4oBNZeGOKJGyBj1L5H97SCZUnKD9KRYJnCG6Y9MlXuzIfdcnYZOU0ppuhnxm4sqzu586GI+Jxy7TEeeKrr63bLlXODRMOZvW16d56QMVohEMpYt3DnkqzNkylJY1qCORDWyvZoQbG86/TYrOYwdN0CvmLLWcXGSvl/i0qxOEGbfzb7vF/2A+FtHczsmsouAAAAAElFTkSuQmCC" alt="" aria-hidden="true"> About <span id="dtFriendDesignName">My Dog</span></h2><div class="dt-friend-design-factgrid"><div><small>BREED</small><strong id="dtFriendDesignBreed">Not added yet</strong></div><div><small>BIRTHDAY & AGE</small><strong id="dtFriendDesignBirthday">Not added yet</strong></div></div><p id="dtFriendDesignQuote"></p></div>'+
   '</div>'+
  '</div>';
  anchor.before(panel);
@@ -43,6 +43,7 @@ function start(){
  '#dtFriendDesignHome .dt-friend-design-facts{background:#cbd3db;border:2px solid #304e63;border-radius:17px;padding:10px 12px 11px;color:#25425a}',
  '#dtFriendDesignHome .dt-friend-design-facts h2{font:700 clamp(16px,3vw,23px)/1.1 Georgia,serif;margin:0 0 9px;color:#244761}',
  '#dtFriendDesignHome .dt-friend-design-facts h2 span[aria-hidden]{font-size:17px}',
+ '#dtFriendDesignHome .dt-friend-dog-face{display:inline-block;width:25px;height:26px;object-fit:contain;vertical-align:-5px;margin-right:3px}',
  '#dtFriendDesignHome .dt-friend-design-factgrid{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}',
  '#dtFriendDesignHome .dt-friend-design-factgrid>div{padding:9px 10px;border-radius:10px;background:#fffaf2;min-width:0}',
  '#dtFriendDesignHome .dt-friend-design-factgrid small{display:block;color:#647a8a;font:700 9px Arial,sans-serif;letter-spacing:.04em;margin-bottom:4px}',
