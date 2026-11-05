@@ -183,11 +183,11 @@
   '.dt-concept-profile:before{content:"";position:absolute;inset:8px;border:2px dotted #cbd9e2;border-radius:17px;opacity:.45;pointer-events:none}',
   '.dt-concept-profile-photo{width:118px;height:118px;flex:0 0 118px;object-fit:cover;border:4px solid #c7d7e1;border-radius:50%;background:#f1e4d2;box-shadow:0 3px 8px #39281c55}',
   '.dt-concept-profile-copy{flex:1;min-width:0;position:relative;z-index:1}',
-  '.dt-concept-profile-copy h2{font:700 clamp(25px,6vw,35px)/1.1 Georgia,serif;margin:0 0 10px;color:white;text-shadow:0 2px 2px #613e2b}',
-  '.dt-concept-profile-copy p{font:14px/1.4 Arial,sans-serif;margin:0 0 12px;color:#fff8ed}',
+  '.dt-concept-profile-copy h2{display:none!important}',
+  '.dt-concept-profile-copy p{font:14px/1.4 Arial,sans-serif;margin:94px 0 12px;color:#fff8ed}',
   '.dt-concept-open{padding:8px 12px;background:#f8f0e4;color:#355570;border:1px solid #a7c4d5;border-radius:999px;font:700 12px Arial,sans-serif;cursor:pointer}',
-  '.dt-concept-tag{position:absolute;right:9px;bottom:4px;width:64px;height:54px;object-fit:contain;pointer-events:none;opacity:.95}',
-  '.dt-concept-tag-label{position:absolute;right:15px;bottom:25px;width:53px;text-align:center;font:700 12px/1 Georgia,serif;color:#63666b;transform:rotate(-12deg);text-shadow:0 1px #fff;pointer-events:none}',
+  '.dt-concept-tag{position:absolute;right:18%;top:15px;width:126px;height:92px;object-fit:contain;pointer-events:none;opacity:1;filter:drop-shadow(0 2px 2px #38251a55)}',
+  '.dt-concept-tag-label{position:absolute;right:calc(18% + 16px);top:56px;width:94px;text-align:center;font:700 clamp(17px,4.2vw,22px)/1 Georgia,serif;color:#5a5e62;transform:rotate(-12deg);text-shadow:0 1px #fff;pointer-events:none}',
   'body.friend-view #dtConceptHome .dt-concept-next,body.friend-view #dtConceptHome .dt-concept-actions,body.friend-view #dtConceptHome .dt-concept-extras{display:none!important}',
   'body.friend-view #dtConceptHome .dt-concept-profile{min-height:170px}',
   'body.friend-view .dt-friend-facts{margin:12px 15px 0!important}',
@@ -208,7 +208,7 @@
   '#dtConceptHome button:focus-visible{outline:3px solid #264e6d;outline-offset:3px}',
   'body:not(.friend-view):not(.dt-locked) .dog-friends-section{margin-top:12px!important}',
   'body:not(.friend-view):not(.dt-locked) .snapshot-wrap{margin-top:5px!important}',
-  '@media(max-width:390px){.dt-concept-profile{gap:11px;padding:14px}.dt-concept-profile-photo{width:100px;height:100px;flex-basis:100px}.dt-concept-profile-copy h2{font-size:25px}.dt-concept-profile-copy p{font-size:12px}}'
+  '@media(max-width:390px){.dt-concept-profile{gap:11px;padding:14px}.dt-concept-profile-photo{width:100px;height:100px;flex-basis:100px}.dt-concept-profile-copy p{font-size:12px;margin-top:88px}.dt-concept-tag{right:13%;width:112px}.dt-concept-tag-label{right:calc(13% + 11px);width:90px}}'
   ].join('\n');document.head.appendChild(css);
   const home=document.createElement('section');home.id='dtConceptHome';home.setAttribute('aria-label','Daily Tail home dashboard');
   home.innerHTML='<div class="dt-concept-profile"><img id="dtConceptPhoto" class="dt-concept-profile-photo" alt="Lou profile photo"><div class="dt-concept-profile-copy"><h2 id="dtConceptName">Lou</h2><p>My profile · Recent memories</p><button type="button" id="dtConceptProfile" class="dt-concept-open">View profile ›</button></div><img id="dtConceptTag" class="dt-concept-tag" alt="" aria-hidden="true"><span id="dtConceptTagLabel" class="dt-concept-tag-label" aria-hidden="true">Lou</span></div><div class="dt-concept-next"><div class="dt-concept-head"><h3>Up Next</h3><span class="dt-concept-time" id="dtConceptTime">Loading plan…</span></div><div class="dt-concept-task"><input type="checkbox" id="dtConceptCheck" aria-label="Complete next care task"><button type="button" id="dtConceptTask">Check the daily plan</button><span class="dt-concept-chev" aria-hidden="true">›</span></div></div><div class="dt-concept-actions"><button type="button" id="dtConceptCare"><span class="dt-icon" aria-hidden="true">🐾</span>Log Care</button><button type="button" id="dtConceptPlan"><span class="dt-icon" aria-hidden="true">▣</span>Daily Plan</button><button type="button" id="dtConceptMemory"><span class="dt-icon" aria-hidden="true">♡</span>Memory</button></div><div class="dt-concept-extras"><button type="button" id="dtConceptTraining">Training ›</button><button type="button" id="dtConceptEmergency">Emergency Info ›</button></div>';
