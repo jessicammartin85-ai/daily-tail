@@ -326,6 +326,8 @@
   const title=document.createElement('h3');title.className='dt-quick-title';title.textContent='Quick Actions';
   const subtitle=document.createElement('p');subtitle.className='dt-quick-subtitle';subtitle.textContent='Tap to save a care note for today';
   actions.before(title,subtitle);
+  const quickPanel=document.createElement('section');quickPanel.className='dt-quick-panel';quickPanel.setAttribute('aria-label','Quick care actions');
+  title.before(quickPanel);quickPanel.append(title,subtitle,actions);
   actions.replaceChildren();
   const types=[['Potty','🚽'],['Meal','🥣'],['Walk','🦮'],['Meds','💊'],['Training','🎓']];
   const dialog=document.createElement('div');dialog.id='dtQuickLogDialog';dialog.hidden=true;
@@ -360,4 +362,43 @@
   });
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+
+
+/* Responsive design polish: remove accidental hero height and properly feature the silver tag. */
+(function(){
+ function apply(){
+  if(document.getElementById('dtVisualPolish'))return;
+  const style=document.createElement('style');style.id='dtVisualPolish';
+  style.textContent=[
+   '.dt-concept-profile{min-height:225px!important;height:auto!important;padding:46px 14px 12px!important;gap:10px!important;align-items:center!important}',
+   '.dt-concept-profile-photo{width:112px!important;height:112px!important;flex:0 0 112px!important}',
+   '.dt-concept-profile-copy{height:152px!important;min-width:0!important;justify-content:flex-end!important;align-self:center!important;padding:0 0 0!important;gap:7px!important}',
+   '.dt-concept-profile-copy p{display:none!important;margin:0!important}',
+   '.dt-hero-heading{top:8px!important;font-size:22px!important;pointer-events:none}',
+   '.dt-hero-paw{top:11px!important;font-size:17px!important}',
+   '.dt-concept-tag{top:43px!important;right:calc(12% - 10px)!important;width:110px!important;height:83px!important;z-index:3!important}',
+   '.dt-concept-tag-label{top:80px!important;right:calc(12% + 3px)!important;width:85px!important;font-size:18px!important;z-index:4!important}',
+   '.dt-hero-memory{max-width:100%!important;min-height:48px!important;flex:none!important;position:relative!important;z-index:5!important}',
+   '.dt-hero-memory img{width:32px!important;height:32px!important}',
+   '.dt-hero-memory b{font-size:13px!important}',
+   '.dt-concept-open{min-height:33px!important;align-self:flex-start!important;padding:7px 11px!important;font-size:12px!important}',
+   '.dt-quick-panel{margin-top:12px;background:#fff9f0;border:1.5px solid #b6c6d0;border-radius:18px;padding:13px 12px 14px;box-shadow:0 3px 9px #263c491a}',
+   '.dt-quick-title{font-size:21px!important;margin:0!important}',
+   '.dt-quick-subtitle{font-size:12px!important;margin:4px 0 10px!important}',
+   '.dt-concept-actions{margin-top:0!important;gap:6px!important}',
+   '.dt-concept-actions button{min-height:72px!important;border-radius:12px!important}',
+   '.dt-concept-extras{margin:10px 0 0!important}',
+   '.dt-concept-extras button{min-height:38px!important}',
+   'body.friend-view .dt-quick-panel{display:none!important}',
+   '@media(max-width:390px){.dt-concept-profile{min-height:214px!important;padding:42px 11px 10px!important}.dt-concept-profile-photo{width:96px!important;height:96px!important;flex-basis:96px!important}.dt-concept-profile-copy{height:152px!important}.dt-concept-tag{right:calc(10% - 10px)!important;top:42px!important;width:104px!important;height:79px!important}.dt-concept-tag-label{right:calc(10% + 1px)!important;top:77px!important;width:82px!important;font-size:17px!important}.dt-hero-memory{padding:6px!important}.dt-quick-panel{padding:11px 8px!important}.dt-concept-actions{gap:5px!important}}'
+  ].join('\n');
+  document.head.appendChild(style);
+  const extras=document.querySelector('.dt-concept-extras');
+  if(extras){
+   const training=[...extras.querySelectorAll('button')].find(b=>/^Training/.test(b.textContent.trim()));
+   if(training)training.remove();
+  }
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);else apply();
 })();
