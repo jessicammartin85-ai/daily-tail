@@ -402,3 +402,89 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);else apply();
 })();
+
+
+/* Daily progress and chronological timeline. Reads the existing schedule; no duplicate records. */
+(function(){
+ function start(){
+  const $=id=>document.getElementById(id);
+  const home=$('dtConceptHome'),extras=home?.querySelector('.dt-concept-extras');
+  if(!home||!extras||$('dtTimelineDashboard'))return;
+  const css=document.createElement('style');css.id='dtTimelineStyle';
+  css.textContent=[
+   '#dtTimelineDashboard{margin:12px 0 0;color:#324858;font-family:Arial,sans-serif}',
+   '.dt-timeline-card{background:#fffaf2;border:1.5px solid #b3c4ce;border-radius:18px;padding:15px;margin-top:11px;box-shadow:0 3px 9px #263c491b}',
+   '.dt-timeline-head{display:flex;align-items:center;justify-content:space-between;gap:10px}',
+   '.dt-timeline-head h3{font:700 22px Georgia,serif;color:#60402c;margin:0}',
+   '.dt-timeline-count{font:700 12px Arial,sans-serif;color:#587184;white-space:nowrap}',
+   '.dt-timeline-meter{height:10px;border:1px solid #b8c6ce;border-radius:999px;background:#e9e5de;overflow:hidden;margin:13px 0 9px}',
+   '.dt-timeline-meter span{display:block;height:100%;background:#365f79;width:0;transition:width .2s}',
+   '.dt-timeline-summary{font:12px Arial,sans-serif;color:#5f7180;margin:0}',
+   '.dt-timeline-toggle{width:100%;border:0;background:none;display:flex;justify-content:space-between;align-items:center;padding:0;text-align:left;cursor:pointer;min-height:40px}',
+   '.dt-timeline-toggle strong{font:700 22px Georgia,serif;color:#60402c}',
+   '.dt-timeline-toggle span{font:700 12px Arial,sans-serif;color:#45647b}',
+   '.dt-timeline-items{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:7px}',
+   '.dt-timeline-items li{display:flex;align-items:center;gap:10px;padding:10px;border-radius:11px;background:#f4eee5;border:1px solid #d1d8d9}',
+   '.dt-timeline-items li.dt-complete{background:#edf4ee}',
+   '.dt-timeline-items li.dt-current{background:#e1edf3;border-color:#9db6c5}',
+   '.dt-timeline-dot{flex:0 0 19px;width:19px;height:19px;border:2px solid #8ca0ad;border-radius:50%;display:grid;place-items:center;background:white;color:#fff;font-size:12px}',
+   '.dt-complete .dt-timeline-dot{background:#4c876c;border-color:#4c876c}',
+   '.dt-current .dt-timeline-dot{border-color:#365f79}',
+   '.dt-timeline-entry{flex:1;min-width:0}',
+   '.dt-timeline-entry time{display:block;color:#60727c;font:700 11px Arial,sans-serif;margin-bottom:3px}',
+   '.dt-timeline-entry strong{display:block;color:#2e4050;font:700 13px/1.3 Arial,sans-serif}',
+   '.dt-timeline-open{border:0;background:transparent;color:#365f79;padding:8px;font-size:22px;cursor:pointer}',
+   '.dt-timeline-all{width:100%;margin-top:10px;border:1px solid #9fb2bf;background:#e2ecf1;border-radius:11px;padding:10px;font-weight:700;color:#35566f;cursor:pointer}',
+   'body.friend-view #dtTimelineDashboard,body.dt-locked #dtTimelineDashboard{display:none!important}',
+   '#dtTimelineDashboard button:focus-visible{outline:3px solid #365f79;outline-offset:3px}'
+  ].join('\n');document.head.appendChild(css);
+  const section=document.createElement('section');section.id='dtTimelineDashboard';section.setAttribute('aria-label','Today progress and schedule');
+  section.innerHTML='<div class="dt-timeline-card"><div class="dt-timeline-head"><h3>🏆 Today’s Progress</h3><span id="dtTodayCount" class="dt-timeline-count">Checking…</span></div><div class="dt-timeline-meter" aria-label="Daily schedule completion"><span id="dtTodayBar"></span></div><p class="dt-timeline-summary" id="dtTodaySummary">Progress follows the Daily Plan.</p></div><div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="true" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Collapse ⌃</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
+  extras.after(section);
+  const items=$('dtTimelineItems');let expanded=true;
+  $('dtTimelineToggle').addEventListener('click',()=>{
+    expanded=!expanded;items.hidden=!expanded;$('dtTimelineAll').hidden=!expanded;
+    $('dtTimelineToggle').setAttribute('aria-expanded',String(expanded));
+    $('dtTimelineToggleText').textContent=expanded?'Collapse ⌃':'Expand ⌄';
+  });
+  $('dtTimelineAll').addEventListener('click',()=>$('scheduleArt')?.click());
+  const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
+  function update(){
+   if(document.body.classList.contains('friend-view')||document.body.classList.contains('dt-locked'))return;
+   const sch=window.DailyTailSchedule;if(!sch)return;
+   const entries=sch.getEntries(),done=sch.getDone(),key=today();
+   const finished=entries.reduce((n,e,i)=>n+(done[key+'|'+i]?1:0),0);
+   $('dtTodayCount').textContent=finished+' of '+entries.length+' complete';
+   $('dtTodayBar').style.width=(entries.length?Math.round(finished*100/entries.length):0)+'%';
+   $('dtTodaySummary').textContent=entries.length?'Based on today’s scheduled activities. Tap a task to update it in Daily Plan.':'No scheduled activities today.';
+   const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
+   const toMinutes=t=>{const m=/^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(t||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3]==='PM'?720:0):Number.MAX_SAFE_INTEGER};
+   // Show 2 most recent completed, followed by next 4 unfinished.
+   const completed=entries.map((e,i)=>({...e,i})).filter(e=>done[key+'|'+e.i]).slice(-2);
+   const outstanding=entries.map((e,i)=>({...e,i})).filter(e=>!done[key+'|'+e.i]);
+   const upcoming=outstanding.filter(e=>toMinutes(e.time)>=minutes);
+   const remaining=outstanding.filter(e=>toMinutes(e.time)<minutes);
+   const selected=[...completed,...remaining.slice(0,2),...upcoming.slice(0,4)].sort((a,b)=>a.i-b.i).slice(0,7);
+   items.replaceChildren();
+   selected.forEach(e=>{
+    const complete=!!done[key+'|'+e.i],current=!complete&&toMinutes(e.time)<=minutes;
+    const li=document.createElement('li');li.className=complete?'dt-complete':current?'dt-current':'';
+    const dot=document.createElement('span');dot.className='dt-timeline-dot';dot.textContent=complete?'✓':'';
+    const info=document.createElement('div');info.className='dt-timeline-entry';
+    const time=document.createElement('time');time.textContent=e.time||'';
+    const label=document.createElement('strong');label.textContent=e.title||'Care activity';info.append(time,label);
+    const open=document.createElement('button');open.type='button';open.className='dt-timeline-open';open.textContent='›';open.setAttribute('aria-label','Open Daily Plan for '+(e.title||'care activity'));open.onclick=()=>$('scheduleArt')?.click();
+    li.append(dot,info,open);items.append(li);
+   });
+   if(!selected.length){const li=document.createElement('li');li.textContent=entries.length?'Everything is complete for today!':'Nothing scheduled yet.';items.append(li);}
+  }
+  window.addEventListener('daily-tail-schedule-change',update);
+  window.addEventListener('focus',update);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)update()});
+  // The original plan UI fires custom updates; this also catches returning from the plan dialog.
+  $('close')?.addEventListener('click',update);
+  $('dtTimelineAll').addEventListener('click',()=>setTimeout(update,300));
+  update();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
