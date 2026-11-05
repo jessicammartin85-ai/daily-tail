@@ -47,23 +47,28 @@ function build(home,test){
  const origPhoto=$('profileThumb');
  if(origPhoto)new MutationObserver(syncPhoto).observe(origPhoto,{attributes:true,attributeFilter:['src']});
  const paws=document.createElement('div');paws.className='dt-design-paws';paws.setAttribute('aria-hidden','true');host.insertBefore(paws,host.firstChild);
+ // Sample one complete watercolor paw from the unobstructed lower-left
+ // corner of the original artwork. The other corners are partly hidden by cards.
+ // Reusing this intact source avoids amputated toe pads or broken paw shapes.
  try{
-  const original=document.createElement('canvas');const ctx=original.getContext('2d',{willReadFrequently:true});
-  original.width=test.naturalWidth;original.height=test.naturalHeight;ctx.drawImage(test,0,0);
-  const corners=[[12,17,135,145,'tl'],[12,17,135,145,'left-mid'],[12,17,135,145,'left-edge'],[12,17,135,145,'left-low'],[1300,13,145,145,'tr'],[1300,13,145,145,'right-edge'],[12,445,143,166,'right-mid'],[1300,442,145,169,'right-low']];
-  for(const [x,y,w,h,cls] of corners){
-   const frame=document.createElement('canvas');frame.width=w;frame.height=h;
-   const brush=frame.getContext('2d');brush.drawImage(original,x,y,w,h,0,0,w,h);
-   const pixels=brush.getImageData(0,0,w,h);const rgba=pixels.data;
-   for(let k=0;k<rgba.length;k+=4){
-    const rr=rgba[k],gg=rgba[k+1],bb=rgba[k+2];
-    const strength=Math.max(0,Math.min(255,(bb-rr-6)*8,(bb-gg-4)*12));
-    rgba[k+3]=strength;
-   }
-   brush.putImageData(pixels,0,0);
-   const paw=document.createElement('img');paw.className='dt-design-paw '+cls;paw.alt='';paw.src=frame.toDataURL('image/png');paws.appendChild(paw);
+  const frame=document.createElement('canvas');frame.width=142;frame.height=145;
+  const brush=frame.getContext('2d',{willReadFrequently:true});
+  brush.drawImage(test,9,465,142,145,0,0,142,145);
+  const pixels=brush.getImageData(0,0,142,145),v=pixels.data;
+  for(let k=0;k<v.length;k+=4){
+   const red=v[k],green=v[k+1],blue=v[k+2];
+   // The original terracotta is brown; the watercolor paw is blue.
+   // Keep the whole blue shape, including edges and highlights.
+   const blueStrength=Math.min(blue-red-4,green-red-5);
+   v[k+3]=Math.max(0,Math.min(255,blueStrength*12));
   }
- }catch(e){console.warn('Original decorative paws unavailable',e);}
+  brush.putImageData(pixels,0,0);
+  const completePaw=frame.toDataURL('image/png');
+  for(const cls of ['tl','left-mid','left-edge','left-low','tr','right-edge','right-mid','right-low']){
+   const paw=document.createElement('img');paw.className='dt-design-paw '+cls;
+   paw.alt='';paw.decoding='async';paw.src=completePaw;paws.appendChild(paw);
+  }
+ }catch(e){console.warn('Complete watercolor paw extraction unavailable',e);}
  const style=document.createElement('style');style.id='dtFullDesignStyles';
  style.textContent=[
  'body:not(.friend-view):not(.dt-locked) #dtConceptHome{display:none!important}',
