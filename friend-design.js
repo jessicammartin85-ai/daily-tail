@@ -13,7 +13,7 @@ function start(){
  '<div class="dt-friend-design-grid">'+
   '<div class="dt-friend-design-left">'+
    '<img class="dt-friend-design-photo" id="dtFriendDesignPhoto" alt="Dog profile photo">'+
-   '<div class="dt-friend-design-logo" role="img" aria-label="Daily Tails leather nameplate with hanging silver bone"></div>'+
+   '<div class="dt-friend-design-logo" role="img" aria-label="Daily Tails leather nameplate with hanging silver bone"><span id="dtFriendTagName" class="dt-friend-tag-name" aria-label="Dog name"></span></div>'+
   '</div>'+
   '<div class="dt-friend-design-right">'+
    '<button class="dt-friend-design-recent" type="button" id="dtFriendDesignRecent" aria-label="Read recent shared posts"><span class="dt-friend-design-eyebrow">✦ RECENT POST</span><strong id="dtFriendDesignTitle">Recent post</strong><em id="dtFriendDesignSummary">Tap to read shared memories</em><span class="dt-friend-design-chevron" aria-hidden="true">›</span></button>'+
@@ -33,6 +33,7 @@ function start(){
  '#dtFriendDesignHome .dt-friend-design-left{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:3}',
  '#dtFriendDesignHome .dt-friend-design-photo{display:block;width:100%;aspect-ratio:1;border:3px solid #201911;object-fit:cover;background:#e5d4b8;border-radius:50%;box-shadow:0 2px 3px #33251a44}',
  '#dtFriendDesignHome .dt-friend-design-logo{width:110%;aspect-ratio:780/586;margin:-16% 0 -13%;background:url("./daily-tails-logo.webp") center/contain no-repeat;position:relative;pointer-events:none;z-index:4}',
+ '#dtFriendDesignHome .dt-friend-tag-name{position:absolute;top:70%;left:33%;width:40%;height:19%;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;pointer-events:none;color:#52565a;text-shadow:0 1px 1px #ffffffd9;font:700 18px/1.1 Georgia,serif;transform:rotate(-8deg);transform-origin:center center;white-space:nowrap;overflow:hidden;z-index:5}',
  '#dtFriendDesignHome .dt-friend-design-right{display:flex;flex-direction:column;gap:12px;min-width:0;position:relative;z-index:3}',
  '#dtFriendDesignHome .dt-friend-design-recent{position:relative;display:flex;flex-direction:column;min-height:113px;text-align:left;background:#fffaf1;border:2px solid #e3cfb4;box-shadow:0 2px 5px #4b31202c;border-radius:18px;padding:24px 27px 12px 14px;color:#294b63;cursor:pointer;max-width:100%;min-width:0}',
  '#dtFriendDesignHome .dt-friend-design-eyebrow{position:absolute;top:-14px;left:10px;border-radius:999px;background:#35617b;color:white;padding:5px 11px;font:700 12px Arial,sans-serif;box-shadow:0 2px 3px #2c43514a}',
@@ -75,6 +76,25 @@ function start(){
    panel.querySelector('.dt-friend-art-paws').append(img);
   }
  }
+ const fitTagName=()=>{
+  const nameEl=$('dtFriendTagName'),logo=panel.querySelector('.dt-friend-design-logo');
+  if(!nameEl||!logo)return;
+  // Public facts are the visitor-authorized source of the dog's displayed name.
+  const name=$('dtFactsDogName')?.textContent?.trim()||$('publicDogName')?.textContent?.trim()||'My Dog';
+  if(nameEl.textContent!==name)nameEl.textContent=name;
+  const width=nameEl.clientWidth-9,height=nameEl.clientHeight;
+  if(width<=0||height<=0)return;
+  const ctx=document.createElement('canvas').getContext('2d');if(!ctx)return;
+  const max=Math.min(26,Math.max(12,logo.clientWidth*.105),height*.78);
+  let size=Math.max(8,max);
+  while(size>8){
+   ctx.font='700 '+size+'px Georgia, serif';
+   if(ctx.measureText(name).width<=width*.94)break;
+   size-=.5;
+  }
+  const px=Math.max(8,Math.round(size*10)/10)+'px';
+  if(nameEl.style.fontSize!==px)nameEl.style.fontSize=px;
+ };
  const sync=()=>{
   const photo=$('profileThumb')?.getAttribute('src')||$('dtRefPhoto')?.getAttribute('src');
   if(photo&&$('dtFriendDesignPhoto').getAttribute('src')!==photo)$('dtFriendDesignPhoto').src=photo;
@@ -88,6 +108,7 @@ function start(){
   };
   for(const [id,value] of Object.entries(values)){const el=$(id);if(el&&el.textContent!==value)el.textContent=value;}
   copyPaws();
+  requestAnimationFrame(fitTagName);
  };
  sync();
  const tracked=['profileThumb','recentPostTitle','recentPostSummary','dtFactsDogName','dtFactsBreed','dtFactsBirthday','dtFactsQuote'];
@@ -97,7 +118,8 @@ function start(){
  if(artPaw)observer.observe(artPaw,{childList:true});
  new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
  const resize=()=>panel.classList.toggle('dt-friend-narrow',panel.getBoundingClientRect().width<490);
- resize();if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(panel);
+ resize();if(typeof ResizeObserver!=='undefined'){new ResizeObserver(resize).observe(panel);new ResizeObserver(fitTagName).observe(panel.querySelector('.dt-friend-design-logo'));}
+ window.addEventListener('resize',fitTagName);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
