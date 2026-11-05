@@ -413,6 +413,7 @@
   const css=document.createElement('style');css.id='dtTimelineStyle';
   css.textContent=[
    '#dtTimelineDashboard{display:block!important;position:relative;z-index:3;margin:12px 14px 0;color:#324858;font-family:Arial,sans-serif}',
+   '#dtTimelineDashboard>.dt-timeline-card:first-child{display:none!important}',
    '.dt-timeline-card{background:#fffaf2;border:1.5px solid #b3c4ce;border-radius:18px;padding:15px;margin-top:11px;box-shadow:0 3px 9px #263c491b}',
    '.dt-timeline-head{display:flex;align-items:center;justify-content:space-between;gap:10px}',
    '.dt-timeline-head h3{font:700 22px Georgia,serif;color:#60402c;margin:0}',
