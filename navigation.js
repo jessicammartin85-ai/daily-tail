@@ -424,6 +424,9 @@
    '.dt-timeline-toggle strong{font:700 22px Georgia,serif;color:#60402c}',
    '.dt-timeline-toggle span{font:700 12px Arial,sans-serif;color:#45647b}',
    '.dt-timeline-items{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:7px}',
+   '#dtTimelineDashboard #dtTimelineItems[hidden],#dtTimelineDashboard #dtTimelineAll[hidden]{display:none!important}',
+   '#dtTimelineDashboard .dt-timeline-card.dt-is-collapsed{padding-top:11px;padding-bottom:11px}',
+   '#dtTimelineDashboard .dt-timeline-card.dt-is-collapsed .dt-timeline-toggle{min-height:35px}',
    '.dt-timeline-items li{display:flex;align-items:center;gap:10px;padding:10px;border-radius:11px;background:#f4eee5;border:1px solid #d1d8d9}',
    '.dt-timeline-items li.dt-complete{background:#edf4ee}',
    '.dt-timeline-items li.dt-current{background:#e1edf3;border-color:#9db6c5}',
@@ -445,6 +448,7 @@
   const items=$('dtTimelineItems');let expanded=true;
   $('dtTimelineToggle').addEventListener('click',()=>{
     expanded=!expanded;items.hidden=!expanded;$('dtTimelineAll').hidden=!expanded;
+    section.querySelector('.dt-timeline-card')?.classList.toggle('dt-is-collapsed',!expanded);
     $('dtTimelineToggle').setAttribute('aria-expanded',String(expanded));
     $('dtTimelineToggleText').textContent=expanded?'Collapse ⌃':'Expand ⌄';
   });
