@@ -412,7 +412,7 @@
   if(!home||!extras||$('dtTimelineDashboard'))return;
   const css=document.createElement('style');css.id='dtTimelineStyle';
   css.textContent=[
-   '#dtTimelineDashboard{margin:12px 0 0;color:#324858;font-family:Arial,sans-serif}',
+   '#dtTimelineDashboard{display:block!important;position:relative;z-index:3;margin:12px 14px 0;color:#324858;font-family:Arial,sans-serif}',
    '.dt-timeline-card{background:#fffaf2;border:1.5px solid #b3c4ce;border-radius:18px;padding:15px;margin-top:11px;box-shadow:0 3px 9px #263c491b}',
    '.dt-timeline-head{display:flex;align-items:center;justify-content:space-between;gap:10px}',
    '.dt-timeline-head h3{font:700 22px Georgia,serif;color:#60402c;margin:0}',
@@ -440,7 +440,8 @@
   ].join('\n');document.head.appendChild(css);
   const section=document.createElement('section');section.id='dtTimelineDashboard';section.setAttribute('aria-label','Today progress and schedule');
   section.innerHTML='<div class="dt-timeline-card"><div class="dt-timeline-head"><h3>🏆 Today’s Progress</h3><span id="dtTodayCount" class="dt-timeline-count">Checking…</span></div><div class="dt-timeline-meter" aria-label="Daily schedule completion"><span id="dtTodayBar"></span></div><p class="dt-timeline-summary" id="dtTodaySummary">Progress follows the Daily Plan.</p></div><div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="true" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Collapse ⌃</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
-  extras.after(section);
+  const friends=document.querySelector('.dog-friends-section');
+  if(friends)friends.before(section);else extras.after(section);
   const items=$('dtTimelineItems');let expanded=true;
   $('dtTimelineToggle').addEventListener('click',()=>{
     expanded=!expanded;items.hidden=!expanded;$('dtTimelineAll').hidden=!expanded;
@@ -485,6 +486,7 @@
   $('close')?.addEventListener('click',update);
   $('dtTimelineAll').addEventListener('click',()=>setTimeout(update,300));
   update();
+  requestAnimationFrame(()=>{const friendsNow=document.querySelector('.dog-friends-section');if(friendsNow&&section.nextElementSibling!==friendsNow)friendsNow.before(section);update();});
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
