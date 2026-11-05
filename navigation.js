@@ -682,7 +682,7 @@
    .dt-ref-inner{position:relative!important;min-height:172px!important;align-items:end!important}
    .dt-ref-photo-col{align-self:center!important}
    .dt-ref-side{align-self:stretch!important;justify-content:flex-end!important;padding:71px 2px 3px 3px!important}
-   .dt-ref-bone{position:absolute!important;left:calc(74% - 49px)!important;top:-9px!important;
+   .dt-ref-bone{position:absolute!important;left:calc(67% - 49px)!important;top:-34px!important;
       margin:0!important;width:98px!important;height:78px!important;
       display:flex!important;align-items:center!important;justify-content:center!important;
       z-index:6!important;pointer-events:none!important}
@@ -695,7 +695,7 @@
       .dt-ref-head{font-size:clamp(21px,6vw,28px)!important;padding:7px 15px!important}
       .dt-ref-inner{min-height:151px!important}
       .dt-ref-side{padding-top:66px!important}
-      .dt-ref-bone{left:calc(74% - 43px)!important;width:86px!important;height:72px!important;top:-7px!important}
+      .dt-ref-bone{left:calc(67% - 43px)!important;width:86px!important;height:72px!important;top:-31px!important}
       .dt-ref-bone span{font-size:13px!important;top:65%!important}
    }
   `;
