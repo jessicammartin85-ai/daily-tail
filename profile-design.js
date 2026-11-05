@@ -101,7 +101,7 @@ function build(home,test){
  '#dtDesignEmergency .dt-design-plus{background:#ec3c4a;color:white;border:1px solid #fff;border-radius:6px;padding:4px;font-size:clamp(18px,2.6vw,30px)}',
  '#dtImageDesignedHome button:focus-visible{outline:3px solid #214968!important;outline-offset:3px}',
  'body.friend-view #dtImageDesignedHome,body.dt-locked #dtImageDesignedHome{display:none!important}',
- '@media(max-width:1000px){',
+ // The app shell is always compact, even in a wide desktop viewport.
  'body:not(.friend-view):not(.dt-locked) #dtImageDesignedHome{width:calc(100% - 24px);height:auto!important;aspect-ratio:auto!important;margin:10px 12px 4px;overflow:hidden;background:#bd895e;border:3px solid #33251e;border-radius:24px;padding:15px 12px}',
  '#dtImageDesignedHome .dt-original-art{background:none!important}',
  '#dtImageDesignedHome .dt-design-paws{position:absolute;inset:0;display:block;pointer-events:none;overflow:hidden}',
@@ -132,29 +132,9 @@ function build(home,test){
  '#dtImageDesignedHome .dt-concept-actions button{font-size:10px!important;min-height:68px!important}',
  '#dtImageDesignedHome .dt-concept-actions .dt-icon{font-size:22px!important}',
  '#dtDesignEmergency{flex-direction:row;min-height:42px;font-size:12px;padding:6px 12px}',
- '#dtDesignEmergency .dt-design-plus{font-size:19px;padding:3px}',
- '}'
+ '#dtDesignEmergency .dt-design-plus{font-size:19px;padding:3px}'
  ].join('\n');
- // Apply compact design based on the dashboard's actual width, not browser viewport.
- // The app's desktop shell is only ~590px wide even on a large monitor.
- const responsive=style.textContent.match(/@media\(max-width:1000px\)\{([\s\S]*?)\n\}/);
- if(responsive){
-  const scoped=responsive[1].replace(/(^|\n)([^{}\n]+)\{/g,(_match,start,selectors)=>{
-   const rewritten=selectors.split(',').map(part=>{
-    const selector=part.trim();
-    if(selector.includes('#dtImageDesignedHome'))return selector.replace('#dtImageDesignedHome','#dtImageDesignedHome.dt-mobile');
-    if(selector.startsWith('#dtDesignEmergency'))return '#dtImageDesignedHome.dt-mobile '+selector;
-    return '#dtImageDesignedHome.dt-mobile '+selector;
-   }).join(',');
-   return start+rewritten+'{';
-  });
-  style.textContent+='\n'+scoped;
- }
  document.head.appendChild(style);
- const updateCompact=()=>host.classList.toggle('dt-mobile',host.getBoundingClientRect().width<730);
- updateCompact();
- if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateCompact).observe(host);
- window.addEventListener('resize',updateCompact);
  // Maintain privacy when switching between owner and friend views.
  const originals=()=>Object.values(source).filter(Boolean);
  function relocate(){
