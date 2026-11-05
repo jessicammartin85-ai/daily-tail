@@ -735,3 +735,6 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+
+/* Load the artwork-driven owner dashboard without replacing existing interactions. */
+(function(){const s=document.createElement('script');s.src='./profile-design.js?v=20261105-a';s.defer=true;document.head.appendChild(s);})();
