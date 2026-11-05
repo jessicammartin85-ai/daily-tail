@@ -74,3 +74,68 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+
+/* Home layout refresh: illustrated profile stays intact, with easy care actions
+   and a compact friend-discovery section. Existing handlers and records are reused. */
+(function(){
+ function ready(){
+  const $=id=>document.getElementById(id);
+  const art=document.querySelector('.art'),snapshot=document.querySelector('.snapshot-wrap');
+  const friends=document.querySelector('.dog-friends-section'),facts=$('dtFriendFacts');
+  if(!art||!snapshot||!friends||$('dtHomeQuick'))return;
+  const style=document.createElement('style');
+  style.textContent=[
+   'body:not(.dt-locked) .dt-home-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:6px 15px 0;position:relative;z-index:6}',
+   '.dt-home-quick button{background:#fdf8ef;color:#30495c;border:1.5px solid #99afbd;border-radius:15px;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 5px;font:700 13px Arial,sans-serif;box-shadow:0 3px 7px #273b4820;cursor:pointer}',
+   '.dt-home-quick button:first-child{background:#365c76;color:#fff;border-color:#365c76}',
+   '.dt-home-quick .dt-quick-symbol{font-size:25px;line-height:1}',
+   '.dt-home-quick button:focus-visible{outline:3px solid #bc855c;outline-offset:2px}',
+   'body.friend-view .dt-home-quick,body.dt-locked .dt-home-quick{display:none!important}',
+   'body:not(.friend-view):not(.dt-locked) .art .art-nav{display:none!important}',
+   'body:not(.friend-view):not(.dt-locked) .snapshot-wrap{margin-top:0!important;padding-top:8px!important}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-section{width:auto;margin:13px 15px 0!important;padding:14px!important;border-radius:18px;box-shadow:0 3px 9px #273b4820}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-heading{margin-bottom:7px}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-heading h2{font-size:23px}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-empty{min-height:0;padding:9px 11px;border-radius:12px}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-empty-icon{display:none}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-empty strong{font:700 13px Arial,sans-serif;margin:0 0 4px}',
+   'body:not(.friend-view):not(.dt-locked) .dog-friends-empty p{font-size:12px;margin:0}',
+   'body:not(.friend-view):not(.dt-locked) #dtOwnerFriendSearch{padding:0;margin:10px 0 0;background:transparent;border:0}',
+   'body:not(.friend-view):not(.dt-locked) #dtFindDogFriends{width:100%;min-height:42px;border-radius:12px;background:#365c76;color:#fff;font-weight:700}',
+   'body:not(.friend-view):not(.dt-locked) .snapshot-head{position:relative}',
+   'body:not(.friend-view):not(.dt-locked) #themeSettingsBtn{display:none!important}',
+   '#dtBottomNav [data-dt-tab=more] .dt-nav-icon{font-size:22px}',
+   '@media(min-width:591px){.dt-home-quick{max-width:550px;margin-left:auto!important;margin-right:auto!important}}',
+   '@media(max-width:360px){.dt-home-quick{gap:6px!important;margin-left:10px!important;margin-right:10px!important}.dt-home-quick button{font-size:12px!important}}'
+  ].join('\\n');
+  document.head.appendChild(style);
+  const actions=document.createElement('div');actions.id='dtHomeQuick';actions.className='dt-home-quick';actions.setAttribute('aria-label','Quick actions');
+  const links=[
+   {label:'Log Care',icon:'🐾',target:'scheduleArt'},
+   {label:'Daily Plan',icon:'▣',target:'scheduleArt'},
+   {label:'Memories',icon:'♡',target:'recent'}
+  ];
+  links.forEach(item=>{
+   const b=document.createElement('button');b.type='button';b.innerHTML='<span class="dt-quick-symbol" aria-hidden="true">'+item.icon+'</span><span>'+item.label+'</span>';
+   b.addEventListener('click',()=>{const target=$(item.target);if(target)target.click();});
+   actions.appendChild(b);
+  });
+  art.after(actions);
+  // Move the original friends panel, not a copy, so profiles and request handlers stay connected.
+  function positionFriends(){
+   if(document.body.classList.contains('friend-view')){
+    if(facts&&facts.parentNode&&facts.nextElementSibling!==friends)facts.after(friends);
+   }else{
+    if(actions.nextElementSibling!==friends)actions.after(friends);
+   }
+  }
+  positionFriends();
+  const observer=new MutationObserver(positionFriends);
+  observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+  // Keep all owner utilities in the final tab while using the friendlier Profile label.
+  const more=document.querySelector('#dtBottomNav [data-dt-tab=more]');
+  if(more){more.innerHTML='<span class="dt-nav-icon" aria-hidden="true">☰</span>Profile';more.setAttribute('aria-label','Profile and settings');}
+  const menu=document.querySelector('.dt-nav-menu h2');if(menu)menu.textContent='Profile & settings';
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready);else ready();
+})();
