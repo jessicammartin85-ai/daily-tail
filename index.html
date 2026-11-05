@@ -1139,7 +1139,7 @@ const dtSafeStorage=(()=>{
 
 const KEY='loubear_memorybook_v1';let state={profile:'',posts:[]};try{const saved=JSON.parse(dtSafeStorage.getItem(KEY));if(saved&&Array.isArray(saved.posts))state={...state,...saved}}catch{};const $=id=>document.getElementById(id);let panel='';const APPMETA_KEY='dailytail_app_meta_v1';let appMeta={petName:'Lou Bear'};try{const meta=JSON.parse(dtSafeStorage.getItem(APPMETA_KEY));if(meta&&typeof meta==='object')appMeta={...appMeta,...meta}}catch{};function saveMeta(){try{dtSafeStorage.setItem(APPMETA_KEY,JSON.stringify(appMeta))}catch{}}function renderTagName(){
  const el=$('tagName'), tag=$('tag');if(!el||!tag)return;
- const name=(appMeta.petName||'Lou Bear').trim()||'Lou Bear';
+ const name=(typeof friendPreview!=='undefined'&&friendPreview)?((appMeta.petName||'Lou Bear').trim()||'Lou Bear'):'My Dogs';
  el.textContent=name;el.title=name;
  const fit=()=>{
   const tagWidth=tag.clientWidth,tagHeight=tag.clientHeight;
@@ -1461,7 +1461,7 @@ function addDailyCalendarReminder(entry){
  const total=activityMinutes(entry.time),start=new Date();start.setHours(Math.floor(total/60),total%60,0,0);
  if(start.getTime()<=Date.now())start.setDate(start.getDate()+1);
  const end=new Date(start.getTime()+10*60000);
- const dog=String(document.getElementById('tagName')?.textContent||'Dog').trim();
+ const dog=String(appMeta.petName||'Dog').trim();
  const label=dog+' · '+entry.title;
  const note='Daily Tail reminder: '+entry.title+'. '+(entry.desc||'');
  const ts=reminderLocalDateTime(start),te=reminderLocalDateTime(end);
@@ -1801,6 +1801,7 @@ function friendReadOnlyFeed(){
 }
 function syncFriendView({keepModal=false}={}){
  document.body.classList.toggle('friend-view',friendPreview);
+ renderTagName();
  const roleLabel=document.getElementById('dtRoleLabel');
  if(roleLabel&&window.dtRole){const dogName=String(dtDog()?.name||appMeta.petName||'Dog');roleLabel.textContent=friendPreview?(dogName+' · Friend View preview'):(String(window.dtPerson||'Owner')+' · '+dogName+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[window.dtRole]||'Owner'));}
  const friendAction=document.getElementById('dtFriendAction'),ownerSearch=document.getElementById('dtOwnerFriendSearch');
@@ -1859,7 +1860,7 @@ function syncFriendView({keepModal=false}={}){
   $('friendRecentThumbs').replaceChildren();
   refresh();
   $('portraitBtn').setAttribute('aria-label','Open pet profile and change photo');
-  $('tag').setAttribute('aria-label','Edit engraved pet tag name');
+  $('tag').setAttribute('aria-label','My Dogs: open dog profiles');
   $('recent').setAttribute('aria-label','Open recent posts and memories');
  }
  // Dog friends section is the same physical component, filtered for the visitor.
@@ -1869,7 +1870,7 @@ function syncFriendView({keepModal=false}={}){
 $('ownerModeBtn').addEventListener('click',()=>{if(window.dtRole==='friend')return;friendPreview=false;syncFriendView()});
 $('friendModeBtn').addEventListener('click',()=>{friendPreview=true;syncFriendView()});
 $('portraitBtn').onclick=()=>{if(!friendPreview)profile()};
-$('tag').onclick=()=>{if(!friendPreview)editTagName()};
+$('tag').onclick=()=>{if(!friendPreview&&window.dtRole!=='friend')dtDogPicker()};
 $('recent').onclick=()=>friendPreview?friendReadOnlyFeed():feed();
 $('appTitleBtn').onclick=()=>friendPreview?show('Welcome to Daily Tail',`<p>Meet ${safe(appMeta.petName||'Lou Bear')} and browse the moments their family shares.</p>`,'friend-help'):howToUse();
 $('shareMemories').checked=!!publicPrefs.memories;
