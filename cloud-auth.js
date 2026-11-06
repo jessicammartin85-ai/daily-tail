@@ -7,7 +7,7 @@ import {onAuthStateChanged,GoogleAuthProvider,signInWithPopup,
  sendPasswordResetEmail,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {dailyTalesAuth as auth} from './cloud-dog-store.js';
 const $=id=>document.getElementById(id);
-let ready=false,user=null;
+let ready=false,user=null,accountReady=false;
 const escapeHTML=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const setStatus=(text,bad=false)=>{const el=$('cloudStatus');if(el){el.textContent=text;el.style.color=bad?'#a42824':'#2c654c'}};
 function init(){
@@ -49,7 +49,9 @@ function render(){
  if(!ready){root.textContent='Verifying your account…';return}
  if(user){root.innerHTML='<p>Signed in as <strong id="dtCloudEmail"></strong></p><button id="dtCloudContinue" class="dt-primary">Continue to My Dogs</button><div class="dt-cloud-row"><button id="dtCloudSignout" class="dt-secondary">Use a different account</button></div>';
    $('dtCloudEmail').textContent=user.email||user.displayName||'Daily Tales account';
-   $('dtCloudContinue').onclick=()=>{if($('cloudShade'))$('cloudShade').hidden=true};
+   $('dtCloudContinue').disabled=!accountReady;
+   $('dtCloudContinue').textContent=accountReady?'Continue to My Dogs':'Loading your dogs…';
+   $('dtCloudContinue').onclick=()=>{if(accountReady&&$('cloudShade'))$('cloudShade').hidden=true};
    $('dtCloudSignout').onclick=()=>signOut(auth).catch(e=>setStatus(e.message,true));
    return;
  }
@@ -75,13 +77,14 @@ function render(){
  };
 }
 onAuthStateChanged(auth,u=>{
- user=u;ready=true;render();
+ user=u;ready=true;accountReady=false;render();
  const shade=$('cloudShade');
  if(!shade)return;
- if(!u){shade.hidden=false;return}
- // Let the verified cloud bridge render the correct My Dogs screen.
- shade.hidden=true;
+ shade.hidden=false;
+ if(!u)return;
+ setStatus('Loading your secure dog profiles…');
 },e=>{ready=true;render();setStatus('Account connection failed: '+e.message,true)});
+window.DailyTalesCloudResolved=()=>{accountReady=true;render();const el=$('cloudShade');if(el)el.hidden=true};
 window.DailyTalesOpenAccount=()=>{if($('cloudShade')){$('cloudShade').hidden=false;render()}};
 window.DailyTalesCloudSignOut=()=>signOut(auth);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
