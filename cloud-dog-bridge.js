@@ -130,7 +130,9 @@ function useRemote(){
 }
 function incoming(dogs){
  if(!user)return;
+ const revoked=cloudDogs.filter(d=>d.ownerUid&&d.ownerUid!==user.uid&&!dogs.some(current=>current.id===d.id));
  cloudDogs=dogs;
+ if(revoked.length&&local()?.removeCloudAccess?.(user.uid,revoked.map(d=>d.id))){location.reload();return;}
  if(saving)return; // Avoid treating our own pending write as a concurrent edit.
  if(!initialized){initialized=true;
    const existing=getLocal();
