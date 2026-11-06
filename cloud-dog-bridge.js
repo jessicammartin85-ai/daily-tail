@@ -8,6 +8,9 @@ import {dailyTalesCloudDogStore as store,dailyTalesAuth as auth} from './cloud-d
 let user=null,stopWatch=null,cloudDogs=[],connected=false,paused=false,saving=false,initialized=false;
 const revisions=new Map(),baseline=new Map();
 const LINK_KEY='daily_tales_v2_linked_uid';
+const baselineKey=uid=>'daily_tales_v2_baselines_'+uid;
+function rememberBaseline(){if(user)try{localStorage.setItem(baselineKey(user.uid),JSON.stringify(Object.fromEntries(baseline)))}catch{}}
+function restoreBaseline(uid){try{return new Map(Object.entries(JSON.parse(localStorage.getItem(baselineKey(uid))||'{}')))}catch{return new Map()}}
 const $=id=>document.getElementById(id), local=()=>window.DailyTalesLocalDogs;
 const signature=d=>JSON.stringify({name:d.name,profile:d.profile||{},meta:d.meta||{},extras:d.extras||{}});
 function getLocal(){return local()?.list()||[]}
@@ -54,6 +57,7 @@ async function uploadLocal(){
    if(results.some(x=>x.status!=='migrated'))throw Error('Some dogs already exist online. Please review them first.');
    cloudDogs=await Promise.all(dogs.map(d=>store.readDog(d.id)));
    for(const d of cloudDogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
+   rememberBaseline();
    localStorage.setItem(LINK_KEY,user.uid);
    connected=true;paused=false;hideSetup();
    local()?.openCloudAccount(user.uid,cloudDogs,user.email);
@@ -76,17 +80,35 @@ function useRemote(){
    if(changed)location.reload();
  }else connectCloud(cloudDogs);
  for(const d of cloudDogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
+ rememberBaseline();
 }
 function incoming(dogs){
  if(!user)return;
  cloudDogs=dogs;
+ if(saving)return; // Avoid treating our own pending write as a concurrent edit.
  if(!initialized){initialized=true;
    const existing=getLocal();
    if(existing.length===0){connectCloud(dogs);for(const d of dogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}return}
    if(localStorage.getItem(LINK_KEY)!==user.uid){showSetup(dogs.length?'conflict':'new');return}
    connected=true;local()?.openCloudAccount(user.uid,dogs,user.email);
-   for(const d of dogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
-   hideSetup();return;
+   const previous=restoreBaseline(user.uid),current=new Map(getLocal().map(d=>[d.id,d]));
+   const refresh=[];
+   for(const d of dogs){
+     revisions.set(d.id,d.revision);
+     const old=current.get(d.id),last=previous.get(d.id);
+     if(old&&signature(old)!==signature(d)){
+       if(last===undefined||last!==signature(old)){
+         paused=true;showSetup('conflict');
+         status('This device has changes that may not be online. Choose which copy to keep.',true);
+         return;
+       }
+       refresh.push(d);
+     }
+     baseline.set(d.id,signature(d));
+   }
+   rememberBaseline();hideSetup();
+   if(refresh.length&&local()?.applyCloudDogs(refresh))location.reload();
+   return;
  }
  if(!connected||paused)return;
  const current=new Map(getLocal().map(d=>[d.id,d]));
@@ -101,6 +123,7 @@ function incoming(dogs){
    revisions.set(d.id,d.revision);baseline.set(d.id,signature(d));changed.push(d);
  }
  if(changed.length){
+   rememberBaseline();
    if(local()?.applyCloudDogs(changed)){
       if(window.dtRole==='adult')location.reload();
       else local()?.openCloudAccount(user.uid,dogs,user.email);
@@ -117,7 +140,7 @@ async function flush(){
  try{
    for(const dog of newDogs){
      const revision=await store.saveDog(dog,null);
-     revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));
+     revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));rememberBaseline();
    }
    for(const dog of dirty){
      const revision=await store.saveDog(dog,revisions.get(dog.id));
