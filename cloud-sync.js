@@ -26,7 +26,7 @@ function ui(){
  }else{
  a.innerHTML='<p>Signed in as <strong id="cloudEmailLabel"></strong> <button class="cloud-action" id="cloudSignOut">Sign out</button></p>';el('cloudEmailLabel').textContent=user.email||'Google account';el('cloudSignOut').onclick=()=>signOut(auth);
  if(active){
- b.innerHTML='<p class="cloud-good">✓ Sync enabled on this device</p><div class="cloud-row"><button class="cloud-action" id="cloudSave">Sync now</button><button class="cloud-action" id="cloudRestore">Restore from cloud</button></div><small>Restoring downloads a backup of this device before replacing anything.</small>';
+ b.innerHTML='<p class="cloud-good">✓ Your dogs are syncing automatically across devices.</p><details class="cloud-advanced"><summary>Recovery options</summary><p>Use only if you need to recover an older copy or troubleshoot a conflict.</p><div class="cloud-row"><button class="cloud-action" id="cloudSave">Save this copy</button><button class="cloud-action" id="cloudRestore">Restore cloud copy</button></div></details>';
  el('cloudSave').onclick=()=>upload(true);el('cloudRestore').onclick=restore;
  }else{
  b.innerHTML='<p class="cloud-warning">Choose which copy has the correct information. On the original phone, upload its data. On other devices, restore your cloud copy.</p><div class="cloud-row"><button class="cloud-action" id="cloudUpload">Use this device’s data</button><button class="cloud-action" id="cloudDownload">Use saved cloud data</button></div><small>Nothing is replaced without your approval.</small>';
