@@ -45,6 +45,19 @@ async function stableId(sourceId){
  const digest=await crypto.subtle.digest('SHA-256',data);
  return 'import-'+Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,40);
 }
+function renderCloudList(){
+ const list=$('dtStageCloudList');if(!list)return;
+ list.replaceChildren();
+ const heading=document.createElement('strong');heading.textContent='Private staged cloud profiles ('+cloud.length+')';
+ list.append(heading);
+ if(!cloud.length){const empty=document.createElement('p');empty.textContent='No staged profiles yet.';list.append(empty);return}
+ cloud.forEach(d=>{
+   const item=document.createElement('div');item.style.cssText='padding:8px;margin:5px 0;background:white;border:1px solid #bdd0d9;border-radius:8px';
+   const title=document.createElement('strong');title.textContent=String(d.name||'Unnamed');
+   const extra=document.createElement('small');extra.textContent='  '+String(d.breed||'')+' · Staged only, not shared';
+   item.append(title,extra);list.append(item);
+ });
+}
 function paint(){
  const panel=ensure();if(!panel)return;
  if(!account){
@@ -57,8 +70,9 @@ function paint(){
  '<label style="display:block;font-weight:700">Choose a backup (.json)<input type="file" id="dtStageFile" accept=".json,application/json" style="display:block;width:100%;margin:6px 0"></label>'+
  '<div id="dtStagePreview">'+(options.length?'<label style="display:block;font-weight:700">Choose dog to preview<select id="dtStageSelect" style="width:100%;padding:10px;margin:6px 0">'+options.map((d,i)=>'<option value="'+i+'" '+(i===selection?'selected':'')+'>'+safe(d.name)+'</option>').join('')+'</select></label><div id="dtStageFields"></div>':'<p>No backup loaded. Please keep an original backup somewhere safe.</p>')+'</div>'+
  '<div style="background:#fff9e8;border:1px solid #d4bf91;padding:10px;border-radius:10px;margin-top:12px"><strong>Will NOT upload:</strong> Photos, memories, daily plans, PINs, usernames, access codes, emergency contacts, other browser records, or the backup file itself. Uploading is an explicit separate step.</div>'+
- '<div style="margin-top:12px"><strong>Private staged cloud profiles ('+cloud.length+')</strong><div>'+ (cloud.map(d=>'<div style="padding:8px;margin:5px 0;background:white;border:1px solid #bdd0d9;border-radius:8px"><strong>'+safe(d.name||'Unnamed')+'</strong> <small>'+safe(d.breed||'')+'</small> <small>Staged only, not shared</small></div>').join('')||'<p>No staged profiles yet.</p>')+'</div></div>'+
+ '<div id="dtStageCloudList" style="margin-top:12px"></div>'+
  '<p id="dtStageStatus" role="status" aria-live="polite"></p>';
+ renderCloudList();
  const file=$('dtStageFile'); file.onchange=async()=>{
    backup=null;selection=-1;
    if(!file.files?.[0]){paint();return}
@@ -120,12 +134,8 @@ function init(){
    stopCloud=onSnapshot(collection(db,'users',user.uid,'stagedDogs'),snapshot=>{
      if(account?.uid!==user.uid)return;
      cloud=snapshot.docs.map(d=>d.data()).filter(d=>d.type==='private-staged-profile-v1');
-     // The file input is intentionally reset upon a cloud list change; no selected file is retained.
-     // Avoid interrupting an in-progress review: update the cloud list only if not editing.
-     if(!backup)paint();else{
-       const container=$('dtStagePanel');const count=container?.querySelector('strong:last-child');
-       // File-based review stays in memory until user decides to reset it.
-     }
+     // Keep the locally parsed backup and the user's unsaved field edits intact.
+     renderCloudList();
    },e=>say('Private staging list could not load: '+String(e.message||e),true));
  });
  paint();
