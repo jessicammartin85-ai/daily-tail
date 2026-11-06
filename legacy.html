@@ -2213,12 +2213,12 @@ window.DailyTalesLocalDogs={
     }
     if(!account){
       account={username:cloudUsername,name:email?.split('@')[0]||'Owner',
-        dogs:cloudDogs.map(d=>({dogId:d.id,role:'adult'})),
+        dogs:cloudDogs.map(d=>({dogId:d.id,role:d.role||'adult'})),
         role:'adult',dogId:cloudDogs[0]?.id||null,cloudManaged:true};
       dtAccess.users=dtAccess.users||[];dtAccess.users.push(account);changed=true;
     }else{
       for(const dog of cloudDogs)if(!dtLinks(account).some(l=>l.dogId===dog.id)){
-        account.dogs.push({dogId:dog.id,role:'adult'});changed=true;
+        account.dogs.push({dogId:dog.id,role:dog.role||'adult'});changed=true;
       }
     }
     if(changed)dtStore();
@@ -2230,7 +2230,8 @@ window.DailyTalesLocalDogs={
       const pending=sessionStorage.getItem('dtCloudPendingDog');
       if(pending&&dtLinks(account).some(link=>link.dogId===pending)){
         sessionStorage.removeItem('dtCloudPendingDog');
-        dtEnter('adult',account.name,pending);
+        const role=dtLinks(account).find(link=>link.dogId===pending)?.role||'friend';
+        dtEnter(role,account.name,pending);
       }
     }
     return true;
