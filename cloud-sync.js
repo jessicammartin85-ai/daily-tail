@@ -15,6 +15,24 @@ const ref=()=>doc(db,'users',user.uid,'sync','current');
 function status(t,bad=false){error=bad?t:'';if(el('cloudStatus')){el('cloudStatus').textContent=t;el('cloudStatus').style.color=bad?'#a3352e':'#37576b'}if(el('cloudLaunch'))el('cloudLaunch').textContent=user?'Account & Sync':'Sign In'}
 function message(e){const code=e?.code||'';if(code.includes('unauthorized-domain'))return 'Add jessicammartin85-ai.github.io in Firebase Authentication → Settings → Authorized domains.';if(code.includes('permission-denied'))return 'Firestore denied access. Check the published Rules.';return (e?.message||String(e)).slice(0,280)}
 function lock(on){busy=on;document.querySelectorAll('.cloud-action').forEach(b=>b.disabled=on)}
+function updateAccountIndicator(){
+ const gate=el('dtGateContent');if(!gate)return;
+ let indicator=el('dtCloudAccountIndicator');
+ if(!indicator){
+   indicator=document.createElement('div');indicator.id='dtCloudAccountIndicator';
+   indicator.style.cssText='margin:9px 0 15px;padding:10px;border:1px solid #adc6d4;border-radius:12px;background:#eaf4f8;color:#29485d;font:600 13px/1.5 Arial,sans-serif;text-align:center';
+   gate.parentElement.insertBefore(indicator,gate);
+ }
+ if(!user){indicator.hidden=true;return}
+ indicator.hidden=false;
+ indicator.textContent='☁ '+(user.email||'Google account')+(active?' · Sync connected':' · Cloud setup needed');
+ if(!active){
+   const button=document.createElement('button');button.type='button';button.textContent='Finish cloud setup';
+   button.style.cssText='display:block;margin:8px auto 0;background:#365c76;color:#fff;border:0;border-radius:9px;padding:8px 12px;font-weight:bold';
+   button.onclick=()=>{el('cloudShade').hidden=false;ui()};
+   indicator.append(button);
+ }
+}
 function ui(){
  const a=el('cloudAccount'),b=el('cloudOptions');if(!a)return;
  if(!user){
@@ -34,6 +52,7 @@ function ui(){
  el('cloudUpload').onclick=()=>upload(false);el('cloudDownload').onclick=restore;
  }}
  if(error)status(error,true);else status(user?(active?'Live syncing is active.':'Choose a copy to begin syncing.'):'Sign in using the same account on each device.');
+ updateAccountIndicator();
 }
 function downloadBackup(){
  const blob=new Blob([JSON.stringify({format:'daily-tail-complete-backup-v1',createdAt:new Date().toISOString(),data:collect()})],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -73,7 +92,7 @@ async function upload(force){
 }
 function listen(s){
  if(!user)return;
- if(!s.exists()){remote=null;active=false;ui();return}
+ if(!s.exists()){remote=null;active=false;ui();if(collect()['daily_tail_roles_v2']&&el('cloudShade'))el('cloudShade').hidden=false;return}
  const next=s.data();if(!next.generation||!next.parts)return;
  // A new, empty device can safely retrieve an existing account automatically.
  // Never do this when local dog profiles exist because they may belong to another account.
@@ -110,7 +129,10 @@ function listen(s){
      active=false;remember({enabled:false});ui();
      status('Another device updated Daily Tales while this one has unsynced edits. Your changes are safe. Open Cloud Sync to choose which copy to keep.',true);
    }
- }else ui();
+ }else{
+   ui();
+   if(!active&&collect()['daily_tail_roles_v2']&&el('cloudShade'))el('cloudShade').hidden=false;
+ }
 }
 
 onAuthStateChanged(auth,u=>{
