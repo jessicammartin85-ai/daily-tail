@@ -754,7 +754,7 @@ function syncFriendView({keepModal=false}={}){
   thumbs.replaceChildren();
   recentPhotos.forEach((post,index)=>{const photo=document.createElement('img');photo.src=post.photo;photo.alt='Shared memory photo '+(index+1);photo.loading='lazy';thumbs.appendChild(photo)});
   thumbs.hidden=recentPhotos.length===0;
-  img.hidden=true;img.removeAttribute('src');
+  if(latest?.photo){img.src=latest.photo;img.hidden=false;}else{img.hidden=true;img.removeAttribute('src');}
 
   $('portraitBtn').setAttribute('aria-label',`${name} profile photo`);
   $('tag').setAttribute('aria-label',`${name}'s dog tag`);
