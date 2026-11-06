@@ -1922,7 +1922,7 @@ let dtPending=[];try{const q=JSON.parse(dtSafeStorage.getItem(DT_QUEUE_KEY)||'[]
 const dtId=()=>('dt'+Date.now().toString(36)+Math.random().toString(36).slice(2,9));
 function dtStore(){dtSafeStorage.setItem(DT_ACCESS_KEY,JSON.stringify(dtAccess))}
 function dtSaveQueue(){try{dtSafeStorage.setItem(DT_QUEUE_KEY,JSON.stringify(dtPending))}catch{alert('Storage full. Reduce photo size and try again.')}}
-function dtQueue(item){dtPending.push({...item,id:dtId(),dogId:dtAccess.activeId,at:new Date().toISOString()});dtSaveQueue();}
+function dtQueue(item){const pending={...item,id:dtId(),dogId:dtAccess.activeId,at:new Date().toISOString()};dtPending.push(pending);dtSaveQueue();if(window.DailyTalesSubmitProposal)void window.DailyTalesSubmitProposal(pending)}
 function dtCode(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let b=new Uint8Array(12);if(crypto?.getRandomValues)crypto.getRandomValues(b);else for(let i=0;i<12;i++)b[i]=Math.floor(Math.random()*256);return Array.from(b,v=>chars[v%chars.length]).join('').replace(/(.{4})/g,'$1-').replace(/-$/,'')}
 function dtCleanCode(s){return String(s||'').replace(/[^a-zA-Z0-9]/g,'').toUpperCase()}
 function dtDog(){return dtAccess.dogs.find(d=>d.id===dtAccess.activeId)}
