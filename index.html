@@ -3,119 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Tales</title>
 <meta name="theme-color" content="#783912">
-<title>Daily Tails | My Dogs Online</title>
 <link rel="icon" href="./daily-tail-icon.svg" type="image/svg+xml">
-<style>
-:root{font-family:Arial,Helvetica,sans-serif;color:#294456;background:#783912}
-*{box-sizing:border-box}
-body{margin:0;min-height:100dvh;background:radial-gradient(circle at 15% 12%,#a35a2e 0%,transparent 35%),radial-gradient(circle at 95% 65%,#89441d 0%,transparent 33%),#783912}
-body::before{content:"🐾";position:fixed;top:6%;left:5%;font-size:64px;color:#add1e3;opacity:.24;transform:rotate(-24deg);pointer-events:none}
-body::after{content:"🐾";position:fixed;bottom:5%;right:7%;font-size:75px;color:#add1e3;opacity:.25;transform:rotate(22deg);pointer-events:none}
-button,input,textarea,select{font:inherit}
-button{background:#365c76;border:1px solid #315a72;color:white;font-weight:700;border-radius:12px;padding:11px 14px;cursor:pointer}
-button.secondary{background:#e5eff5;color:#284b61;border-color:#a3becc}
-button.warn{background:#fff6ee;color:#8a3d20;border-color:#cea994}
-button:disabled{opacity:.53;cursor:not-allowed}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #8bc3e0;outline-offset:2px}
-input,textarea,select{display:block;width:100%;padding:11px 12px;border:1px solid #a8bfcb;border-radius:10px;background:white;color:#263d50;min-width:0}
-textarea{min-height:78px;resize:vertical}
-label{font-weight:700;display:block;margin:10px 0 5px}
-h1,h2,h3{font-family:Georgia,serif;color:#5c321d;line-height:1.15}
-h1{margin:4px 0 3px;text-align:center}h2{margin:7px 0 12px;font-size:24px}h3{font-size:19px;margin:8px 0}
-p{line-height:1.5}
-small,.muted{color:#5c6d76}
-#app{max-width:650px;margin:24px auto;background:#fffaf3;border:2px solid #5c3827;border-radius:25px;padding:22px;box-shadow:0 15px 40px #220f08a1;min-height:420px;position:relative}
-header{text-align:center;border-bottom:1px solid #dccfbe;padding-bottom:14px;margin-bottom:14px}
-.brand{position:relative;width:min(65%,260px);margin:0 auto 5px}
-.brand img{display:block;width:100%;height:auto}
-.brand .engraved{position:absolute;left:51.1%;top:79.6%;width:36.5%;max-width:36.5%;box-sizing:border-box;transform:translate(-50%,-50%) rotate(-8deg);transform-origin:center center;display:block;padding:0;margin:0;white-space:nowrap;text-align:center;font:700 clamp(12.5px,3vw,16px)/1 Georgia,serif;color:#606365;text-shadow:0 1px 0 #ffffffc9;letter-spacing:-.01em;pointer-events:none;mix-blend-mode:multiply}
-.eyebrow{text-transform:uppercase;font-size:11px;letter-spacing:.12em;color:#526777;font-weight:800}
-.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.panel{background:#edf4f7;border:1px solid #adc5d1;border-radius:16px;padding:16px;margin:14px 0}
-.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
-.row.between{justify-content:space-between}
-.stack{display:grid;gap:10px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
-.dog-card{background:#e3edf3;color:#294457;padding:18px;border:2px solid #9ab8c7;border-radius:16px;display:grid;justify-items:center;gap:5px;min-height:140px}
-.dog-card.selected{background:#cee1ec;border-color:#365c76}
-.dog-card strong{font:700 21px Georgia,serif}
-.dog-card .symbol{font-size:36px}
-.data{border:1px solid #d7e1e7;background:white;padding:11px;border-radius:11px}
-.activity{display:flex;gap:12px;align-items:center;border:1px solid #bed0d8;background:white;padding:11px;border-radius:12px}
-.activity input[type=checkbox]{width:20px;height:20px;accent-color:#34648b;flex-shrink:0}
-.activity .activity-title{flex:1;min-width:0}
-.activity strong{display:block}
-.activity small{display:block}
-.activity.completed strong{text-decoration:line-through;color:#65767a}
-.menu{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
-.menu button[aria-pressed=true]{background:#29485f}
-.notice{margin:10px 0;min-height:22px;font-size:13px;font-weight:700}
-.notice.error{color:#9a302f}
-.notice.success{color:#296442}
-#loading{text-align:center;padding:25px}
-[hidden]{display:none!important}
-footer{margin-top:18px;border-top:1px solid #ddcfbd;padding-top:11px;font-size:12px;color:#626b73}
-@media(max-width:580px){#app{border-radius:16px;margin:7px;padding:14px}.brand{width:min(70%,225px)}button{padding:10px 12px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
-</style>
+<script>
+  // The complete original experience remains in legacy.html.
+  // Preserve invite links and URL fragments when routing visitors.
+  window.location.replace('./legacy.html' + window.location.search + window.location.hash);
+</script>
+<noscript><meta http-equiv="refresh" content="0;url=./legacy.html"></noscript>
 </head>
 <body>
-<main id="app">
-<header>
-<div class="brand"><img src="./daily-tails-logo.webp" alt="Daily Tails logo with hanging dog tag"><span class="engraved" aria-hidden="true">Welcome!</span></div>
-
-</header>
-<div id="loading" role="status">Connecting securely to Firebase…</div>
-<section id="authScreen" hidden aria-label="Account sign in">
-<h1 class="sr-only">Welcome to Daily Tails</h1>
-<p class="muted" style="text-align:center">Sign in to your private account to see your dogs and their daily plans.</p>
-<div class="panel">
-<button id="google" type="button" style="width:100%">Continue with Google</button>
-<form id="emailForm">
-<label for="email">Email</label><input type="email" id="email" autocomplete="email" required>
-<label for="password">Password</label><input type="password" id="password" autocomplete="current-password" minlength="6" required>
-<div class="row" style="margin-top:12px"><button type="submit" id="emailSignIn">Sign in</button><button type="button" class="secondary" id="register">Create account</button></div>
-</form>
-<button class="secondary" id="resetPassword" type="button" style="margin-top:8px">Reset password</button>
-</div>
-</section>
-<section id="workspace" hidden aria-label="Online My Dogs">
-<div class="row between"><span id="accountLabel" class="muted" style="font-size:12px;overflow-wrap:anywhere"></span><button id="logout" type="button" class="secondary">Sign out</button></div>
-<div class="menu"><button type="button" id="allDogsBtn" aria-pressed="true">My Dogs</button><button type="button" class="secondary" id="newDogBtn">+ Add a Dog</button><button type="button" class="secondary" id="oldSite">Open previous Daily Tail</button></div>
-<section id="dogsPage"><h2>My Dogs</h2><p class="muted">Your private dog profiles are saved to your account.</p><div id="dogCards" class="cards"></div><p id="emptyDogs" hidden>No dogs saved yet. Choose “Add a Dog” to create your first online profile.</p></section>
-<section id="dogPage" hidden>
-<div class="row between"><h2 id="dogHeading">Dog profile</h2><button id="backToDogs" class="secondary" type="button">Back to My Dogs</button></div>
-<div class="menu"><button type="button" data-tab="profile" aria-pressed="true">Profile</button><button type="button" data-tab="plan" class="secondary" aria-pressed="false">Daily Plan</button><button type="button" data-tab="posts" class="secondary" aria-pressed="false">Recent Posts</button></div>
-<div id="profileTab">
-<form id="profileForm" class="panel">
-<label for="dogName">Dog name</label><input id="dogName" maxlength="40" required>
-<label for="dogBreed">Breed</label><input id="dogBreed" maxlength="60">
-<label for="dogDob">Birthdate</label><input id="dogDob" type="date">
-<label for="dogPersonality">Personality</label><textarea id="dogPersonality" maxlength="300"></textarea>
-<label for="dogFact">Favorite fact or saying</label><input id="dogFact" maxlength="180">
-<div class="row"><button id="saveProfile" type="submit">Save profile</button><button type="button" id="archiveDog" class="warn">Archive dog</button></div>
-</form>
-<p class="muted">Only your signed-in account can access this private profile. Sharing will be added separately.</p>
-</div>
-<div id="planTab" hidden>
-<div class="panel"><h3>Daily Plan</h3><p class="muted">These activities repeat each day. Checkmarks reset for a new day.</p><div id="activities" class="stack"></div>
-<form id="activityForm">
-<label for="taskTitle">Activity</label><input id="taskTitle" maxlength="90" placeholder="Example: Morning walk" required>
-<label for="taskTime">Time</label><input type="time" id="taskTime" required>
-<button type="submit" style="margin-top:10px">Add activity</button>
-</form></div>
-</div>
-<div id="postsTab" hidden>
-<div class="panel"><h3>Recent Posts</h3><p class="muted">Text posts are saved privately online. Photo uploads will be introduced after cloud storage and sharing permissions are configured.</p>
-<div id="postCards" class="stack"></div>
-<form id="postForm"><label for="postText">New memory</label><textarea id="postText" maxlength="1000" required placeholder="What did your dog do today?"></textarea><button type="submit">Save memory</button></form>
-</div></div>
-</section>
-<section id="newDogPage" hidden><h2>Add a Dog</h2><form id="newDogForm" class="panel"><label for="newName">Dog name</label><input maxlength="40" id="newName" required><label for="newBreed">Breed (optional)</label><input maxlength="60" id="newBreed"><div class="row" style="margin-top:12px"><button type="submit">Create cloud profile</button><button type="button" class="secondary" id="cancelNew">Cancel</button></div></form></section>
-</section>
-<p class="notice" id="notice" role="status" aria-live="polite"></p>
-
-</main>
-<script type="module" src="./cloud-app.js"></script>
+<p>Opening Daily Tales… <a href="./legacy.html">Open Daily Tales</a>.</p>
 </body>
 </html>
