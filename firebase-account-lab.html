@@ -46,6 +46,21 @@ small{display:block;line-height:1.5;color:#5c6670}code{word-break:break-word}
 <button type="button" id="testWrite">Run private read/write test</button>
 <p id="testResult" role="status" aria-live="polite"></p>
 </div>
+<div class="panel">
+<h2>Cloud test dog profile</h2>
+<p>Create a <strong>fictional test dog</strong>, save its name and a short note online, and reopen this page on another device using the same Google account to verify synchronization.</p>
+<form id="testDogForm">
+<label for="testDogName">Test dog's name</label>
+<input id="testDogName" maxlength="40" placeholder="Example: Test Puppy" autocomplete="off" required>
+<label for="testDogNote">Test note (no private details)</label>
+<input id="testDogNote" maxlength="160" placeholder="Example: Learning to sit" autocomplete="off">
+<button type="submit" id="saveTestDog">Save test dog to cloud</button>
+<button type="button" id="reloadTestDog" class="secondary">Load saved test dog</button>
+<button type="button" id="deleteTestDog" class="secondary">Delete test dog</button>
+</form>
+<p id="testDogResult" role="status" aria-live="polite"></p>
+<small>This is a separate Firestore test record under your authenticated account, not one of your existing Daily Tail dogs. It is not visible to friends. Do not enter Lou's real information here.</small>
+</div>
 <button type="button" id="logout" class="secondary">Sign out</button>
 </section>
 <p><small>Safety: Do not enter your existing Daily Tail PIN here. Accounts created in this test are real Firebase Authentication users, but your current Daily Tail account and data are not linked yet. If this test uses the same Firebase project as production, test accounts will appear in Authentication → Users.</small></p>
@@ -66,15 +81,31 @@ const config={
 };
 const $=id=>document.getElementById(id);
 const message=(text,error=false)=>{$('status').textContent=text;$('status').className=error?'error':'ok'};
-let auth,db;
+let auth,db,testDogUnsubscribe=null;
 try{
  if(!window.firebase||!firebase.auth||!firebase.firestore)throw Error('Firebase scripts did not load. Check your internet connection.');
  const app=firebase.apps.length?firebase.app():firebase.initializeApp(config);
  auth=firebase.auth(app); db=firebase.firestore(app);
  auth.onAuthStateChanged(user=>{
+   if(testDogUnsubscribe){testDogUnsubscribe();testDogUnsubscribe=null}
    $('signedOut').hidden=!!user;$('signedIn').hidden=!user;
    $('identity').textContent=user?'Account: '+(user.email||'(no email)'):'';
    $('testResult').textContent='';
+   $('testDogResult').textContent='';
+   $('testDogName').value='';$('testDogNote').value='';
+   if(user){
+     const testDogRef=db.collection('users').doc(user.uid).collection('testDogs').doc('connection-lab-dog');
+     testDogUnsubscribe=testDogRef.onSnapshot(snapshot=>{
+       if(snapshot.exists){
+         const dog=snapshot.data();
+         $('testDogName').value=typeof dog.name==='string'?dog.name:'';
+         $('testDogNote').value=typeof dog.note==='string'?dog.note:'';
+         $('testDogResult').textContent='Cloud test dog loaded for this account. Changes can be viewed from another signed-in device.';
+       }else{
+         $('testDogResult').textContent='No test dog saved yet. You can create one below.';
+       }
+     },err=>{$('testDogResult').textContent='Cloud test dog access failed: '+err.message});
+   }
    message(user?'Firebase account connected. Your existing Daily Tail local records have not been changed.':'Connected. Please sign in or create a test account.');
  },err=>message('Authentication state error: '+err.message,true));
 }catch(err){message(err.message,true);return}
@@ -84,6 +115,42 @@ $('register').onclick=async()=>{const {email,password}=credentials();if(!email||
 $('google').onclick=async()=>{try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(err){message('Google sign-in failed: '+err.message,true)}};
 $('reset').onclick=async()=>{const email=$('email').value.trim();if(!email){message('Enter your email above first.',true);return}try{await auth.sendPasswordResetEmail(email);message('If the address has an account, check its inbox for a reset email.')}catch(err){message('Password reset could not be started: '+err.message,true)}};
 $('logout').onclick=async()=>{try{await auth.signOut()}catch(err){message(err.message,true)}};
+function testDogRef(){
+ const user=auth.currentUser;
+ if(!user)throw Error('Sign in first.');
+ return db.collection('users').doc(user.uid).collection('testDogs').doc('connection-lab-dog');
+}
+$('testDogForm').onsubmit=async event=>{
+ event.preventDefault();
+ const name=$('testDogName').value.trim().slice(0,40);
+ const note=$('testDogNote').value.trim().slice(0,160);
+ if(!name){$('testDogResult').textContent='Enter a test dog's name first.';return}
+ const button=$('saveTestDog');button.disabled=true;
+ $('testDogResult').textContent='Saving test dog to cloud…';
+ try{
+   await testDogRef().set({name,note,type:'development-test-only',updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   $('testDogResult').textContent='Test dog saved to Firestore successfully.';
+ }catch(err){$('testDogResult').textContent='Unable to save test dog: '+err.message}
+ finally{button.disabled=false}
+};
+$('reloadTestDog').onclick=async()=>{
+ try{
+   const snapshot=await testDogRef().get();
+   if(!snapshot.exists){$('testDogResult').textContent='No test dog found in this account.';return}
+   const dog=snapshot.data();
+   $('testDogName').value=String(dog.name||'');
+   $('testDogNote').value=String(dog.note||'');
+   $('testDogResult').textContent='Test dog loaded from Firestore.';
+ }catch(err){$('testDogResult').textContent='Unable to load test dog: '+err.message}
+};
+$('deleteTestDog').onclick=async()=>{
+ if(!confirm('Delete only this fictional test dog from Firestore?'))return;
+ try{
+   await testDogRef().delete();
+   $('testDogName').value='';$('testDogNote').value='';
+   $('testDogResult').textContent='Test dog deleted.';
+ }catch(err){$('testDogResult').textContent='Unable to delete test dog: '+err.message}
+};
 $('testWrite').onclick=async()=>{
  const user=auth.currentUser;if(!user){message('Sign in first.',true);return}
  const btn=$('testWrite');btn.disabled=true;$('testResult').textContent='Testing private cloud read/write…';
