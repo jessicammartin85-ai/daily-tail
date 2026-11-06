@@ -1,7 +1,7 @@
 import {dailyTalesCloudDogStore as dogStore} from './cloud-dog-store.js';
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getFirestore,collection,doc,getDoc,getDocs,setDoc,updateDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,getDocs,setDoc,updateDoc,writeBatch,Timestamp,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const config={apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',storageBucket:'daily-tail.firebasestorage.app',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'};
 const app=getApps().find(a=>a.name==='daily-tail-cloud')||initializeApp(config,'daily-tail-cloud'),auth=getAuth(app),db=getFirestore(app);
 const $=id=>document.getElementById(id),safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,23 +14,46 @@ const isAdult=()=>window.dtRole==='adult'&&(!dog()?.ownerUid||dog().ownerUid===u
 async function signIn(){try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){status(error(e),true)}}
 async function loadInvitation(){
  if(!inviteId)return;
- if(!user){$('shareInvite').innerHTML='<p>Sign in to request access.</p><button id="shareSignIn">Sign in with Google</button>';$('shareSignIn').onclick=signIn;return}
+ if(!user){
+   $('shareShade').hidden=true;
+   return;
+ }
  try{
-  const r=await getDoc(doc(db,'invites',inviteId));if(!r.exists()||!r.data().active)throw Error('This invitation is unavailable.');
+  const r=await getDoc(doc(db,'invites',inviteId));
+  if(!r.exists())throw Error('This invitation is unavailable.');
   invite=r.data();
-  $('shareInvite').innerHTML='<h3>'+safe(invite.name)+'</h3><p>Access: '+safe(invite.role)+'</p><button id="shareRequest">Request access</button> <button id="shareCheck">Check access</button><div id="shareDog"></div>';
-  $('shareRequest').onclick=requestAccess;$('shareCheck').onclick=checkAccess;
+  const expired=invite.expiresAt?.toMillis?.()<=Date.now();
+  const alreadyUsed=!!invite.usedBy;
+  const usable=invite.active===true&&!alreadyUsed&&!expired;
+  $('shareInvite').innerHTML='<h3>Join '+safe(invite.name||'this dog')+'!</h3><p>You have been invited as a <strong>'+safe(invite.role)+'</strong>.</p>'
+   +(usable?'<button id="shareAccept">Accept invitation</button>':'<p>This invitation was already used, revoked, or expired. Ask the owner for a new link.</p>')
+   +'<div id="shareDog"></div>';
+  if(usable)$('shareAccept').onclick=acceptInvitation;
   await checkAccess(false);
  }catch(e){status(error(e),true)}
 }
-async function requestAccess(){
+async function acceptInvitation(){
+ if(!user||!invite)return status('Sign in first.',true);
+ const btn=$('shareAccept');if(btn){btn.disabled=true;btn.textContent='Connecting…'}
  try{
-  const id=user.uid+'_'+inviteId,r=doc(db,'users',invite.ownerUid,'joinRequests',id);
-  const existing=await getDoc(r);
-  if(existing.exists())return status('Request already sent. Ask the owner to approve it.');
-  await setDoc(r,{ownerUid:invite.ownerUid,dogId:invite.dogId,requesterUid:user.uid,requesterName:user.displayName||user.email||'Guest',inviteId,role:invite.role,status:'pending',createdAt:serverTimestamp()});
-  status('Request sent. Ask the owner to open Share → Refresh requests.');
- }catch(e){status(error(e),true)}
+  const inviteRef=doc(db,'invites',inviteId);
+  const snap=await getDoc(inviteRef);
+  if(!snap.exists())throw Error('Invitation not found.');
+  const i=snap.data();
+  if(i.active!==true||i.usedBy||!i.expiresAt||i.expiresAt.toMillis()<=Date.now())throw Error('This link is no longer valid. Ask for another invitation.');
+  if(!['adult','child'].includes(i.role))throw Error('This invitation is not a family invitation.');
+  if(i.ownerUid===user.uid)throw Error('You already own this profile. Open My Dogs.');
+  const member=doc(db,'users',i.ownerUid,'members',user.uid,'dogs',i.dogId);
+  const joined=doc(db,'users',user.uid,'joinedDogs',i.ownerUid+'_'+i.dogId);
+  const batch=writeBatch(db);
+  batch.update(inviteRef,{active:false,usedBy:user.uid,acceptedAt:serverTimestamp()});
+  batch.set(member,{role:i.role,inviteId,addedAt:serverTimestamp()});
+  batch.set(joined,{ownerUid:i.ownerUid,dogId:i.dogId,role:i.role,name:i.name,joinedAt:serverTimestamp()});
+  await batch.commit();
+  status('You are connected to '+i.name+'! Opening your profile…');
+  window.dispatchEvent(new Event('daily-tales-membership-updated'));
+  location.assign('./legacy.html');
+ }catch(e){status('Could not accept invitation: '+error(e),true);if(btn){btn.disabled=false;btn.textContent='Accept invitation'}}
 }
 async function checkAccess(notice=true){
  if(!user||!invite)return;
@@ -86,11 +109,11 @@ async function createInvitation(){
    status('Friend link is ready! Anyone with this link can view the shared details without signing in.');
   }else{
    const r=doc(collection(db,'invites'));
-   await setDoc(r,{ownerUid:user.uid,dogId:current.id,name:current.name,role,active:true,createdAt:serverTimestamp()});
+   await setDoc(r,{ownerUid:user.uid,dogId:current.id,name:current.name,role,active:true,createdAt:serverTimestamp(),expiresAt:Timestamp.fromMillis(Date.now()+7*24*60*60*1000)});
    $('shareLink').value=location.origin+location.pathname+'?dtInvite='+encodeURIComponent(r.id);
    $('shareCode').value=r.id;$('shareCopyCode').hidden=false;
    $('shareCopy').hidden=false;$('shareRevoke').hidden=true;
-   status('Invitation ready. The person signs in and requests your approval.');
+   status('Invitation ready! The recipient signs in and taps Accept. This single-use link expires after 7 days.');
   }
  }catch(e){status(error(e),true)}
 }
@@ -169,7 +192,7 @@ function openShare(){
  $('shareShade').hidden=false;
  $('shareOwner').hidden=!!inviteId;$('shareInvite').hidden=!inviteId;
  $('shareTitle').textContent=inviteId?'Join a Dog Profile':'Share a Dog Profile';
- if(inviteId)loadInvitation();
+ if(inviteId){if(!user){window.DailyTalesOpenAccount?.();$('shareShade').hidden=true;return}loadInvitation()}
  else {
   status(!user?'Sign into your Daily Tales account first.':!isAdult()?'Open your Adult Owner profile first.':'Checking for pending invitations and child approvals…');
   if(user&&isAdult()){
@@ -199,18 +222,18 @@ window.DailyTalesRefreshPublic=async dogId=>{
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
- shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in and request approval.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Approval required</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><div class="share-row"><input id="shareCode" readonly aria-label="Invitation code" placeholder="Invitation code"><button id="shareCopyCode" hidden>Copy code</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Approval requests</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p><small>Friend links share only the published profile. Anyone who has the link can view it. Adult and Child accounts still require approval; collaborative editing is being developed.</small></section>';
+ shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children accept a secure invitation link after signing in.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><div class="share-row"><input id="shareCode" readonly aria-label="Invitation code" placeholder="Invitation code"><button id="shareCopyCode" hidden>Copy code</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Child updates awaiting approval</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p><small>Friend links share only the published profile. Anyone who has the link can view it. Family invitations connect directly after sign-in. Child posts and photos still require approval.</small></section>';
  document.body.append(shade);
  btn.onclick=openShare;$('shareClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
  $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;$('shareRevoke').onclick=revokeFriendLink;
  $('shareCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('shareLink').value);status('Link copied.')}catch{status('Select and copy the link manually.')}};
  $('shareCopyCode').onclick=async()=>{try{await navigator.clipboard.writeText($('shareCode').value);status('Invitation code copied.')}catch{status('Select and copy the code manually.')}};
- if(inviteId)openShare();
+ if(inviteId&&user)openShare();
 }
 const style=document.createElement('style');style.textContent=[
 '#shareLaunch{position:fixed;right:12px;bottom:64px;z-index:18000;padding:10px 14px;border-radius:999px;background:#845936;color:white;border:2px solid #d7e8ef;font:700 13px Arial;cursor:pointer}',
 '#shareShade[hidden],#shareOwner[hidden],#shareInvite[hidden]{display:none!important}',
-'#shareShade{position:fixed;inset:0;z-index:22001;display:flex;align-items:center;justify-content:center;padding:15px;background:#152537bb;box-sizing:border-box}',
+'#shareShade{position:fixed;inset:0;z-index:32001;display:flex;align-items:center;justify-content:center;padding:15px;background:#152537bb;box-sizing:border-box}',
 '.share-box{max-height:90vh;overflow:auto;width:min(95vw,480px);padding:22px;box-sizing:border-box;border:3px solid #adc5d3;border-radius:19px;background:#fff9ee;color:#283d4c;font:14px/1.5 Arial}',
 '.share-box h2{font:700 26px Georgia,serif;margin:0 30px 12px 0}.share-box h3{font:700 19px Georgia,serif;margin:16px 0 5px}',
 '#shareClose{float:right;border:0;background:transparent;font-size:30px;cursor:pointer}',
@@ -221,5 +244,5 @@ const style=document.createElement('style');style.textContent=[
 '.share-dog{padding:12px;border:1px solid #c7d4d9;border-radius:10px;margin-top:12px}.share-dog img{width:110px;height:110px;border-radius:50%;object-fit:cover}',
 '@media(max-width:480px){#shareLaunch{right:9px;bottom:58px}}'
 ].join('\n');document.head.append(style);
-onAuthStateChanged(auth,u=>{user=u;if(inviteId&&$('shareShade')&&!$('shareShade').hidden)loadInvitation()});
+onAuthStateChanged(auth,u=>{user=u;if(inviteId&&u&&$('shareShade'))openShare()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
