@@ -35,9 +35,20 @@ function showSetup(mode){
    $('dtCloudUseLocal').onclick=uploadLocal;
    $('dtCloudUseRemote').onclick=useRemote;
    $('dtCloudBack').onclick=()=>window.DailyTalesOpenAccount?.();
-   $('dtCloudUnlock').onclick=()=>{hideSetup();const launcher=$('dtCloudResume');if(launcher)launcher.hidden=false};
+   $('dtCloudUnlock').onclick=()=>{
+     hideSetup();
+     // Allow the original username/PIN screen to be used only for migration.
+     // Keep Firebase Auth signed in; do not reset or delete any dog data.
+     const overlay=$('cloudShade');
+     if(overlay)overlay.hidden=true;
+     const gate=$('dtGate');
+     if(gate)gate.hidden=false;
+     const launcher=$('dtCloudResume');
+     if(launcher){launcher.hidden=false;launcher.style.display='block'}
+     if(window.DailyTalesShowOriginalLogin)window.DailyTalesShowOriginalLogin();
+   };
  }
- pane.hidden=false;
+ pane.hidden=false;pane.style.display='flex';
  let launcher=$('dtCloudResume');
  if(!launcher){
    launcher=document.createElement('button');launcher.id='dtCloudResume';launcher.type='button';
@@ -45,7 +56,7 @@ function showSetup(mode){
    launcher.style.cssText='position:fixed;z-index:18010;bottom:14px;left:12px;background:#365c76;color:#fff;border:2px solid #fff;border-radius:14px;padding:12px;font-weight:700;box-shadow:0 3px 12px #0005';
    launcher.onclick=()=>showSetup('new');document.body.append(launcher);
  }
- launcher.hidden=true;
+ launcher.hidden=true;launcher.style.display='none';
  window.DailyTalesCloudResolved?.();
  const localDogs=getLocal();
  $('dtCloudSetupInfo').textContent=mode==='conflict'?'This device and your account both have saved dog profiles. Choose which copy should be used. Nothing will be erased automatically.':
@@ -54,7 +65,10 @@ function showSetup(mode){
  $('dtCloudUseRemote').hidden=cloudDogs.length===0;
  status(cloudDogs.length?'Cloud account contains '+cloudDogs.map(d=>d.name).join(', ')+'.':'Your existing browser profiles will be kept as a backup.');
 }
-function hideSetup(){const el=$('dtCloudSetup');if(el)el.hidden=true;const launcher=$('dtCloudResume');if(launcher)launcher.hidden=true}
+function hideSetup(){
+ const el=$('dtCloudSetup');if(el){el.hidden=true;el.style.display='none'}
+ const launcher=$('dtCloudResume');if(launcher){launcher.hidden=true;launcher.style.display='none'}
+}
 function connectCloud(dogs){
  if(!user||!local())return false;
  if(getLocal().length===0||localStorage.getItem(LINK_KEY)===user.uid){
