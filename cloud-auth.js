@@ -21,9 +21,16 @@ function init(){
   <p id="cloudStatus" role="status" aria-live="polite"></p>
   <details class="dt-cloud-help"><summary>Already have a dog saved on this phone?</summary>
   <p>Sign in first, then choose <strong>Connect my existing dogs</strong>.
-  Your existing profiles will not be replaced or deleted.</p></details>
+  Your existing profiles will not be replaced or deleted.</p>
+  <button type="button" id="dtLocalRecovery" class="dt-secondary">Open saved browser profile (recovery only)</button>
+  </details>
   </section>`;
  if(!shade.isConnected)document.body.prepend(shade);
+ $('dtLocalRecovery').onclick=()=>{
+  if(confirm('Open the original browser-only recovery screen? Cloud saving will not be active unless you sign in. Your existing data will not be deleted.')){
+    shade.hidden=true;
+  }
+ };
  const style=document.createElement('style');style.textContent=`
  #cloudShade{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;background:#663c24ee;padding:14px;box-sizing:border-box;overflow:auto}
  #cloudShade[hidden]{display:none!important}
