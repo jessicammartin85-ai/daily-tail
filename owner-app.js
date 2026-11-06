@@ -1123,6 +1123,28 @@ window.DailyTalesLocalDogs={
     const ownerIds=new Set(dtLinks(person).filter(link=>link.role==='adult').map(link=>link.dogId));
     return this.list().filter(d=>ownerIds.has(d.id));
   },
+  removeCloudAccess(uid,ids){
+    if(dtSafeStorage.getItem('daily_tales_v2_linked_uid')!==uid)return false;
+    const revoked=new Set(ids);
+    const removed=dtAccess.dogs.filter(d=>revoked.has(d.id)&&d.ownerUid&&d.ownerUid!==uid);
+    if(!removed.length)return false;
+    const removeIds=new Set(removed.map(d=>d.id));
+    dtAccess.dogs=dtAccess.dogs.filter(d=>!removeIds.has(d.id));
+    for(const account of dtAccess.users||[]){
+      if(account.cloudManaged){
+        account.dogs=dtLinks(account).filter(link=>!removeIds.has(link.dogId));
+        if(removeIds.has(account.dogId))account.dogId=account.dogs[0]?.dogId||null;
+      }
+    }
+    if(removeIds.has(dtAccess.activeId)){
+      dtAccess.activeId=null;
+      state={profile:'',posts:[]};appMeta={petName:''};
+      for(const key of DT_PER_DOG_KEYS)dtSafeStorage.removeItem(key);
+      dtSafeStorage.removeItem(KEY);dtSafeStorage.removeItem(APPMETA_KEY);
+      window.dtRole='locked';document.body.classList.add('dt-locked');
+    }
+    dtStore();return true;
+  },
   openCloudAccount(uid,cloudDogs,email){
     if(!uid||!Array.isArray(cloudDogs))return false;
     const linkKey='daily_tales_v2_linked_uid';
