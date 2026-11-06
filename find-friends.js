@@ -69,6 +69,7 @@ async function makePublic(d){
  favorites:String(meta.favorites||''),cuteFact:String(meta.cuteFact||''),
  photo:p.profile?.length<140000?p.profile||'':'',
  posts:prefs.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
+ publicData.postIds=publicData.posts.map(post=>post.id).filter(Boolean);
  if(JSON.stringify({...publicData,updatedAt:null}).length>800000)throw Error('Public profile is too large. Try a smaller photo.');
  await setDoc(doc(db,'publicProfiles',shareId),publicData);
  await setDoc(publicSettings,{shareId,createdAt:serverTimestamp()});
