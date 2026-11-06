@@ -2180,6 +2180,42 @@ function dtSnapshotActive(){
  d.extras=dtExtrasForActive();dtStore()
 }
 window.DailyTalesLocalDogs={
+  openCloudAccount(uid,cloudDogs,email){
+    if(!uid||!Array.isArray(cloudDogs))return false;
+    const linkKey='daily_tales_v2_linked_uid';
+    if(dtAccess.dogs.length&&dtSafeStorage.getItem(linkKey)!==uid)return false;
+    const cloudUsername=('cloud_'+uid).toLowerCase().replace(/[^a-z0-9._-]/g,'').slice(0,24);
+    let account=dtFindUser(cloudUsername);
+    let changed=false;
+    for(const item of cloudDogs){
+      if(!item?.id||!item?.name)continue;
+      let dog=dtAccess.dogs.find(d=>d.id===item.id);
+      if(!dog){
+        dog={id:item.id,name:item.name,owner:email||'Owner',
+          profile:item.profile||{profile:'',posts:[]},meta:item.meta||{petName:item.name},
+          extras:item.extras||{},adult:'',child:'',friend:''};
+        dtAccess.dogs.push(dog);changed=true;
+      }
+    }
+    if(!account){
+      account={username:cloudUsername,name:email?.split('@')[0]||'Owner',
+        dogs:cloudDogs.map(d=>({dogId:d.id,role:'adult'})),
+        role:'adult',dogId:cloudDogs[0]?.id||null,cloudManaged:true};
+      dtAccess.users=dtAccess.users||[];dtAccess.users.push(account);changed=true;
+    }else{
+      for(const dog of cloudDogs)if(!dtLinks(account).some(l=>l.dogId===dog.id)){
+        account.dogs.push({dogId:dog.id,role:'adult'});changed=true;
+      }
+    }
+    if(changed)dtStore();
+    dtSafeStorage.setItem(linkKey,uid);
+    if(window.dtRole==='locked'){
+      dtCurrentUsername=account.username;
+      dtRememberUser(account.username,true);
+      dtDogPicker();
+    }
+    return true;
+  },
   openLinkedAccount(uid){
     if(!uid||dtSafeStorage.getItem('daily_tales_v2_linked_uid')!==uid)return false;
     if(window.dtRole!=='locked')return true;
