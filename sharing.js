@@ -94,6 +94,7 @@ async function publish(d){
  const m=d.meta||{},p=d.profile||{};
  const pref=(()=>{try{return JSON.parse(localStorage.getItem('daily_tail_public_preferences_v1')||'{}')}catch{return {}}})();
  const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
+ payload.postIds=payload.posts.map(p=>p.id).filter(Boolean);
  if(JSON.stringify({...payload,updatedAt:null}).length>850000)throw Error('Shared profile is too large for Firestore. Reduce photo size.');
  await setDoc(doc(db,'users',profileOwner(),'sharedProfiles',d.id),payload);
  if(profileOwner()===user.uid)await setDoc(doc(db,'users',user.uid,'dogAccounts',d.id),{accountName:user.displayName||'',accountEmail:user.email||''});
@@ -116,7 +117,7 @@ async function createInvitation(){
     ownerUid:profileOwner(),dogId:current.id,active:true,name:p.name||current.name,
     breed:p.breed||'',dob:p.dob||'',personality:p.personality||'',
     favorites:p.favorites||'',cuteFact:p.cuteFact||'',photo:p.photo||'',
-    posts:Array.isArray(p.posts)?p.posts:[],updatedAt:serverTimestamp()
+    posts:Array.isArray(p.posts)?p.posts:[],postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()
    });
    await setDoc(linkRef,{shareId,createdAt:serverTimestamp()});
    $('shareLink').value=location.origin+location.pathname.replace(/[^/]*$/,'')+'friend.html?share='+encodeURIComponent(shareId);
@@ -246,12 +247,21 @@ async function refreshAccessList(requests){
   const message=document.createElement('p');message.textContent='Unable to load all connected accounts: '+error(e);area.append(message);
  }
 }
+async function decideComment(record,approve){
+ const comment=record.data();
+ if(!isAdult()||!confirm((approve?'Approve':'Decline')+' this comment from '+(comment.authorName||'Daily Tales member')+'?'))return;
+ try{
+  await updateDoc(record.ref,{status:approve?'approved':'declined',reviewedBy:user.uid,reviewedAt:serverTimestamp()});
+  await refresh();status(approve?'Comment approved and published.':'Comment declined.');
+ }catch(e){status('Could not review comment: '+error(e),true)}
+}
 async function refresh(){
  if(!user||!dog()||!isAdult())return status('Sign in and open the Adult Owner view.',true);
  try{
-  const [joins,proposals]=await Promise.all([
+  const [joins,proposals,comments]=await Promise.all([
     getDocs(query(collection(db,'users',profileOwner(),'joinRequests'),where('dogId','==',dog().id))),
-    getDocs(query(collection(db,'users',profileOwner(),'proposedChanges'),where('dogId','==',dog().id)))
+    getDocs(query(collection(db,'users',profileOwner(),'proposedChanges'),where('dogId','==',dog().id))),
+    getDocs(query(collection(db,'users',profileOwner(),'commentRequests'),where('dogId','==',dog().id),where('status','==','pending')))
   ]);
   const rows=joins.docs.filter(r=>r.data().dogId===dog().id&&r.data().status==='pending');
   const edits=proposals.docs.filter(r=>r.data().dogId===dog().id&&r.data().status==='pending');
@@ -259,7 +269,12 @@ async function refresh(){
   const root=$('shareRequests');root.replaceChildren();
   const message=$('shareShade')?.querySelector('#shareStatus');
   if(message?.textContent.startsWith('Checking'))status('');
-  if(!rows.length&&!edits.length){root.textContent='No pending requests or child changes.';return}
+  if(!rows.length&&!edits.length&&!comments.docs.length){root.textContent='No pending requests, updates, or comments.';return}
+  for(const record of comments.docs){
+   const value=record.data(),item=document.createElement('div');item.className='share-request';
+   item.innerHTML='<strong>Comment from '+safe(value.authorName||'Daily Tales member')+'</strong><p>On '+safe(value.postTitle||'a memory')+'</p><blockquote>'+safe(value.text)+'</blockquote><button>Approve</button> <button>Decline</button>';
+   const buttons=item.querySelectorAll('button');buttons[0].onclick=()=>decideComment(record,true);buttons[1].onclick=()=>decideComment(record,false);root.append(item);
+  }
   for(const r of rows){
    const v=r.data(),item=document.createElement('div');item.className='share-request';
    item.innerHTML='<strong>'+safe(v.requesterName||'Name unavailable')+'</strong><br><small>'+safe(v.requesterEmail||'Email unavailable')+'</small> · '+safe(v.role)+' access <button>Approve</button> <button>Decline</button>';
@@ -306,12 +321,12 @@ window.DailyTalesRefreshPublic=async dogId=>{
  if(!existing.exists()||existing.data().active!==true)return;
  await updateDoc(ref,{name:p.name||shared.name,breed:p.breed||'',dob:p.dob||'',
    personality:p.personality||'',favorites:p.favorites||'',cuteFact:p.cuteFact||'',
-   photo:p.photo||'',posts:p.posts||[],updatedAt:serverTimestamp()});
+   photo:p.photo||'',posts:p.posts||[],postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()});
 };
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
- shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in, then request access. A connected Adult Owner must approve.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Current access</h3><div id="shareAccessList" aria-live="polite">Loading connected accounts…</div><h3>Join requests and child updates</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p></section>';
+ shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in, then request access. A connected Adult Owner must approve.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Current access</h3><div id="shareAccessList" aria-live="polite">Loading connected accounts…</div><h3>Requests, updates, and comments</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p></section>';
  document.body.append(shade);
  btn.onclick=openShare;$('shareClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
  $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;$('shareRevoke').onclick=revokeFriendLink;
