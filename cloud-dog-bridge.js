@@ -4,13 +4,11 @@
  * A user must expressly select migration on the device holding their dogs.
  * Browsers remain a compatibility cache until all legacy features are ported.
  */
-import {getApps} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {dailyTalesCloudDogStore as store} from './cloud-dog-store.js';
-const app=getApps().find(a=>a.name==='daily-tail-cloud');
-const auth=getAuth(app);
+import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {dailyTalesCloudDogStore as store,dailyTalesAuth as auth} from './cloud-dog-store.js';
 let user=null,unwatch=null,linked=false,pending=false,paused=false;
 let cloudDogs=[],knownRevisions=new Map(),baseline=new Map(),lastError='',lastLocalChange=0;
+const LINK_KEY='daily_tales_v2_linked_uid';
 const local=()=>window.DailyTalesLocalDogs;
 const digest=v=>JSON.stringify({name:v.name,profile:v.profile||{},meta:v.meta||{}});
 function status(message,bad=false){
@@ -46,6 +44,7 @@ async function connect(){
  try{
    const results=await store.migrateDogs(dogs);
    linked=true;paused=false;
+   localStorage.setItem(LINK_KEY,user.uid);
    for(const d of dogs)baseline.set(d.id,digest(d));
    status(results.length+' dogs saved to your account.');
    document.getElementById('dtV2Box').hidden=true;
@@ -93,7 +92,7 @@ function watchUser(u){
    cloudDogs=items;
    if(local()){
      const current=local().list();
-     linked=items.length>0&&current.length>0&&current.every(d=>items.some(x=>x.id===d.id));
+     linked=localStorage.getItem(LINK_KEY)===u.uid&&items.length>0&&current.length>0&&current.every(d=>items.some(x=>x.id===d.id));
      if(linked){
        for(const dog of current)if(!baseline.has(dog.id))baseline.set(dog.id,digest(dog));
      }
