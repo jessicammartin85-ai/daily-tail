@@ -30,6 +30,7 @@ function showSetup(mode){
    $('dtCloudBack').onclick=()=>window.DailyTalesOpenAccount?.();
  }
  pane.hidden=false;
+ window.DailyTalesCloudResolved?.();
  const localDogs=getLocal();
  $('dtCloudSetupInfo').textContent=mode==='conflict'?'This device and your account both have saved dog profiles. Choose which copy should be used. Nothing will be erased automatically.':
    'We found '+localDogs.length+' existing dog profile'+(localDogs.length===1?'':'s')+' on this device. Link them to your signed-in account to use Daily Tales on other devices.';
@@ -42,7 +43,7 @@ function connectCloud(dogs){
  if(!user||!local())return false;
  if(getLocal().length===0||localStorage.getItem(LINK_KEY)===user.uid){
    const accepted=local().openCloudAccount(user.uid,dogs,user.email);
-   if(accepted){connected=true;localStorage.setItem(LINK_KEY,user.uid);hideSetup();return true}
+   if(accepted){connected=true;localStorage.setItem(LINK_KEY,user.uid);hideSetup();window.DailyTalesCloudResolved?.();return true}
  }
  return false;
 }
@@ -61,6 +62,7 @@ async function uploadLocal(){
    localStorage.setItem(LINK_KEY,user.uid);
    connected=true;paused=false;hideSetup();
    local()?.openCloudAccount(user.uid,cloudDogs,user.email);
+   window.DailyTalesCloudResolved?.();
  }catch(e){status('Could not finish migration: '+e.message+'. Your local dogs have not been deleted.',true)}
  finally{saving=false}
 }
@@ -77,6 +79,7 @@ function useRemote(){
    const changed=local().applyCloudDogs(cloudDogs);
    connected=true;paused=false;hideSetup();
    local().openCloudAccount(user.uid,cloudDogs,user.email);
+   window.DailyTalesCloudResolved?.();
    if(changed)location.reload();
  }else connectCloud(cloudDogs);
  for(const d of cloudDogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
@@ -106,7 +109,7 @@ function incoming(dogs){
      }
      baseline.set(d.id,signature(d));
    }
-   rememberBaseline();hideSetup();
+   rememberBaseline();hideSetup();window.DailyTalesCloudResolved?.();
    if(refresh.length&&local()?.applyCloudDogs(refresh))location.reload();
    return;
  }
