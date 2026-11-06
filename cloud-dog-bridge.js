@@ -56,7 +56,10 @@ function connectCloud(dogs){
 }
 async function uploadLocal(){
  if(saving||!user)return;
- const dogs=getLocal();
+ if(!local()?.migrationAuthorized()){
+   return status('For this one-time migration, open your original saved Adult Owner profile in recovery mode first. This prevents copying another person’s dog into your account.',true);
+ }
+ const dogs=local().listOwned();
  if(!dogs.length||cloudDogs.length)return status('Please choose your saved cloud dogs instead.',true);
  if(!confirm('Save '+dogs.map(d=>d.name).join(', ')+' under '+(user.email||'this account')+'? Your browser originals will be preserved.'))return;
  saving=true;
