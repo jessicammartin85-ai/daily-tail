@@ -122,8 +122,24 @@ function openShare(){
  $('shareOwner').hidden=!!inviteId;$('shareInvite').hidden=!inviteId;
  $('shareTitle').textContent=inviteId?'Join a Dog Profile':'Share a Dog Profile';
  if(inviteId)loadInvitation();
- else status(!user?'Sign into Cloud Sync with Google first.':!isAdult()?'Open your Adult Owner profile first.':'Friends do not need an account. Adult and Child invitations require approval.');
+ else status(!user?'Sign into your Daily Tales account first.':!isAdult()?'Open your Adult Owner profile first.':'Friends do not need an account. Adult and Child invitations require approval.');
 }
+window.DailyTalesOpenShare=()=>openShare();
+window.DailyTalesRefreshPublic=async dogId=>{
+ if(!user||window.dtRole!=='adult')return;
+ const d=dog();if(!d||d.id!==dogId)return;
+ const link=await getDoc(doc(db,'users',user.uid,'publicShareLinks',d.id));
+ if(!link.exists()||!link.data().shareId)return;
+ const shared=await publish(d);
+ const source=await getDoc(doc(db,'users',user.uid,'sharedProfiles',d.id));
+ if(!source.exists())return;
+ const p=source.data(),ref=doc(db,'publicProfiles',link.data().shareId);
+ const existing=await getDoc(ref);
+ if(!existing.exists()||existing.data().active!==true)return;
+ await updateDoc(ref,{name:p.name||shared.name,breed:p.breed||'',dob:p.dob||'',
+   personality:p.personality||'',favorites:p.favorites||'',cuteFact:p.cuteFact||'',
+   photo:p.photo||'',posts:p.posts||[],updatedAt:serverTimestamp()});
+};
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
