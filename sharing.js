@@ -53,7 +53,7 @@ async function checkAccess(notice=true){
 async function publish(d){
  if(!user||!d||!isAdult())throw Error('Sign in and open the Adult Owner view.');
  if(typeof window.dtSnapshotActive==='function')window.dtSnapshotActive();
- d=dog()||d;const m=d.meta||{},p=d.profile||{};
+ d=d||dog();const m=d.meta||{},p=d.profile||{};
  const pref=(()=>{try{return JSON.parse(localStorage.getItem('daily_tail_public_preferences_v1')||'{}')}catch{return {}}})();
  const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?(p.posts||[]).slice(0,3).map(x=>({title:String(x.title||'').slice(0,120),text:String(x.text||x.caption||'').slice(0,700)})):[],updatedAt:serverTimestamp()};
  if(JSON.stringify({...payload,updatedAt:null}).length>850000)throw Error('Shared profile is too large for Firestore. Reduce photo size.');
@@ -169,7 +169,9 @@ function openShare(){
 window.DailyTalesOpenShare=()=>openShare();
 window.DailyTalesRefreshPublic=async dogId=>{
  if(!user||window.dtRole!=='adult')return;
- const d=dog();if(!d||d.id!==dogId)return;
+ let d;
+ try{const info=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');d=info.dogs?.find(x=>x.id===dogId)}catch{}
+ if(!d)return;
  const link=await getDoc(doc(db,'users',user.uid,'publicShareLinks',d.id));
  if(!link.exists()||!link.data().shareId)return;
  const shared=await publish(d);
