@@ -144,3 +144,31 @@ npx --yes firebase-tools hosting:channel:deploy my-dogs-dev --config firebase-ap
 ```
 
 Use the **Channel URL returned by Firebase**. The test scenario: select Buddy, save breed/birthday/personality, add two Daily Plan activities, check one off, refresh, and verify the profile and activities persist. Select Daisy and confirm Buddy's activities do not appear there. Return to Buddy and verify separation. Optionally sign into the same Firebase account on another device to verify the same data.
+
+## Safe first real-profile staging (opt-in; not a migration of the live app)
+
+The **development My Dogs preview only** now includes a **Private profile migration preview** panel that accepts an existing `Daily_Tail_Private_Backup_YYYY-MM-DD.json` created from an Adult Owner account in the live app.
+
+The file is parsed **locally**, not automatically uploaded. It inventories dog profiles and lets the account owner review/edit four fields: **name, breed, birthday, personality**. Pictures, memories, schedules, invitations, users, PIN hashes and all other stored data are explicitly excluded from upload. This prototype cannot restore a dog profile or synchronize it into the working live app.
+
+When a user selects a dog, checks the backup/approval checkbox and confirms the dialog, the development module creates **one private staging document** at `users/{authenticatedUid}/stagedDogs/{hashedOriginalId}`, with `type: private-staged-profile-v1`, `shared: false`, `status: staged`, and the four reviewed fields. This is **write-once per source dog**: any existing destination prevents a second import instead of overwriting. The ID is derived from a SHA-256 digest of Firebase UID + local dog ID, not from an uploaded local access code.
+
+The existing Firestore owner-only `/users/{uid}/{privateDocument=**}` rule must be independently checked before any real personal information is staged. Do not add member permissions to `stagedDogs`.
+
+### First test
+1. Download and securely retain a fresh *complete private* backup from your **live** Daily Tail before using this preview.
+2. Download the latest development branch ZIP and redeploy **only** the `my-dogs-dev` Firebase preview channel with `firebase-app-preview.json`:
+   ```cmd
+   npx --yes firebase-tools hosting:channel:deploy my-dogs-dev --config firebase-app-preview.json --project daily-tail --expires 7d
+   ```
+3. Open the newly deployed preview, sign into Firebase, and inspect **Private profile migration preview**.
+4. For a no-write test, select your local backup file and review the parsed dog names and four fields; stop here. The backup must remain private, and there should be no new `stagedDogs` record.
+5. **Do not click Stage this dog profile in cloud until you deliberately choose to test saving those limited fields**. This is not needed to verify that the preview works.
+6. After review, verify the live Daily Tail profile still works and that your offline backup remains available.
+
+### Still required before switching to real cloud accounts
+- Independent review and emulator testing of the complete Firestore rules.
+- Readable verification of the uploaded staging record, including deletion/reversal procedure.
+- Structured schedule and memory mapping, secure photo storage, data-size checks and audit trail.
+- Explicit migration and merge resolution for cross-device edits.
+- Family member access checks and isolation of private vs public data.
