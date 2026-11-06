@@ -63,7 +63,10 @@ function render(){
  <button class="dt-secondary" type="submit" name="mode" value="register">Create account</button></div></form>
  <div class="dt-cloud-row"><button id="dtForgot" class="dt-secondary" type="button">Forgot password?</button></div>
  <div class="dt-cloud-helper"><button type="button" id="dtInviteOpen" class="dt-secondary">Access a dog with a code</button>
- <p style="font-size:12px">Friend links are view-only. Family access requires owner approval.</p></div>`;
+ <div id="dtInviteCodePanel" hidden><label>Invitation code<input id="dtInviteCode" autocomplete="off" placeholder="Paste an invitation code"></label>
+ <div class="dt-cloud-row"><button type="button" id="dtOpenFriend" class="dt-secondary">Friend View (no account)</button>
+ <button type="button" id="dtOpenFamily" class="dt-secondary">Family access</button></div></div>
+ <p style="font-size:12px">Friends can view without signing in. Adult and Child access requires an account and owner approval.</p></div>`;
  $('dtGoogle').onclick=async()=>{try{setStatus('Opening Google sign-in…');await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){setStatus('Google sign-in: '+(e.code||e.message),true)}};
  $('dtCloudEmailForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget;try{
   setStatus('Signing in…');
@@ -71,9 +74,17 @@ function render(){
   else await signInWithEmailAndPassword(auth,f.elements.email.value.trim(),f.elements.password.value);
  }catch(err){setStatus('Account error: '+(err.code||err.message),true)}};
  $('dtForgot').onclick=async()=>{const email=$('dtCloudEmailForm').elements.email.value.trim();if(!email)return setStatus('Enter your email above first.',true);try{await sendPasswordResetEmail(auth,email);setStatus('If the account exists, check your email for a reset link.')}catch(e){setStatus(e.message,true)}};
- $('dtInviteOpen').onclick=()=>{const shade=$('cloudShade');if(shade)shade.hidden=true;
-   if(window.DailyTalesOpenInvitation)window.DailyTalesOpenInvitation();
-   else setStatus('Open a valid Friend View link to view without an account.',true);
+ $('dtInviteOpen').onclick=()=>{$('dtInviteCodePanel').hidden=!$('dtInviteCodePanel').hidden};
+ $('dtOpenFriend').onclick=()=>{
+   const code=$('dtInviteCode').value.trim().replace(/[^a-zA-Z0-9]/g,'');
+   if(!/^[a-zA-Z0-9]{16,40}$/.test(code))return setStatus('Enter the Friend View code from the owner.',true);
+   location.assign('./friend.html?share='+encodeURIComponent(code));
+ };
+ $('dtOpenFamily').onclick=()=>{
+   const code=$('dtInviteCode').value.trim().replace(/[^a-zA-Z0-9]/g,'');
+   if(!/^[a-zA-Z0-9]{16,80}$/.test(code))return setStatus('Enter the family invitation code from the owner.',true);
+   sessionStorage.setItem('dtPendingCloudInvite',code);
+   setStatus('Sign in with Google or email above to request access to this dog.');
  };
 }
 onAuthStateChanged(auth,u=>{
@@ -82,6 +93,12 @@ onAuthStateChanged(auth,u=>{
  if(!shade)return;
  shade.hidden=false;
  if(!u)return;
+ const pending=sessionStorage.getItem('dtPendingCloudInvite');
+ if(pending){
+   sessionStorage.removeItem('dtPendingCloudInvite');
+   location.assign('./legacy.html?dtInvite='+encodeURIComponent(pending));
+   return;
+ }
  setStatus('Loading your secure dog profiles…');
 },e=>{ready=true;render();setStatus('Account connection failed: '+e.message,true)});
 window.DailyTalesCloudResolved=()=>{accountReady=true;render();const el=$('cloudShade');if(el)el.hidden=true};
