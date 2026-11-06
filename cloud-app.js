@@ -181,7 +181,7 @@ function appHandler(){
  $('backToDogs').onclick=$('allDogsBtn').onclick;
  $('newDogBtn').onclick=()=>{if(busy)return;page('newDogPage')};
  $('cancelNew').onclick=()=>page('dogsPage');
- $('oldSite').onclick=()=>{window.location.assign('https://jessicammartin85-ai.github.io/daily-tail/')};
+ $('oldSite').onclick=()=>{window.location.assign('./legacy.html')};
  document.querySelectorAll('[data-tab]').forEach(btn=>btn.onclick=()=>setTab(btn.dataset.tab));
  ['dogName','dogBreed','dogDob','dogPersonality','dogFact'].forEach(id=>$(id).addEventListener('input',()=>{draftDirty=true}));
  $('newDogForm').onsubmit=async e=>{
