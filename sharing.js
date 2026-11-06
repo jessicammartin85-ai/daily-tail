@@ -10,7 +10,7 @@ let user=null,invite=null;
 const status=(s,bad=false)=>{const x=$('shareStatus');if(x){x.textContent=s;x.style.color=bad?'#a33':'#36586b'}};
 const error=e=>String(e?.message||e).slice(0,290);
 const dog=()=>{try{const a=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');return a.dogs?.find(d=>d.id===a.activeId)}catch{return null}};
-const isAdult=()=>window.dtRole==='adult';
+const isAdult=()=>window.dtRole==='adult'&&(!dog()?.ownerUid||dog().ownerUid===user?.uid);
 async function signIn(){try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){status(error(e),true)}}
 async function loadInvitation(){
  if(!inviteId)return;
