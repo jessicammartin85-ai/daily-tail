@@ -2168,7 +2168,17 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
  $('dtCodeManageNow').onclick=()=>dtManageCodes();
 }
 
-function dtSnapshotActive(){const d=dtDog();if(!d)return;d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));dtStore()}
+const DT_PER_DOG_KEYS=['loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2'];
+function dtExtrasForActive(){
+ const extras={};
+ for(const k of DT_PER_DOG_KEYS){const v=dtSafeStorage.getItem(k);if(v!==null)extras[k]=v}
+ return extras;
+}
+function dtSnapshotActive(){
+ const d=dtDog();if(!d)return;
+ d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));
+ d.extras=dtExtrasForActive();dtStore()
+}
 window.DailyTalesLocalDogs={
   openLinkedAccount(uid){
     if(!uid||dtSafeStorage.getItem('daily_tales_v2_linked_uid')!==uid)return false;
@@ -2181,7 +2191,7 @@ window.DailyTalesLocalDogs={
   },
   list(){
     if(window.dtRole==='adult')dtSnapshotActive();
-    return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{}}))));
+    return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{},extras:d.extras||{}}))));
   },
   hasLocalDogs(){return dtAccess.dogs.length>0},
   applyCloudDogs(items){
@@ -2192,12 +2202,12 @@ window.DailyTalesLocalDogs={
       if(!remote||!remote.id||!remote.name)continue;
       const local=dtAccess.dogs.find(d=>d.id===remote.id);
       if(local){
-        if(JSON.stringify({name:local.name,profile:local.profile,meta:local.meta})===JSON.stringify({name:remote.name,profile:remote.profile,meta:remote.meta}))continue;
-        local.name=remote.name;local.profile=JSON.parse(JSON.stringify(remote.profile||{}));local.meta=JSON.parse(JSON.stringify(remote.meta||{}));changed=true;
+        if(JSON.stringify({name:local.name,profile:local.profile,meta:local.meta,extras:local.extras})===JSON.stringify({name:remote.name,profile:remote.profile,meta:remote.meta,extras:remote.extras}))continue;
+        local.name=remote.name;local.profile=JSON.parse(JSON.stringify(remote.profile||{}));local.meta=JSON.parse(JSON.stringify(remote.meta||{}));local.extras=JSON.parse(JSON.stringify(remote.extras||{}));changed=true;
       }else{
         // Cloud dogs have no legacy access code or local PIN credentials.
         // Never manufacture an owner authorization from cloud data.
-        dtAccess.dogs.push({id:remote.id,name:remote.name,owner:remote.ownerDisplay||'',profile:remote.profile||{},meta:remote.meta||{},adult:'',child:'',friend:''});
+        dtAccess.dogs.push({id:remote.id,name:remote.name,owner:remote.ownerDisplay||'',profile:remote.profile||{},meta:remote.meta||{},extras:remote.extras||{},adult:'',child:'',friend:''});
         changed=true;
       }
     }
