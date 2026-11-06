@@ -94,7 +94,8 @@ const design=document.createElement('script');design.src='./friend-design.js?v=p
 if(!id||!/^[a-zA-Z0-9]{16,40}$/.test(id)){notice.textContent='This sharing link is incomplete.';}
 else onSnapshot(doc(db,'publicProfiles',id),snap=>{
  if(!snap.exists()||!snap.data().active){notice.hidden=false;notice.textContent='This Friend link is no longer available.';document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close();return;}
- publicDog=snap.data();const d=publicDog;notice.hidden=true;
+ publicDog=snap.data();const d=publicDog;
+ window.DailyTalesSocialContext={ownerUid:d.ownerUid,dogId:d.dogId,public:true};notice.hidden=true;
  el('dtFactsDogName').textContent=d.name||'My Dog';el('publicDogName').textContent=d.name||'My Dog';
  const breeds={cocker:'Cocker Spaniel'};el('dtFactsBreed').textContent=breeds[d.breed]||d.breed||'Not added yet';
  let birth=d.dob||'Not added yet';if(d.dob){const date=new Date(d.dob+'T12:00:00');if(!isNaN(date)){const now=new Date();let months=(now.getFullYear()-date.getFullYear())*12+now.getMonth()-date.getMonth()-(now.getDate()<date.getDate()?1:0);months=Math.max(0,months);birth=date.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' · '+(months<12?months+' months old':Math.floor(months/12)+' years old');}}
