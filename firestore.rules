@@ -65,8 +65,22 @@ service cloud.firestore {
           || (signedIn() && request.auth.uid == memberUid);
         allow list, delete: if isDogAdmin(ownerUid, dogId);
         allow create, update: if isDogAdmin(ownerUid, dogId)
-          && request.resource.data.keys().hasOnly(['role','inviteId','addedAt'])
+          && request.resource.data.keys().hasOnly(['role','inviteId','addedAt','accountName','accountEmail'])
           && request.resource.data.role in ['adult','child'];
+        // Members may update identity labels only, using their authenticated email.
+        allow update: if signedIn() && request.auth.uid == memberUid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accountName','accountEmail'])
+          && request.resource.data.accountName is string
+          && request.resource.data.accountEmail == request.auth.token.email;
+      }
+
+      match /dogAccounts/{dogId} {
+        allow get: if isDogAdmin(ownerUid, dogId);
+        allow create, update: if isOwner(ownerUid)
+          && request.resource.data.keys().hasOnly(['accountName','accountEmail'])
+          && request.resource.data.accountName is string
+          && request.resource.data.accountEmail == request.auth.token.email;
+        allow delete: if isOwner(ownerUid);
       }
 
       // A deliberately limited, owner-published shared view. No private
@@ -87,10 +101,11 @@ service cloud.firestore {
           || isDogAdmin(ownerUid, resource.data.dogId));
         allow list: if isOwner(ownerUid) || hasDogRole(ownerUid, resource.data.dogId, 'adult');
         allow create: if signedIn()
-          && request.resource.data.keys().hasOnly(['ownerUid','dogId','requesterUid','requesterName','inviteId','role','status','createdAt'])
+          && request.resource.data.keys().hasOnly(['ownerUid','dogId','requesterUid','requesterName','requesterEmail','inviteId','role','status','createdAt'])
           && request.resource.data.ownerUid == ownerUid
           && request.resource.data.requesterUid == request.auth.uid
           && request.resource.data.requesterName is string
+          && request.resource.data.requesterEmail == request.auth.token.email
           && request.resource.data.status == 'pending'
           && request.resource.data.createdAt == request.time
           && request.resource.data.role in ['adult','child']
