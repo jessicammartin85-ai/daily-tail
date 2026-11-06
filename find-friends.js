@@ -1,3 +1,4 @@
+import {publicMemoryPosts} from './public-memory-posts.js';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -67,7 +68,7 @@ async function makePublic(d){
  breed:String(meta.breed||''),dob:String(meta.dob||''),personality:String(meta.personality||''),
  favorites:String(meta.favorites||''),cuteFact:String(meta.cuteFact||''),
  photo:p.profile?.length<140000?p.profile||'':'',
- posts:prefs.memories?(p.posts||[]).slice(0,3).map(x=>({title:String(x.title||'').slice(0,120),text:String(x.text||x.caption||'').slice(0,700)})):[],updatedAt:serverTimestamp()};
+ posts:prefs.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
  if(JSON.stringify({...publicData,updatedAt:null}).length>800000)throw Error('Public profile is too large. Try a smaller photo.');
  await setDoc(doc(db,'publicProfiles',shareId),publicData);
  await setDoc(publicSettings,{shareId,createdAt:serverTimestamp()});
