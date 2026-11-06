@@ -4,7 +4,7 @@
  * A user must expressly select migration on the device holding their dogs.
  * Browsers remain a compatibility cache until all legacy features are ported.
  */
-import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {dailyTalesCloudDogStore as store,dailyTalesAuth as auth} from './cloud-dog-store.js';
 let user=null,unwatch=null,linked=false,pending=false,paused=false;
 let cloudDogs=[],knownRevisions=new Map(),baseline=new Map(),lastError='',lastLocalChange=0;
@@ -84,9 +84,11 @@ function receive(items){
  }
  if(linked&&!paused)status('Your dog profiles are connected and receiving cloud updates.');
 }
+window.DailyTalesCloudSignOut=()=>{if(auth.currentUser)void signOut(auth)};
 function watchUser(u){
  if(unwatch){unwatch();unwatch=null}
  user=u;linked=false;paused=false;knownRevisions.clear();baseline.clear();cloudDogs=[];
+ if(u&&local()?.openLinkedAccount)queueMicrotask(()=>local()?.openLinkedAccount(u.uid));
  if(!u){controls();return}
  unwatch=store.watchDogs(items=>{
    cloudDogs=items;
