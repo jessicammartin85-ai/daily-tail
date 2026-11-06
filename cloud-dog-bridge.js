@@ -5,7 +5,7 @@
 import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {dailyTalesCloudDogStore as store,dailyTalesAuth as auth} from './cloud-dog-store.js';
 
-let user=null,stopWatch=null,cloudDogs=[],connected=false,paused=false,saving=false,initialized=false;
+let user=null,stopWatch=null,stopJoined=null,cloudDogs=[],ownDogs=[],memberDogs=[],connected=false,paused=false,saving=false,initialized=false;
 const revisions=new Map(),baseline=new Map();
 const LINK_KEY='daily_tales_v2_linked_uid';
 const baselineKey=uid=>'daily_tales_v2_baselines_'+uid;
@@ -128,16 +128,16 @@ function incoming(dogs){
  if(changed.length){
    rememberBaseline();
    if(local()?.applyCloudDogs(changed)){
+      local()?.openCloudAccount(user.uid,dogs,user.email);
       if(window.dtRole==='adult')location.reload();
-      else local()?.openCloudAccount(user.uid,dogs,user.email);
    }
  }
 }
 async function flush(){
  if(!connected||!user||paused||saving||document.hidden||!local()||window.dtRole!=='adult')return;
  const original=getLocal();
- const dirty=original.filter(d=>baseline.has(d.id)&&signature(d)!==baseline.get(d.id));
- const newDogs=original.filter(d=>!baseline.has(d.id));
+ const dirty=original.filter(d=>baseline.has(d.id)&&signature(d)!==baseline.get(d.id)&&cloudDogs.find(c=>c.id===d.id)?.role==='adult');
+ const newDogs=original.filter(d=>!baseline.has(d.id)&&!cloudDogs.some(c=>c.id===d.id));
  if(!dirty.length&&!newDogs.length)return;
  saving=true;
  try{
@@ -146,7 +146,8 @@ async function flush(){
      revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));rememberBaseline();
    }
    for(const dog of dirty){
-     const revision=await store.saveDog(dog,revisions.get(dog.id));
+     const ownerUid=cloudDogs.find(c=>c.id===dog.id)?.ownerUid||user.uid;
+     const revision=await store.saveDog(dog,revisions.get(dog.id),ownerUid);
      revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));
    }
  }catch(e){
@@ -157,15 +158,22 @@ async function flush(){
 let lastChange=0;
 setInterval(()=>{
  if(!connected||paused||saving||!user||window.dtRole!=='adult')return;
- const current=getLocal(),dirty=current.some(d=>!baseline.has(d.id)||signature(d)!==baseline.get(d.id));
+ const current=getLocal(),dirty=current.some(d=>(!baseline.has(d.id)&&!cloudDogs.some(c=>c.id===d.id))||(signature(d)!==baseline.get(d.id)&&cloudDogs.find(c=>c.id===d.id)?.role==='adult'));
  if(!dirty){lastChange=0;return}
  if(!lastChange){lastChange=Date.now();return}
  if(Date.now()-lastChange>1500){lastChange=0;void flush()}
 },1000);
 onAuthStateChanged(auth,u=>{
  if(stopWatch){stopWatch();stopWatch=null}
+ if(stopJoined){stopJoined();stopJoined=null}
  user=u;connected=false;paused=false;initialized=false;saving=false;
- cloudDogs=[];revisions.clear();baseline.clear();lastChange=0;hideSetup();
+ cloudDogs=[];ownDogs=[];memberDogs=[];revisions.clear();baseline.clear();lastChange=0;hideSetup();
  if(!u)return;
- stopWatch=store.watchDogs(incoming,e=>{status('Your cloud dogs could not load: '+e.message,true);showSetup('conflict')});
+ const update=()=>incoming([
+   ...ownDogs.map(d=>({...d,ownerUid:u.uid,role:'adult'})),
+   ...memberDogs.filter(d=>!ownDogs.some(o=>o.id===d.id))
+ ]);
+ const error=e=>{status('Your cloud dogs could not load: '+e.message,true);showSetup('conflict')};
+ stopWatch=store.watchDogs(dogs=>{ownDogs=dogs;update()},error);
+ stopJoined=store.watchJoinedDogs(dogs=>{memberDogs=dogs;update()},error);
 });
