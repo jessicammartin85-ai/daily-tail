@@ -1,3 +1,4 @@
+import {publicMemoryPosts} from './public-memory-posts.js';
 import {dailyTalesCloudDogStore as dogStore} from './cloud-dog-store.js';
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -78,7 +79,7 @@ async function publish(d){
  if(typeof window.dtSnapshotActive==='function')window.dtSnapshotActive();
  d=d||dog();const m=d.meta||{},p=d.profile||{};
  const pref=(()=>{try{return JSON.parse(localStorage.getItem('daily_tail_public_preferences_v1')||'{}')}catch{return {}}})();
- const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?(p.posts||[]).slice(0,3).map(x=>({title:String(x.title||'').slice(0,120),text:String(x.text||x.caption||'').slice(0,700)})):[],updatedAt:serverTimestamp()};
+ const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
  if(JSON.stringify({...payload,updatedAt:null}).length>850000)throw Error('Shared profile is too large for Firestore. Reduce photo size.');
  await setDoc(doc(db,'users',user.uid,'sharedProfiles',d.id),payload);
  return d;
@@ -196,6 +197,7 @@ function openShare(){
   if(user&&isAdult()){
    $('shareRequests').textContent='Checking for pending requests…';
    refresh();
+   window.DailyTalesRefreshPublic?.(dog().id).catch(e=>status('Could not update shared profile: '+error(e),true));
   }
  }
 }
