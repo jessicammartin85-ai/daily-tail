@@ -147,13 +147,13 @@ onAuthStateChanged(auth,u=>{
 });
 function start(){
  const btn=document.createElement('button');btn.id='cloudLaunch';btn.textContent='☁ Cloud Sync';btn.type='button';document.body.append(btn);
- const shade=document.createElement('div');shade.id='cloudShade';shade.hidden=true;shade.innerHTML='<section class="cloudBox" role="dialog" aria-modal="true" aria-labelledby="cloudTitle"><button type="button" id="cloudClose" aria-label="Close" hidden>×</button><img class="cloud-logo" src="./daily-tails-logo.webp" alt="Daily Tales"><h2 id="cloudTitle">Welcome to Daily Tales</h2><p>Every dog has a story. Keep yours together on any device.</p><div id="cloudAccount"></div><div id="cloudOptions"></div><p id="cloudStatus" role="status"></p><details><summary>How account saving works</summary><p>Once you connect your existing information to the account, data is synchronized automatically. Select the correct original copy once. Simultaneous edits are paused rather than overwritten.</p></details></section>';document.body.append(shade);
+ const shade=el('cloudShade')||document.createElement('div');shade.id='cloudShade';shade.hidden=false;shade.innerHTML='<section class="cloudBox" role="dialog" aria-modal="true" aria-labelledby="cloudTitle"><button type="button" id="cloudClose" aria-label="Close" hidden>×</button><img class="cloud-logo" src="./daily-tails-logo.webp" alt="Daily Tales"><h2 id="cloudTitle">Welcome to Daily Tales</h2><p>Every dog has a story. Keep yours together on any device.</p><div id="cloudAccount"></div><div id="cloudOptions"></div><p id="cloudStatus" role="status"></p><details><summary>How account saving works</summary><p>Once you connect your existing information to the account, data is synchronized automatically. Select the correct original copy once. Simultaneous edits are paused rather than overwritten.</p></details></section>';if(!shade.isConnected)document.body.append(shade);
  btn.onclick=()=>{shade.hidden=false;ui()};el('cloudClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade&&user)shade.hidden=true};
  watch=setInterval(async()=>{if(!active||!user||busy||applyingRemote||document.hidden)return;const h=hash(serialize());if(h===baseline){changed=0;return}if(!changed){changed=Date.now();return}if(Date.now()-changed>1800&&Date.now()>nextUploadAt)await upload(true)},1000);
  ui();
 }
 const style=document.createElement('style');style.textContent=`
-#cloudShade{z-index:30000!important;align-items:center!important}
+#cloudShade{z-index:30000!important;align-items:center!important}\n#cloudShade[hidden]{display:none!important}
 .cloudBox{max-width:420px!important;border-radius:22px!important;text-align:center!important}
 .cloudBox .cloud-logo{width:min(75%,220px);display:block;margin:0 auto 5px}
 .cloudBox h2{text-align:center!important;margin:6px 0!important}
