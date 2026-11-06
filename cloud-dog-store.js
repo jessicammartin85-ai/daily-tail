@@ -45,6 +45,7 @@ function publicSafeDog(d){
  const meta=jsonClone(d.meta);
  return {
    id:d.id,name:safeString(d.name,80),profile,meta,
+   extras:jsonClone(d.extras||{}),
    ownerDisplay:safeString(d.owner,80)
  };
 }
