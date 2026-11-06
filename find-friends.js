@@ -1,4 +1,4 @@
-import {publicMemoryPosts} from './public-memory-posts.js';
+import {publicMemoryPosts} from './public-memory-posts.js?v=post-social-20261106';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
