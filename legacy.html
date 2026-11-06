@@ -2182,7 +2182,7 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
  $('dtCodeManageNow').onclick=()=>dtManageCodes();
 }
 
-const DT_PER_DOG_KEYS=['loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2'];
+const DT_PER_DOG_KEYS=['loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
 function dtExtrasForActive(){
  const extras={};
  for(const k of DT_PER_DOG_KEYS){const v=dtSafeStorage.getItem(k);if(v!==null)extras[k]=v}
