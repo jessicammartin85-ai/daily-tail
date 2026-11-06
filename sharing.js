@@ -77,7 +77,8 @@ async function checkAccess(notice=true){
 async function publish(d){
  if(!user||!d||!isAdult())throw Error('Sign in and open the Adult Owner view.');
  if(typeof window.dtSnapshotActive==='function')window.dtSnapshotActive();
- d=d||dog();const m=d.meta||{},p=d.profile||{};
+ const refreshed=dog();if(refreshed?.id===d.id)d=refreshed;
+ const m=d.meta||{},p=d.profile||{};
  const pref=(()=>{try{return JSON.parse(localStorage.getItem('daily_tail_public_preferences_v1')||'{}')}catch{return {}}})();
  const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
  if(JSON.stringify({...payload,updatedAt:null}).length>850000)throw Error('Shared profile is too large for Firestore. Reduce photo size.');
