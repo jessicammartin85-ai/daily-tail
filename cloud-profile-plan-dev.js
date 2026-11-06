@@ -68,8 +68,6 @@ function redraw(){
  :'<p>Select a fictional dog from the cloud list above to edit its profile and activities.</p>')+
  '<div style="border-top:1px solid #b1c5ce;margin-top:15px;padding-top:10px"><button type="button" id="dtCloudInventoryBtn" style="background:#f9f5ee;color:#385269;border:1px solid #9fb6c0">Preview existing local data (no upload)</button><div id="dtCloudInventoryResult"></div></div>'+
  '<p id="dtCloudDetailStatus" role="status" aria-live="polite" style="font-weight:700"></p>';
- const inventory=$('dtCloudInventoryBtn');inventory.onclick=()=>{inventoryOpen=!inventoryOpen;showInventory()};
- showInventory();
  if(!current)return;
  $('dtCloudBreed').value=String(dog.breed||'');
  $('dtCloudDob').value=/^\d{4}-\d{2}-\d{2}$/.test(dog.dob||'')?dog.dob:'';
