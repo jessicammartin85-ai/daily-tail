@@ -12,7 +12,7 @@ const owner=()=>window.dtRole==='adult'&&!!dog()&&(!dog().ownerUid||dog().ownerU
 const listingId=d=>current.uid+'_'+d.id;
 const low=v=>String(v||'').trim().toLowerCase();
 const status=(t,bad=false)=>{if(!$('findStatus'))return;$('findStatus').textContent=t;$('findStatus').style.color=bad?'#a2352c':'#36596c'};
-const err=e=>(e?.code==='permission-denied'?'Firebase directory access is not enabled yet. Publish the latest firestore.rules from GitHub in Firebase.':String(e?.message||e)).slice(0,280);
+const err=e=>(e?.code==='permission-denied'?'Friend discovery is unavailable. Please try again later.':String(e?.message||e)).slice(0,280);
 const friendUrl=shareId=>location.origin+location.pathname.replace(/[^/]*$/,'')+'friend.html?share='+encodeURIComponent(shareId);
 function renderCards(){
  const search=low($('findSearch')?.value),area=$('findResults');if(!area)return;
@@ -49,7 +49,7 @@ async function loadDirectory(){
  }catch(e){status(err(e),true)}finally{loading=false}
 }
 async function sendRequest(item,button){
- if(!current){status('Sign in with Google to send friend requests.');return}
+ if(!current){status('Sign in to send a friend request.');return}
  if(!confirm('Send a friend request for '+item.dogName+'? The owner must approve it.'))return;
  button.disabled=true;
  try{
@@ -144,7 +144,7 @@ async function loadConnections(){
 }
 function open(){
  displayed=true;$('findShade').hidden=false;
- $('findSignedIn').textContent=current?'Signed in as '+(current.displayName||current.email||'Daily Tail member'):'Browse freely. Sign in with Google to send requests or publish your dog.';
+ $('findSignedIn').textContent=current?'Signed in as '+(current.displayName||current.email||'Daily Tail member'):'Browse dogs, or sign in to send a friend request.';
  $('findGoogle').hidden=!!current;$('findOwnerSettings').hidden=true;
  refreshMine();loadDirectory();if(current)loadInbox();loadConnections();
 }
