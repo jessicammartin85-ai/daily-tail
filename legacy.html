@@ -2194,6 +2194,16 @@ function dtSnapshotActive(){
  d.extras=dtExtrasForActive();dtStore()
 }
 window.DailyTalesLocalDogs={
+  migrationAuthorized(){
+    const person=dtFindUser(dtCurrentUsername);
+    return !!person && dtLinks(person).some(link=>link.role==='adult');
+  },
+  listOwned(){
+    const person=dtFindUser(dtCurrentUsername);
+    if(!person)return [];
+    const ownerIds=new Set(dtLinks(person).filter(link=>link.role==='adult').map(link=>link.dogId));
+    return this.list().filter(d=>ownerIds.has(d.id));
+  },
   openCloudAccount(uid,cloudDogs,email){
     if(!uid||!Array.isArray(cloudDogs))return false;
     const linkKey='daily_tales_v2_linked_uid';
