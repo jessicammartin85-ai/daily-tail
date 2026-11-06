@@ -21,6 +21,24 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId));
     }
 
+    function publicShareId(ownerUid, dogId) {
+      return get(/databases/$(database)/documents/users/$(ownerUid)/publicShareLinks/$(dogId)).data.shareId;
+    }
+    function isPublicPost(ownerUid, dogId, postId) {
+      return exists(/databases/$(database)/documents/users/$(ownerUid)/publicShareLinks/$(dogId))
+        && exists(/databases/$(database)/documents/publicProfiles/$(publicShareId(ownerUid, dogId)))
+        && get(/databases/$(database)/documents/publicProfiles/$(publicShareId(ownerUid, dogId))).data.ownerUid == ownerUid
+        && get(/databases/$(database)/documents/publicProfiles/$(publicShareId(ownerUid, dogId))).data.dogId == dogId
+        && get(/databases/$(database)/documents/publicProfiles/$(publicShareId(ownerUid, dogId))).data.active == true
+        && get(/databases/$(database)/documents/publicProfiles/$(publicShareId(ownerUid, dogId))).data.get('postIds', []).hasAny([postId]);
+    }
+    function canViewPost(ownerUid, dogId, postId) {
+      return isDogAdmin(ownerUid, dogId)
+        || (isDogMember(ownerUid, dogId)
+          && get(/databases/$(database)/documents/users/$(ownerUid)/sharedProfiles/$(dogId)).data.get('postIds', []).hasAny([postId]))
+        || isPublicPost(ownerUid, dogId, postId);
+    }
+
     // The original cloud sync snapshot belongs only to its Firebase account.
     // Do not grant invited members access to this private subtree.
     match /users/{ownerUid} {
@@ -28,6 +46,51 @@ service cloud.firestore {
 
       match /{privateDocument=**} {
         allow read, write: if isOwner(ownerUid);
+      }
+
+      // One heart per authenticated account. No child can change dog data here.
+      match /dogSocial/{dogId}/posts/{postId}/hearts/{accountUid} {
+        allow get, list: if canViewPost(ownerUid, dogId, postId);
+        allow create: if signedIn() && request.auth.uid == accountUid
+          && canViewPost(ownerUid, dogId, postId)
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt == request.time;
+        allow delete: if signedIn() && request.auth.uid == accountUid
+          && canViewPost(ownerUid, dogId, postId);
+        allow update: if false;
+      }
+
+      // Child and Friend comments stay private until an Adult Owner approves.
+      match /commentRequests/{commentId} {
+        allow get, list: if isOwner(ownerUid) || isDogAdmin(ownerUid, resource.data.dogId)
+          || (canViewPost(ownerUid, resource.data.dogId, resource.data.postId)
+            && (resource.data.status == 'approved'
+              || (signedIn() && resource.data.authorUid == request.auth.uid)));
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['dogId','postId','postTitle','authorUid','authorName','text','status','createdAt'])
+          && canViewPost(ownerUid, request.resource.data.dogId, request.resource.data.postId)
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() <= 100
+          && request.resource.data.postId is string
+          && request.resource.data.postId.size() > 0
+          && request.resource.data.postId.size() <= 128
+          && request.resource.data.postTitle is string
+          && request.resource.data.postTitle.size() <= 180
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 280
+          && request.resource.data.createdAt == request.time
+          && (request.resource.data.status == 'pending'
+            || (request.resource.data.status == 'approved'
+              && isDogAdmin(ownerUid, request.resource.data.dogId)));
+        allow update: if isDogAdmin(ownerUid, resource.data.dogId)
+          && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','reviewedBy','reviewedAt'])
+          && request.resource.data.status in ['approved','declined']
+          && request.resource.data.reviewedBy == request.auth.uid
+          && request.resource.data.reviewedAt == request.time;
+        allow delete: if isDogAdmin(ownerUid, resource.data.dogId);
       }
 
       // Cloud-native dog data is private to its owner and approved Adult Owners.
@@ -91,7 +154,7 @@ service cloud.firestore {
         allow create, delete: if isDogAdmin(ownerUid, dogId);
         allow update: if isOwner(ownerUid)
           || (hasDogRole(ownerUid, dogId, 'adult')
-            && request.resource.data.keys().hasOnly(['name', 'breed', 'dob', 'personality', 'favorites', 'cuteFact', 'photo', 'posts', 'updatedAt']));
+            && request.resource.data.keys().hasOnly(['name', 'breed', 'dob', 'personality', 'favorites', 'cuteFact', 'photo', 'posts', 'postIds', 'updatedAt']));
       }
 
       match /joinRequests/{requestId} {
@@ -151,7 +214,7 @@ service cloud.firestore {
         && request.resource.data.active == true
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
-          'favorites','cuteFact','photo','posts','updatedAt'
+          'favorites','cuteFact','photo','posts','postIds','updatedAt'
         ]);
       allow update: if signedIn()
         && resource.data.ownerUid == request.auth.uid
@@ -159,7 +222,7 @@ service cloud.firestore {
         && request.resource.data.dogId == resource.data.dogId
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
-          'favorites','cuteFact','photo','posts','updatedAt'
+          'favorites','cuteFact','photo','posts','postIds','updatedAt'
         ]);
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
     }
