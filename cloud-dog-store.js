@@ -137,3 +137,4 @@ export async function listDogHeaders(){
  return results.docs.map(d=>({id:d.id,...d.data()}));
 }
 export const dailyTalesCloudDogStore={readDog,saveDog,migrateDogs,watchDogs,listDogHeaders};
+export const dailyTalesAuth=auth;
