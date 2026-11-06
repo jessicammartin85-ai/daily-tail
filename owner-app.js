@@ -71,6 +71,10 @@ window.addEventListener('resize',renderTagName);function howToUse(){show('How to
  const scroller=type==='add'?content:sheet;
  if(scroller)scroller.scrollTop=0;
  $('close').focus({preventScroll:true});
+ if(type==='feed'||type==='friend-feed'){
+  window.DailyTalesVisiblePosts=type==='feed'?state.posts:selectedPublicPosts();
+  queueMicrotask(()=>window.DailyTalesEnhancePostFeed?.(window.DailyTalesVisiblePosts));
+ }
 }function close(){panel='';$('overlay').classList.remove('open')}function readPhoto(file,callback){if(!file)return;const fr=new FileReader;fr.onload=()=>{const im=new Image;im.onload=()=>{const c=document.createElement('canvas');const scale=Math.min(1,1100/im.width,1100/im.height);c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);callback(c.toDataURL('image/jpeg',.88),{width:c.width,height:c.height})};im.src=fr.result};fr.readAsDataURL(file)}
 let profileDraft=null;
 function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
