@@ -14,16 +14,18 @@ function openJoinedDog(){
  if($('shareShade'))$('shareShade').hidden=true;
  window.dispatchEvent(new Event('daily-tales-membership-updated'));
  const target=new URL('./legacy.html',location.href);
+ target.searchParams.set('joined',Date.now().toString());
  location.replace(target.href);
 }
 async function resumeMembership(i){
  if(i.ownerUid===user.uid){openJoinedDog();return true;}
  const member=await getDoc(doc(db,'users',i.ownerUid,'members',user.uid,'dogs',i.dogId));
  if(!member.exists()||!['adult','child'].includes(member.data().role))return false;
+ status('Access confirmed. Opening your dog profile…');
  await setDoc(doc(db,'users',user.uid,'joinedDogs',i.ownerUid+'_'+i.dogId),{ownerUid:i.ownerUid,dogId:i.dogId,role:member.data().role,name:i.name||'Dog',joinedAt:serverTimestamp()});
  openJoinedDog();return true;
 }
-const status=(s,bad=false)=>{const x=$('shareStatus');if(x){x.textContent=s;x.style.color=bad?'#a33':'#36586b'}};
+const status=(s,bad=false)=>{const x=$('shareShade')?.querySelector('#shareStatus');if(x){x.textContent=s;x.style.color=bad?'#a33':'#36586b'}};
 const error=e=>String(e?.message||e).slice(0,290);
 const dog=()=>{try{const a=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');return a.dogs?.find(d=>d.id===a.activeId)}catch{return null}};
 const isAdult=()=>window.dtRole==='adult'&&(!dog()?.ownerUid||dog().ownerUid===user?.uid);
@@ -234,7 +236,7 @@ const style=document.createElement('style');style.textContent=[
 '#shareShade{position:fixed;inset:0;z-index:32001;display:flex;align-items:center;justify-content:center;padding:15px;background:#152537bb;box-sizing:border-box}',
 '.share-box{max-height:90vh;overflow:auto;width:min(95vw,480px);padding:22px;box-sizing:border-box;border:3px solid #adc5d3;border-radius:19px;background:#fff9ee;color:#283d4c;font:14px/1.5 Arial}',
 '.share-box h2{font:700 26px Georgia,serif;margin:0 30px 12px 0}.share-box h3{font:700 19px Georgia,serif;margin:16px 0 5px}',
-'#shareClose{float:right;border:0;background:transparent;font-size:30px;cursor:pointer}',
+'#shareShade #shareStatus{position:sticky;bottom:0;background:#fff9ee;padding:10px 0;margin-top:12px;z-index:2}#shareClose{float:right;border:0;background:transparent;font-size:30px;cursor:pointer}',
 '.share-box button:not(#shareClose){border:1px solid #819caa;background:#d5e7f1;color:#2b4555;border-radius:9px;padding:9px 11px;margin:5px 2px;cursor:pointer;font-weight:700}',
 '.share-box input,.share-box select{padding:9px;border:1px solid #9cb6c6;border-radius:8px;max-width:100%;box-sizing:border-box}',
 '.share-box label{display:block}.share-box select{display:block;width:100%}.share-row{display:flex;gap:5px;margin:8px 0}.share-row input{min-width:0;flex:1}',
