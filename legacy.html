@@ -2140,6 +2140,20 @@ function dtDogPicker(note=''){
 function dtOpenLinkedDog(id){
  const u=dtFindUser(dtCurrentUsername),link=dtLinks(u).find(link=>link.dogId===id);
  if(!link){dtDogPicker('This dog is not connected to your username.');return}
+ if(u.cloudManaged && window.dtRole==='locked' && sessionStorage.getItem('dtCloudPendingDog')!==id){
+   if(window.dtRole==='adult')dtSnapshotActive();
+   const chosen=dtAccess.dogs.find(d=>d.id===id);
+   if(!chosen)return;
+   dtAccess.activeId=id;
+   for(const k of DT_PER_DOG_KEYS){
+      if(chosen.extras&&Object.prototype.hasOwnProperty.call(chosen.extras,k))dtSafeStorage.setItem(k,chosen.extras[k]);
+      else dtSafeStorage.removeItem(k);
+   }
+   dtStore();
+   sessionStorage.setItem('dtCloudPendingDog',id);
+   location.reload();return;
+ }
+ sessionStorage.removeItem('dtCloudPendingDog');
  dtEnter(link.role,u.name,id);
 }
 function dtCreateLinkedDog(){
@@ -2147,7 +2161,7 @@ function dtCreateLinkedDog(){
  dtGateHtml(`<h2>Add a Dog</h2><p>Creating another dog keeps your same username and PIN. Each dog will receive separate family invitation codes.</p><form id="dtLinkedDogForm"><label>Dog's name<input name="dog" required maxlength="40" placeholder="Your new dog's name"></label><button type="submit" class="primary">Create Dog and Codes</button></form><button type="button" id="dtPickerBack">Back to My Dogs</button><p class="dt-error" id="dtGateError"></p>`);
  $('dtPickerBack').onclick=()=>dtDogPicker();
  $('dtLinkedDogForm').onsubmit=e=>{e.preventDefault();const name=e.target.elements.dog.value.trim();if(!name)return;
-  const d=dtMakeDog(name,u.name);dtAccess.dogs.push(d);dtLinkDog(u,d.id,'adult');dtEnter('adult',u.name,d.id);dtShowNewCodes();
+  const d=dtMakeDog(name,u.name);dtAccess.dogs.push(d);dtLinkDog(u,d.id,'adult');dtEnter('adult',u.name,d.id);if(!u.cloudManaged)dtShowNewCodes();
  };
 }
 function dtJoinLinkedDog(){
@@ -2213,6 +2227,11 @@ window.DailyTalesLocalDogs={
       dtCurrentUsername=account.username;
       dtRememberUser(account.username,true);
       dtDogPicker();
+      const pending=sessionStorage.getItem('dtCloudPendingDog');
+      if(pending&&dtLinks(account).some(link=>link.dogId===pending)){
+        sessionStorage.removeItem('dtCloudPendingDog');
+        dtEnter('adult',account.name,pending);
+      }
     }
     return true;
   },
