@@ -124,7 +124,7 @@ $('testDogForm').onsubmit=async event=>{
  event.preventDefault();
  const name=$('testDogName').value.trim().slice(0,40);
  const note=$('testDogNote').value.trim().slice(0,160);
- if(!name){$('testDogResult').textContent='Enter a test dog's name first.';return}
+ if(!name){$('testDogResult').textContent="Enter a test dog name first.";return}
  const button=$('saveTestDog');button.disabled=true;
  $('testDogResult').textContent='Saving test dog to cloud…';
  try{
