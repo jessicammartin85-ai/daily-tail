@@ -2193,6 +2193,18 @@ function dtSnapshotActive(){
  d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));
  d.extras=dtExtrasForActive();dtStore()
 }
+window.DailyTalesShowOriginalLogin=()=>{
+ // A one-time manual PIN check for importing old browser data. No dog records deleted.
+ dtSafeStorage.removeItem(DT_REMEMBER_KEY);
+ dtCurrentUsername='';
+ window.dtRole='locked';
+ document.body.classList.remove('dt-role-adult','dt-role-child','dt-role-friend');
+ document.body.classList.add('dt-locked');
+ const gate=$('dtGate');if(gate)gate.hidden=false;
+ const strip=$('dtRoleStrip');if(strip)strip.hidden=true;
+ dtSignInGate();
+ window.scrollTo(0,0);
+};
 window.DailyTalesLocalDogs={
   migrationAuthorized(){
     const person=dtFindUser(dtCurrentUsername);
