@@ -3,7 +3,7 @@ import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,cr
 import {getFirestore,doc,getDoc,onSnapshot,writeBatch,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const app=initializeApp({apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',storageBucket:'daily-tail.firebasestorage.app',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'},'daily-tail-cloud');
 const auth=getAuth(app),db=getFirestore(app),provider=new GoogleAuthProvider();
-const SETTINGS='daily_tail_cloud_sync_settings_v1',skip=new Set([SETTINGS,'daily_tail_remembered_identity_v1']),prefix=/^(daily.tail|dailytail|loubear|lou_bear|dt_)/i;
+const SETTINGS='daily_tail_cloud_sync_settings_v1',skip=new Set([SETTINGS,'daily_tail_remembered_identity_v1','daily_tail_last_cloud_recovery_v1']),prefix=/^(daily.tail|dailytail|loubear|lou_bear|dt_)/i;
 const el=id=>document.getElementById(id);let user=null,remote=null,unsubscribe=null,active=false,busy=false,baseline='',changed=0,watch=null,error='';
 let settings={};try{settings=JSON.parse(localStorage.getItem(SETTINGS)||'{}')}catch{}
 let applyingRemote=false, lastRemoteApplied='', nextUploadAt=0;
@@ -75,8 +75,20 @@ function listen(s){
  const next=s.data();if(!next.generation||!next.parts)return;
  const previousGeneration=remote?.generation;
  remote=next;
- if(settings.uid===user.uid&&settings.enabled&&settings.generation===next.generation){
-   active=true;baseline=hash(serialize());changed=0;ui();return;
+ const sameAccount=settings.uid===user.uid&&settings.enabled;
+ const localHash=hash(serialize());
+ if(sameAccount&&settings.generation===next.generation){
+   active=true;baseline=settings.hash||localHash;
+   if(localHash===baseline)changed=0;
+   ui();return;
+ }
+ // A second device may update the cloud while this tab is closed.
+ // When the tab reopens, apply that newer data only if this copy had no unsynced edits.
+ if(!active&&sameAccount&&settings.generation!==next.generation&&localHash===settings.hash){
+   active=true;baseline=localHash;
+   status('Updating your dogs from another device…');
+   void restore(true);
+   return;
  }
  if(active&&previousGeneration!==next.generation){
    // Snapshot listeners push the newest cloud version to signed-in devices.
