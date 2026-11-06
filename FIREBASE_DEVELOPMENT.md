@@ -172,3 +172,6 @@ The existing Firestore owner-only `/users/{uid}/{privateDocument=**}` rule must 
 - Structured schedule and memory mapping, secure photo storage, data-size checks and audit trail.
 - Explicit migration and merge resolution for cross-device edits.
 - Family member access checks and isolation of private vs public data.
+
+## Current direction: cloud-first
+The user chose to skip the manual backup download/upload migration workflow. The development app no longer loads the migration staging module or shows the local inventory button. Continue with Firebase Auth, private Firestore dog records, daily plans, then approved family roles and photo storage. Keep existing live local dog data unchanged and do not silently copy it; the user can enter or recreate Lou's information in the online system when ready. Existing source backup support is retained in the codebase but not part of onboarding. Deploy only preview channels until authentication, rules, and permissions have been independently tested.
