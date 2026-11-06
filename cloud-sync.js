@@ -6,6 +6,7 @@ const auth=getAuth(app),db=getFirestore(app),provider=new GoogleAuthProvider();
 const SETTINGS='daily_tail_cloud_sync_settings_v1',skip=new Set([SETTINGS,'daily_tail_remembered_identity_v1']),prefix=/^(daily.tail|dailytail|loubear|lou_bear|dt_)/i;
 const el=id=>document.getElementById(id);let user=null,remote=null,unsubscribe=null,active=false,busy=false,baseline='',changed=0,watch=null,error='';
 let settings={};try{settings=JSON.parse(localStorage.getItem(SETTINGS)||'{}')}catch{}
+let applyingRemote=false, lastRemoteApplied='', nextUploadAt=0;
 function remember(v){settings={...settings,...v};localStorage.setItem(SETTINGS,JSON.stringify(settings))}
 function collect(){const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(prefix.test(k)&&!skip.has(k))data[k]=localStorage.getItem(k)}return data}
 function serialize(){return JSON.stringify(collect())}
@@ -30,46 +31,66 @@ function ui(){
  el('cloudUpload').disabled=!collect()['daily_tail_roles_v2'];el('cloudDownload').disabled=!remote;
  el('cloudUpload').onclick=()=>upload(false);el('cloudDownload').onclick=restore;
  }}
- if(error)status(error,true);else status(user?(active?'Automatic sync is active.':'Choose a copy to begin syncing.'):'Sign in using the same account on each device.');
+ if(error)status(error,true);else status(user?(active?'Live syncing is active.':'Choose a copy to begin syncing.'):'Sign in using the same account on each device.');
 }
 function downloadBackup(){
  const blob=new Blob([JSON.stringify({format:'daily-tail-complete-backup-v1',createdAt:new Date().toISOString(),data:collect()})],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download='Daily_Tail_Before_Cloud_Restore_'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
 }
-async function restore(){
+async function restore(automatic=false){
  if(!remote)return status('No cloud copy yet. Upload from the original device first.',true);
- if(!confirm('Replace this device’s saved Daily Tail information with the cloud copy? A local backup will download first.'))return;
- lock(true);try{
+ if(automatic){
+   if(applyingRemote||!active||!user||!remote||remote.generation===lastRemoteApplied)return;
+   // Never overwrite edits that have not yet been uploaded.
+   if(hash(serialize())!==baseline){active=false;remember({enabled:false});ui();return status('Cloud changed while you had unsynced edits. Choose a copy in Cloud Sync to resolve the conflict.',true)}
+ }else if(!confirm('Replace this device’s saved Daily Tail information with the cloud copy? A local backup will download first.'))return;
+ applyingRemote=automatic;lock(true);try{
  const parts=[];for(let i=0;i<remote.parts;i++){const r=await getDoc(doc(db,'users',user.uid,'cloudSnapshots',remote.generation,'parts',String(i).padStart(4,'0')));if(!r.exists())throw Error('Missing cloud data. No changes made.');parts.push(r.data().value)}
  const data=JSON.parse(parts.join(''));if(!data||!data['daily_tail_roles_v2'])throw Error('Cloud profile not found. No changes made.');
- downloadBackup();for(const k of Object.keys(collect()))if(!(k in data))localStorage.removeItem(k);
+ if(!automatic)downloadBackup();
+ else {try{localStorage.setItem('daily_tail_last_cloud_recovery_v1',JSON.stringify({at:new Date().toISOString(),data:collect()}))}catch{}}
+ for(const k of Object.keys(collect()))if(!(k in data))localStorage.removeItem(k);
  for(const [k,v] of Object.entries(data))if(prefix.test(k)&&!skip.has(k)&&typeof v==='string')localStorage.setItem(k,v);
+ lastRemoteApplied=remote.generation;
  remember({uid:user.uid,enabled:true,generation:remote.generation,hash:hash(serialize())});location.reload();
- }catch(e){status(message(e),true)}finally{lock(false)}
+ }catch(e){status(message(e),true)}finally{applyingRemote=false;lock(false)}
 }
 async function upload(force){
- if(!user)return;if(!force&&!confirm('Use this device’s saved profiles as the cloud copy? Choose this on the original device where Lou’s information is complete.'))return;
+ if(!user||applyingRemote)return;if(!force&&!confirm('Use this device’s saved profiles as the cloud copy? Choose this on the original device where Lou’s information is complete.'))return;
  lock(true);try{
  const latest=await getDoc(ref());
- if(force&&latest.exists()&&latest.data().generation!==settings.generation)throw Error('Another device updated the cloud. Restore that copy before syncing.');
+ if(force&&latest.exists()&&latest.data().generation!==settings.generation){active=false;remember({enabled:false});throw Error('Another device changed the cloud copy. Your local edits are preserved; open Cloud Sync to resolve the conflict.');}
  if(!force&&latest.exists()&&!confirm('Cloud data already exists. Replace it with this device’s version?'))return;
  const json=serialize();if(json.length>12000000)throw Error('Your saved photos are too large for this sync version. Do not delete your local copy.');
  const parts=json.match(/[\s\S]{1,150000}/g)||['{}'];if(parts.length>300)throw Error('Too much data for one cloud update.');
  const generation='v'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),batch=writeBatch(db);
  parts.forEach((value,i)=>batch.set(doc(db,'users',user.uid,'cloudSnapshots',generation,'parts',String(i).padStart(4,'0')),{value}));
  batch.set(ref(),{generation,parts:parts.length,updatedAt:serverTimestamp(),schema:1});await batch.commit();
- remote={generation,parts:parts.length};active=true;baseline=hash(json);changed=0;remember({uid:user.uid,enabled:true,generation,hash:baseline});ui();status('Saved to cloud. Other devices can restore this copy.');
+ remote={generation,parts:parts.length};active=true;baseline=hash(json);changed=0;nextUploadAt=Date.now()+1200;remember({uid:user.uid,enabled:true,generation,hash:baseline});ui();status('All dog profiles synced to your account.');
  }catch(e){status(message(e),true)}finally{lock(false)}
 }
 function listen(s){
  if(!user)return;
  if(!s.exists()){remote=null;active=false;ui();return}
  const next=s.data();if(!next.generation||!next.parts)return;
- const prev=remote?.generation;remote=next;
- if(settings.uid===user.uid&&settings.enabled&&settings.generation===next.generation){active=true;baseline=hash(serialize());ui();return}
- if(active&&prev!==next.generation){active=false;remember({enabled:false});ui();status('Cloud data changed on another device. Open Cloud Sync to restore the latest copy.')}
- else ui();
+ const previousGeneration=remote?.generation;
+ remote=next;
+ if(settings.uid===user.uid&&settings.enabled&&settings.generation===next.generation){
+   active=true;baseline=hash(serialize());changed=0;ui();return;
+ }
+ if(active&&previousGeneration!==next.generation){
+   // Snapshot listeners push the newest cloud version to signed-in devices.
+   // Only apply automatically when local storage matches the last synced state.
+   if(hash(serialize())===baseline&&!busy&&!applyingRemote){
+     status('New changes received. Updating this device…');
+     void restore(true);
+   }else{
+     active=false;remember({enabled:false});ui();
+     status('Another device updated Daily Tales while this one has unsynced edits. Your changes are safe. Open Cloud Sync to choose which copy to keep.',true);
+   }
+ }else ui();
 }
+
 onAuthStateChanged(auth,u=>{
  if(unsubscribe){unsubscribe();unsubscribe=null}
  user=u;active=false;remote=null;changed=0;error='';
@@ -78,9 +99,9 @@ onAuthStateChanged(auth,u=>{
 });
 function start(){
  const btn=document.createElement('button');btn.id='cloudLaunch';btn.textContent='☁ Cloud Sync';btn.type='button';document.body.append(btn);
- const shade=document.createElement('div');shade.id='cloudShade';shade.hidden=true;shade.innerHTML='<section class="cloudBox" role="dialog" aria-modal="true" aria-labelledby="cloudTitle"><button type="button" id="cloudClose" aria-label="Close">×</button><h2 id="cloudTitle">Daily Tail Cloud</h2><p>Keep Lou’s information together across devices.</p><div id="cloudAccount"></div><div id="cloudOptions"></div><p id="cloudStatus" role="status"></p><details><summary>About syncing</summary><p>Data is private to your signed-in Firebase account. You choose which copy to use first. Changes sync while the app is open; important changes should still be backed up.</p></details></section>';document.body.append(shade);
+ const shade=document.createElement('div');shade.id='cloudShade';shade.hidden=true;shade.innerHTML='<section class="cloudBox" role="dialog" aria-modal="true" aria-labelledby="cloudTitle"><button type="button" id="cloudClose" aria-label="Close">×</button><h2 id="cloudTitle">Daily Tail Cloud</h2><p>Keep Lou’s information together across devices.</p><div id="cloudAccount"></div><div id="cloudOptions"></div><p id="cloudStatus" role="status"></p><details><summary>About syncing</summary><p>Data is private to your signed-in Firebase account. Choose your initial copy once, then edits sync automatically within seconds while Daily Tales is open. Other signed-in devices receive updates automatically and may refresh to show them. Simultaneous edits on multiple devices are paused for manual conflict resolution instead of silently overwriting information. Keep occasional backups.</p></details></section>';document.body.append(shade);
  btn.onclick=()=>{shade.hidden=false;ui()};el('cloudClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
- watch=setInterval(async()=>{if(!active||!user||busy||document.hidden)return;const h=hash(serialize());if(h===baseline){changed=0;return}if(!changed){changed=Date.now();return}if(Date.now()-changed>12000)await upload(true)},4000);
+ watch=setInterval(async()=>{if(!active||!user||busy||applyingRemote||document.hidden)return;const h=hash(serialize());if(h===baseline){changed=0;return}if(!changed){changed=Date.now();return}if(Date.now()-changed>1800&&Date.now()>nextUploadAt)await upload(true)},1000);
  ui();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
