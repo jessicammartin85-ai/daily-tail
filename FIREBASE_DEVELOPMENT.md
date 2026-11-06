@@ -122,3 +122,25 @@ npx --yes firebase-tools hosting:channel:deploy my-dogs-dev --config firebase-ap
 Use the exact returned **Channel URL**. Continue using the same authorized Firebase account. Add two fictional dogs, select and edit one, reload, then open the preview in a second browser with the same account to confirm the change. Delete the fictional test dogs after the test if desired.
 
 Do not merge into `main` or migrate Lou until a separate, verified data migration and membership design exists.
+
+## Combined development milestone: profiles + Daily Plan + read-only migration inventory
+
+The existing cloud dog test list now integrates with `cloud-profile-plan-dev.js` in the **development branch only**.
+
+- Select Buddy, Daisy, or another **fictional** cloud dog from the `Cloud My Dogs` list. Under the list, edit **breed, birthday, and personality** in that dog's private Firestore document.
+- Add time-based plan activities individually under `users/{uid}/cloudTestDogs/{dogId}/plan/{activityId}`, mark each completed/uncompleted, and remove activities. Up to 30 test activities per fictional dog.
+- Deleting one fictional cloud dog also deletes its test activity documents.
+- Click **Preview existing local data (no upload)** to see a local-only inventory of the browser's `daily_tail_roles_v2` dogs and their stored posts, if any. It is not a full migration mapping: schedules and images still require inspection. The inventory is never sent to Firestore.
+- **No local backups, PIN hashes, invitation codes, real dog profiles, schedule entries, photos, or memories are uploaded or migrated.**
+- This version does not include real-time family cross-account permissions, photo uploads, conflict resolution for simultaneous edits, or a migration execution button. Those are separate safety milestones.
+- The main GitHub Pages site remains unchanged.
+
+### Deploy the combined development preview
+
+Download a fresh ZIP of the `development/firebase-accounts-foundation` branch, extract it, and open Command Prompt in the directory containing `firebase-app-preview.json`.
+
+```cmd
+npx --yes firebase-tools hosting:channel:deploy my-dogs-dev --config firebase-app-preview.json --project daily-tail --expires 7d
+```
+
+Use the **Channel URL returned by Firebase**. The test scenario: select Buddy, save breed/birthday/personality, add two Daily Plan activities, check one off, refresh, and verify the profile and activities persist. Select Daisy and confirm Buddy's activities do not appear there. Return to Buddy and verify separation. Optionally sign into the same Firebase account on another device to verify the same data.
