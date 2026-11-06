@@ -72,3 +72,34 @@ Official guidance: https://firebase.google.com/docs/hosting/test-preview-deploy 
 - Current active Firestore rules must allow the authenticated user access to their own private descendants under `users/{uid}`.
 - Repeat preview deploy after downloading the latest development branch ZIP. Deploy only `hosting:channel:deploy account-lab`. Test on two signed-in browsers, then delete the fictional test record.
 - This is **not yet** an integration into the main Daily Tail interface; next milestone is a feature-flagged cloud profile adapter and reviewed data migration.
+
+## My Dogs development-preview integration
+
+The **real `index.html`** on the development branch now loads `my-dogs-cloud-dev.js`, which adds a labelled Cloud Test Dogs panel to the My Dogs entry screen (and the first-run gate), and a clearly marked Firebase-only test dog tile within the My Dogs list when applicable. The existing local dog picker remains intact.
+
+**This is a limited test bridge, not production sync.** It reads and writes only:
+`users/{firebaseAuthUid}/testDogs/connection-lab-dog` (the previously tested fictional dog).
+It uses Google or email Firebase sign-in. Local PIN, access codes, photos, schedules, post data and any preexisting dog are not uploaded or changed. The old `cloud-sync.js` whole-browser snapshot module is disabled **on this development branch only**.
+
+### Deploy the full development app to a NEW temporary preview channel
+
+1. From GitHub select `development/firebase-accounts-foundation`, use **Code → Download ZIP**, then **Extract All**. In File Explorer open the extracted project folder that contains both `index.html` and `firebase-app-preview.json`. The command prompt path **must not contain `.zip`**.
+2. Use the verified Firebase CLI sign-in on Windows.
+3. Copy this exact command (one line):
+
+   ```cmd
+   npx --yes firebase-tools hosting:channel:deploy my-dogs-dev --config firebase-app-preview.json --project daily-tail --expires 7d
+   ```
+
+   **Do not** run `firebase deploy`, `firebase deploy --only hosting`, or the old `account-lab` deployment command for this phase. The alternate config deliberately serves the full development app, while `firebase.json` still serves only the earlier lab.
+4. Open the **actual preview URL printed by Firebase**, not a guessed URL. The full app should show its local sign-in plus a **Cloud Test Dogs** section. Signing in to Firebase here does not sign in to the local PIN-based app.
+5. If Google sign-in gives `auth/unauthorized-domain`, add only the exact new preview **hostname** under Firebase Authentication → Settings → Authorized domains.
+6. Use the same Google account as the successful test lab. The fictional Test Puppy should load. If you separately sign into the local My Dogs picker, the clearly marked cloud test tile will also appear among the local cards.
+7. Compare the test dog name/note here with those in the original account-lab link. Edit the fictional dog's note on one page and check that it changes on the other. Delete the test record only when testing is done.
+8. **No real migration** until emulator rule tests, explicit backup verification, a conflict strategy, and a separate opt-in migration flow are ready.
+
+### Important limitations
+- This preview shares **real Firebase Authentication and Firestore** with the current project. Use fictional dog data.
+- The preview URL is not private access control: the preview website can be opened by anyone with its URL. Firebase Security Rules protect the private test data.
+- The dev bridge does not grant cross-account family access and does not replace local user identities.
+- The original GitHub Pages Daily Tail site and `main` branch are unchanged.
