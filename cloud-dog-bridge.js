@@ -30,22 +30,29 @@ function showSetup(mode){
  if(!pane){
    pane=document.createElement('div');pane.id='dtCloudSetup';
    pane.style.cssText='position:fixed;inset:0;background:#1e2734c9;z-index:29000;display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
-   pane.innerHTML='<section style="width:min(100%,425px);max-height:90dvh;overflow:auto;border:3px solid #64819a;border-radius:24px;background:#fff9f0;padding:22px;text-align:center;font:15px/1.5 Arial,sans-serif;color:#365369"><h2 style="font:700 26px Georgia,serif;color:#653f29">Connect your dogs</h2><p id="dtCloudSetupInfo"></p><p id="dtCloudSetupStatus" role="status"></p><button type="button" id="dtCloudUseLocal" style="width:100%;margin:5px 0;background:#365c76;color:#fff;padding:12px;border:0;border-radius:12px;font-weight:700">Save my dogs to this account</button><button type="button" id="dtCloudUseRemote" style="width:100%;margin:5px 0;background:#e2eaf0;color:#365c76;padding:12px;border:1px solid #8ba7b7;border-radius:12px;font-weight:700">Use dogs already saved online</button><button type="button" id="dtCloudUnlock" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Unlock original owner profile (one-time only)</button><button type="button" id="dtCloudBack" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Use a different account</button></section>';
+   pane.innerHTML='<section style="width:min(100%,425px);max-height:90dvh;overflow:auto;border:3px solid #64819a;border-radius:24px;background:#fff9f0;padding:22px;text-align:center;font:15px/1.5 Arial,sans-serif;color:#365369"><h2 style="font:700 26px Georgia,serif;color:#653f29">Connect your dogs</h2><p id="dtCloudSetupInfo"></p><p id="dtCloudSetupStatus" role="status"></p><button type="button" id="dtCloudUseLocal" style="width:100%;margin:5px 0;background:#365c76;color:#fff;padding:12px;border:0;border-radius:12px;font-weight:700">Save my dogs to this account</button><button type="button" id="dtCloudUseRemote" style="width:100%;margin:5px 0;background:#e2eaf0;color:#365c76;padding:12px;border:1px solid #8ba7b7;border-radius:12px;font-weight:700">Use dogs already saved online</button><button type="button" id="dtCloudUnlock" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Unlock original owner profile (one-time only)</button><form id="dtOriginalOwnerForm" hidden style="background:#edf3f5;padding:12px;border-radius:12px;text-align:left"><label style="display:block">Original username<input name="username" autocomplete="username" required style="width:100%;font-size:16px;padding:10px;box-sizing:border-box"></label><label style="display:block;margin-top:10px">Original PIN<input name="pin" type="password" autocomplete="current-password" inputmode="numeric" minlength="4" maxlength="6" required style="width:100%;font-size:16px;padding:10px;box-sizing:border-box"></label><button type="submit" style="width:100%;margin-top:12px;background:#365c76;color:white;border:0;border-radius:10px;padding:12px;font-weight:bold">Verify and connect Lou</button><p id="dtOriginalOwnerError" role="alert"></p></form><button type="button" id="dtCloudBack" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Use a different account</button></section>';
    document.body.append(pane);
    $('dtCloudUseLocal').onclick=uploadLocal;
    $('dtCloudUseRemote').onclick=useRemote;
    $('dtCloudBack').onclick=()=>window.DailyTalesOpenAccount?.();
    $('dtCloudUnlock').onclick=()=>{
-     hideSetup();
-     // Allow the original username/PIN screen to be used only for migration.
-     // Keep Firebase Auth signed in; do not reset or delete any dog data.
-     const overlay=$('cloudShade');
-     if(overlay)overlay.hidden=true;
-     const gate=$('dtGate');
-     if(gate)gate.hidden=false;
-     const launcher=$('dtCloudResume');
-     if(launcher){launcher.hidden=false;launcher.style.display='block'}
-     if(window.DailyTalesShowOriginalLogin)window.DailyTalesShowOriginalLogin();
+     // Verify in the same modal: never hide the form behind another overlay.
+     const form=$('dtOriginalOwnerForm');
+     form.hidden=false;form.style.display='block';
+     form.elements.username.focus();
+     $('dtCloudUnlock').hidden=true;
+   };
+   $('dtOriginalOwnerForm').onsubmit=async event=>{
+     event.preventDefault();
+     const form=event.currentTarget;
+     const error=$('dtOriginalOwnerError');
+     error.textContent='';
+     try{
+       if(!local()?.verifyOriginalOwner(form.elements.username.value,form.elements.pin.value))
+         throw Error('Original Adult Owner verification failed.');
+       form.elements.pin.value='';
+       await uploadLocal();
+     }catch(e){error.textContent=e.message||'Unable to verify the original owner.'}
    };
  }
  pane.hidden=false;pane.style.display='flex';
