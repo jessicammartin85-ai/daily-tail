@@ -62,3 +62,13 @@ The development branch now includes `firebase-preview/index.html` and `firebase.
 **Notes:** Firebase Hosting preview URLs are publicly accessible to anyone with the URL. The lab only contains the Firebase public web config and test UI, not Lou's data. However, the lab connects to the same real Firebase Authentication and Firestore project. Never test with real private dog data. If Firebase Hosting hasn't been activated in the Firebase Console, visit Build → Hosting and complete Get started without deploying to live.
 
 Official guidance: https://firebase.google.com/docs/hosting/test-preview-deploy and https://firebase.google.com/docs/cli.
+
+## November 5: isolated cloud test dog added
+- The account lab and `firebase-preview/index.html` now include a fictional test dog form.
+- Location: `users/{authenticatedUid}/testDogs/connection-lab-dog`.
+- Operations: save, real-time read, explicit reload, and confirmation-based delete.
+- Data stored: test name, test note, marker `type: development-test-only`, server update timestamp.
+- No existing dog data is read or migrated; no production `index.html` modifications.
+- Current active Firestore rules must allow the authenticated user access to their own private descendants under `users/{uid}`.
+- Repeat preview deploy after downloading the latest development branch ZIP. Deploy only `hosting:channel:deploy account-lab`. Test on two signed-in browsers, then delete the fictional test record.
+- This is **not yet** an integration into the main Daily Tail interface; next milestone is a feature-flagged cloud profile adapter and reviewed data migration.
