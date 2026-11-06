@@ -27,6 +27,24 @@ service cloud.firestore {
         allow read, write: if isOwner(ownerUid);
       }
 
+      // Cloud-native dog data is private to its owner and approved Adult Owners.
+      // Child Owners submit proposed changes; Friends use published read-only views.
+      // The broad owner-only rule above remains valid. Overlapping Firebase rules
+      // grant member access only to these exact per-dog records.
+      match /dogsV2/{dogId} {
+        allow get: if isOwner(ownerUid) || hasDogRole(ownerUid,dogId,'adult');
+        allow list: if isOwner(ownerUid);
+        allow create, delete: if isOwner(ownerUid);
+        allow update: if isOwner(ownerUid)
+          || (hasDogRole(ownerUid,dogId,'adult')
+            && request.resource.data.ownerUid == resource.data.ownerUid
+            && request.resource.data.id == resource.data.id);
+        match /versions/{version}/parts/{part} {
+          allow read, create, update: if isOwner(ownerUid) || hasDogRole(ownerUid,dogId,'adult');
+          allow delete: if isOwner(ownerUid);
+        }
+      }
+
       // Only the owner may issue/revoke memberships.
       match /members/{memberUid}/dogs/{dogId} {
         allow get: if isOwner(ownerUid)

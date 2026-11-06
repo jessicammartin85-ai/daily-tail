@@ -7,7 +7,7 @@ const app=getApps().find(a=>a.name==='daily-tail-cloud')||initializeApp(cfg,'dai
 const $=id=>document.getElementById(id),esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let current=null,results=[],myRequests=[],inbox=[],loading=false,displayed=false;
 const dog=()=>{try{const a=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');return a.dogs?.find(d=>d.id===a.activeId)}catch{return null}};
-const owner=()=>window.dtRole==='adult'&&!!dog();
+const owner=()=>window.dtRole==='adult'&&!!dog()&&(!dog().ownerUid||dog().ownerUid===current?.uid);
 const listingId=d=>current.uid+'_'+d.id;
 const low=v=>String(v||'').trim().toLowerCase();
 const status=(t,bad=false)=>{if(!$('findStatus'))return;$('findStatus').textContent=t;$('findStatus').style.color=bad?'#a2352c':'#36596c'};

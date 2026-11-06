@@ -1922,7 +1922,7 @@ let dtPending=[];try{const q=JSON.parse(dtSafeStorage.getItem(DT_QUEUE_KEY)||'[]
 const dtId=()=>('dt'+Date.now().toString(36)+Math.random().toString(36).slice(2,9));
 function dtStore(){dtSafeStorage.setItem(DT_ACCESS_KEY,JSON.stringify(dtAccess))}
 function dtSaveQueue(){try{dtSafeStorage.setItem(DT_QUEUE_KEY,JSON.stringify(dtPending))}catch{alert('Storage full. Reduce photo size and try again.')}}
-function dtQueue(item){dtPending.push({...item,id:dtId(),dogId:dtAccess.activeId,at:new Date().toISOString()});dtSaveQueue();}
+function dtQueue(item){const pending={...item,id:dtId(),dogId:dtAccess.activeId,at:new Date().toISOString()};dtPending.push(pending);dtSaveQueue();if(window.DailyTalesSubmitProposal)void window.DailyTalesSubmitProposal(pending)}
 function dtCode(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let b=new Uint8Array(12);if(crypto?.getRandomValues)crypto.getRandomValues(b);else for(let i=0;i<12;i++)b[i]=Math.floor(Math.random()*256);return Array.from(b,v=>chars[v%chars.length]).join('').replace(/(.{4})/g,'$1-').replace(/-$/,'')}
 function dtCleanCode(s){return String(s||'').replace(/[^a-zA-Z0-9]/g,'').toUpperCase()}
 function dtDog(){return dtAccess.dogs.find(d=>d.id===dtAccess.activeId)}
@@ -2140,6 +2140,20 @@ function dtDogPicker(note=''){
 function dtOpenLinkedDog(id){
  const u=dtFindUser(dtCurrentUsername),link=dtLinks(u).find(link=>link.dogId===id);
  if(!link){dtDogPicker('This dog is not connected to your username.');return}
+ if(u.cloudManaged && window.dtRole==='locked' && sessionStorage.getItem('dtCloudPendingDog')!==id){
+   if(window.dtRole==='adult')dtSnapshotActive();
+   const chosen=dtAccess.dogs.find(d=>d.id===id);
+   if(!chosen)return;
+   dtAccess.activeId=id;
+   for(const k of DT_PER_DOG_KEYS){
+      if(chosen.extras&&Object.prototype.hasOwnProperty.call(chosen.extras,k))dtSafeStorage.setItem(k,chosen.extras[k]);
+      else dtSafeStorage.removeItem(k);
+   }
+   dtStore();
+   sessionStorage.setItem('dtCloudPendingDog',id);
+   location.reload();return;
+ }
+ sessionStorage.removeItem('dtCloudPendingDog');
  dtEnter(link.role,u.name,id);
 }
 function dtCreateLinkedDog(){
@@ -2147,7 +2161,7 @@ function dtCreateLinkedDog(){
  dtGateHtml(`<h2>Add a Dog</h2><p>Creating another dog keeps your same username and PIN. Each dog will receive separate family invitation codes.</p><form id="dtLinkedDogForm"><label>Dog's name<input name="dog" required maxlength="40" placeholder="Your new dog's name"></label><button type="submit" class="primary">Create Dog and Codes</button></form><button type="button" id="dtPickerBack">Back to My Dogs</button><p class="dt-error" id="dtGateError"></p>`);
  $('dtPickerBack').onclick=()=>dtDogPicker();
  $('dtLinkedDogForm').onsubmit=e=>{e.preventDefault();const name=e.target.elements.dog.value.trim();if(!name)return;
-  const d=dtMakeDog(name,u.name);dtAccess.dogs.push(d);dtLinkDog(u,d.id,'adult');dtEnter('adult',u.name,d.id);dtShowNewCodes();
+  const d=dtMakeDog(name,u.name);dtAccess.dogs.push(d);dtLinkDog(u,d.id,'adult');dtEnter('adult',u.name,d.id);if(!u.cloudManaged)dtShowNewCodes();
  };
 }
 function dtJoinLinkedDog(){
@@ -2168,7 +2182,116 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
  $('dtCodeManageNow').onclick=()=>dtManageCodes();
 }
 
-function dtSnapshotActive(){const d=dtDog();if(!d)return;d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));dtStore()}
+const DT_PER_DOG_KEYS=['loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
+function dtExtrasForActive(){
+ const extras={};
+ for(const k of DT_PER_DOG_KEYS){const v=dtSafeStorage.getItem(k);if(v!==null)extras[k]=v}
+ return extras;
+}
+function dtSnapshotActive(){
+ const d=dtDog();if(!d)return;
+ d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));
+ d.extras=dtExtrasForActive();dtStore()
+}
+window.DailyTalesLocalDogs={
+  migrationAuthorized(){
+    const person=dtFindUser(dtCurrentUsername);
+    return !!person && dtLinks(person).some(link=>link.role==='adult');
+  },
+  listOwned(){
+    const person=dtFindUser(dtCurrentUsername);
+    if(!person)return [];
+    const ownerIds=new Set(dtLinks(person).filter(link=>link.role==='adult').map(link=>link.dogId));
+    return this.list().filter(d=>ownerIds.has(d.id));
+  },
+  openCloudAccount(uid,cloudDogs,email){
+    if(!uid||!Array.isArray(cloudDogs))return false;
+    const linkKey='daily_tales_v2_linked_uid';
+    if(dtAccess.dogs.length&&dtSafeStorage.getItem(linkKey)!==uid)return false;
+    const cloudUsername=('cloud_'+uid).toLowerCase().replace(/[^a-z0-9._-]/g,'').slice(0,24);
+    let account=dtFindUser(cloudUsername);
+    let changed=false;
+    for(const item of cloudDogs){
+      if(!item?.id||!item?.name)continue;
+      let dog=dtAccess.dogs.find(d=>d.id===item.id);
+      if(!dog){
+        dog={id:item.id,name:item.name,owner:email||'Owner',ownerUid:item.ownerUid||uid,
+          profile:item.profile||{profile:'',posts:[]},meta:item.meta||{petName:item.name},
+          extras:item.extras||{},adult:'',child:'',friend:''};
+        dtAccess.dogs.push(dog);changed=true;
+      }
+    }
+    if(!account){
+      account={username:cloudUsername,name:email?.split('@')[0]||'Owner',
+        dogs:cloudDogs.map(d=>({dogId:d.id,role:d.role||'adult'})),
+        role:'adult',dogId:cloudDogs[0]?.id||null,cloudManaged:true};
+      dtAccess.users=dtAccess.users||[];dtAccess.users.push(account);changed=true;
+    }else{
+      for(const dog of cloudDogs)if(!dtLinks(account).some(l=>l.dogId===dog.id)){
+        account.dogs.push({dogId:dog.id,role:dog.role||'adult'});changed=true;
+      }
+    }
+    if(changed)dtStore();
+    dtSafeStorage.setItem(linkKey,uid);
+    if(window.dtRole==='locked'||dtCurrentUsername!==account.username){
+      if(window.dtRole==='adult')dtSnapshotActive();
+      dtCurrentUsername=account.username;
+      dtRememberUser(account.username,true);
+      dtDogPicker();
+      const pending=sessionStorage.getItem('dtCloudPendingDog');
+      if(pending&&dtLinks(account).some(link=>link.dogId===pending)){
+        sessionStorage.removeItem('dtCloudPendingDog');
+        const role=dtLinks(account).find(link=>link.dogId===pending)?.role||'friend';
+        dtEnter(role,account.name,pending);
+      }
+    }
+    return true;
+  },
+  openLinkedAccount(uid){
+    if(!uid||dtSafeStorage.getItem('daily_tales_v2_linked_uid')!==uid)return false;
+    if(window.dtRole!=='locked')return true;
+    const remembered=dtSafeStorage.getItem(DT_REMEMBER_KEY);
+    const user=(remembered&&dtFindUser(remembered))||(dtAccess.users||[]).find(u=>dtLinks(u).some(x=>x.role==='adult'));
+    if(!user)return false;
+    dtEnterNamedUser(user,true);
+    return true;
+  },
+  list(){
+    if(window.dtRole==='adult')dtSnapshotActive();
+    return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{},extras:d.id===dtAccess.activeId?{...(d.extras||{}),...dtExtrasForActive()}:(d.extras||{})}))));
+  },
+  hasLocalDogs(){return dtAccess.dogs.length>0},
+  applyCloudDogs(items){
+    if(!Array.isArray(items))throw Error('Expected cloud dog records.');
+    if(window.dtRole==='adult')dtSnapshotActive();
+    let changed=false;
+    for(const remote of items){
+      if(!remote||!remote.id||!remote.name)continue;
+      const local=dtAccess.dogs.find(d=>d.id===remote.id);
+      if(local){
+        if(JSON.stringify({name:local.name,profile:local.profile,meta:local.meta,extras:local.extras})===JSON.stringify({name:remote.name,profile:remote.profile,meta:remote.meta,extras:remote.extras}))continue;
+        local.name=remote.name;local.ownerUid=remote.ownerUid||local.ownerUid;local.profile=JSON.parse(JSON.stringify(remote.profile||{}));local.meta=JSON.parse(JSON.stringify(remote.meta||{}));local.extras=JSON.parse(JSON.stringify(remote.extras||{}));changed=true;
+      }else{
+        // Cloud dogs have no legacy access code or local PIN credentials.
+        // Never manufacture an owner authorization from cloud data.
+        dtAccess.dogs.push({id:remote.id,name:remote.name,owner:remote.ownerDisplay||'',ownerUid:remote.ownerUid||'',profile:remote.profile||{},meta:remote.meta||{},extras:remote.extras||{},adult:'',child:'',friend:''});
+        changed=true;
+      }
+    }
+    if(changed){
+      const active=dtAccess.dogs.find(d=>d.id===dtAccess.activeId);
+      if(active?.extras){
+        for(const key of DT_PER_DOG_KEYS){
+          if(Object.prototype.hasOwnProperty.call(active.extras,key))dtSafeStorage.setItem(key,active.extras[key]);
+          else dtSafeStorage.removeItem(key);
+        }
+      }
+      dtStore();
+      window.dispatchEvent(new CustomEvent('daily-tales-cloud-dogs-changed'));
+    }
+    return changed;
+  }
+};
 function dtLoadDog(id){
  const d=dtAccess.dogs.find(x=>x.id===id);if(!d)return;
  if(dtAccess.activeId && dtAccess.activeId!==id && window.dtRole==='adult')dtSnapshotActive();
@@ -2191,14 +2314,14 @@ save=function(){if(window.dtRole==='child'){
  dtOriginalSave();if(window.dtRole==='adult')dtSnapshotActive();
 };
 saveMeta=function(){dtOriginalSaveMeta();if(window.dtRole==='adult')dtSnapshotActive()};
-function dtEnter(role,person,dogId){dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?'Codes & approvals':'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
-function dtSignOut(){dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
+function dtEnter(role,person,dogId){dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?(dtFindUser(dtCurrentUsername)?.cloudManaged?'Share & approvals':'Codes & approvals'):'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
+function dtSignOut(){if(window.DailyTalesCloudSignOut)window.DailyTalesCloudSignOut();dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
 $('dtRoleSignOut').onclick=dtSignOut;
 $('dtSwitchDogs').onclick=()=>dtDogPicker();
 $('dtBackupBtn').onclick=dtDownloadBackup;
 $('dtRestoreGateBtn').onclick=()=>$('dtRestoreFile').click();
 $('dtRestoreFile').onchange=e=>dtRestoreBackup(e.target.files?.[0]);
-$('dtRoleManage').onclick=()=>window.dtRole==='adult'?dtManageCodes():dtManagePending();
+$('dtRoleManage').onclick=()=>{const u=dtFindUser(dtCurrentUsername);if(u?.cloudManaged&&window.DailyTalesOpenShare){window.DailyTalesOpenShare();return}window.dtRole==='adult'?dtManageCodes():dtManagePending()};
 $('dtAskFriend').onclick=()=>{if(window.dtRole==='friend')dtRequestForm();else alert('This is how the Friend Request button appears to guests. Sign in with a Friend invitation to send a request.');};
  $('dtFindDogFriends').onclick=dtOpenFriendSearch;
 // The preview switch is for people who have already authenticated as an owner.
@@ -2346,4 +2469,4 @@ try{dtSignInGate()}catch(err){
  window.DailyTailPush={attach};
 })();
 </script>
-<script type="module" src="./cloud-sync.js?v=unified-login-20261106b" onerror="document.getElementById('cloudBootstrapStatus').textContent='Google sign-in could not load. Check your connection, then reload. Your saved local profile is still available below.'"></script><script type="module" src="./sharing.js"></script><script type="module" src="./find-friends.js?v=single-entry-20261104b"></script><script src="./navigation.js?v=20261105-three-and-check21" defer></script><script src="./profile-design.js?v=20261105-bone-fit14" defer></script><script src="./friend-design.js?v=20261105-friendthumb8" defer></script><script src="./snapshot-mobile.js?v=20261104-a" defer></script></body></html>
+<script type="module" src="./cloud-auth.js?v=cloud-accounts-v2"></script><script type="module" src="./cloud-dog-bridge.js"></script><script type="module" src="./sharing.js"></script><script type="module" src="./find-friends.js?v=single-entry-20261104b"></script><script src="./navigation.js?v=20261105-three-and-check21" defer></script><script src="./profile-design.js?v=20261105-bone-fit14" defer></script><script src="./friend-design.js?v=20261105-friendthumb8" defer></script><script src="./snapshot-mobile.js?v=20261104-a" defer></script></body></html>
