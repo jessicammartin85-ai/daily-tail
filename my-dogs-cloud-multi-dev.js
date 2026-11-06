@@ -5,7 +5,7 @@
 */
 import {initializeApp,getApps} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getFirestore,collection,doc,onSnapshot,getDoc,addDoc,updateDoc,deleteDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {getFirestore,collection,doc,onSnapshot,getDoc,getDocs,addDoc,updateDoc,writeBatch,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 const config={
  apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',
@@ -97,7 +97,7 @@ function render(){
    };
    if(current)$('dtMultiDelete').onclick=async()=>{
      if(!confirm('Delete only this fictional cloud test dog, '+current.name+'? Your local dogs are not affected.'))return;
-     try{await deleteDoc(doc(col(),current.id));selected=null;notify('Deleted fictional cloud test dog.')}catch(err){notify(err.message,true)}
+     try{const planItems=await getDocs(collection(db,'users',user.uid,'cloudTestDogs',current.id,'plan'));const batch=writeBatch(db);planItems.forEach(task=>batch.delete(task.ref));batch.delete(doc(col(),current.id));await batch.commit();selected=null;notify('Deleted fictional cloud test dog and its test plan.')}catch(err){notify(err.message,true)}
    };
    if(legacy)$('dtMultiCopyOld').onclick=async()=>{
      if(dogs.length>=20){notify('Test dog limit reached.',true);return}
