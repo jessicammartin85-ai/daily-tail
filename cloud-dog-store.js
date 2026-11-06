@@ -22,7 +22,7 @@ const config = {
 };
 const app=getApps().find(x=>x.name==='daily-tail-cloud')||initializeApp(config,'daily-tail-cloud');
 const auth=getAuth(app),db=getFirestore(app);
-const CHUNK=125000,MAX_CHUNKS=250;
+const CHUNK=125000,MAX_CHUNKS=48;
 const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{3,128}$/.test(id);
 const safeString=(v,n=300)=>String(v??'').slice(0,n);
 const jsonClone=value=>JSON.parse(JSON.stringify(value??{}));
@@ -60,14 +60,14 @@ export async function readDog(id, uid=assertAccount()){
  if(!validId(id))throw Error('Invalid dog identifier.');
  const head=await getDoc(dogPath(uid,id));
  if(!head.exists())return null;
- const v=head.data(),parts=[];
+ const v=head.data();
  if(!Number.isInteger(v.parts)||v.parts<1||v.parts>MAX_CHUNKS||!validId(v.version))
    throw Error('Dog cloud record is incomplete.');
- for(let i=0;i<v.parts;i++){
+ const parts=await Promise.all(Array.from({length:v.parts},async(_,i)=>{
    const part=await getDoc(doc(db,'users',uid,'dogsV2',id,'versions',v.version,'parts',String(i).padStart(4,'0')));
    if(!part.exists())throw Error('Missing dog data part '+i+'. The existing data was not changed.');
-   parts.push(part.data().value);
- }
+   return part.data().value;
+ }));
  const dog=JSON.parse(parts.join(''));
  validateDog(dog);
  if(dog.id!==id)throw Error('Dog record identity mismatch.');
