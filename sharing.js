@@ -159,14 +159,24 @@ async function refresh(){
    item.innerHTML='<strong>Child Owner '+safe(v.kind)+' change</strong><p>Review this proposed update before publishing it.</p><button>Approve</button> <button>Decline</button>';
    const bs=item.querySelectorAll('button');bs[0].onclick=()=>decideChildProposal(r,true);bs[1].onclick=()=>decideChildProposal(r,false);root.append(item);
   }
- }catch(e){status(error(e),true)}
+ }catch(e){
+  const root=$('shareRequests');
+  if(root)root.textContent='Unable to load approval requests. Please try Refresh requests.';
+  status('Unable to load approval requests: '+error(e),true);
+ }
 }
 function openShare(){
  $('shareShade').hidden=false;
  $('shareOwner').hidden=!!inviteId;$('shareInvite').hidden=!inviteId;
  $('shareTitle').textContent=inviteId?'Join a Dog Profile':'Share a Dog Profile';
  if(inviteId)loadInvitation();
- else status(!user?'Sign into your Daily Tales account first.':!isAdult()?'Open your Adult Owner profile first.':'Friends do not need an account. Adult and Child invitations require approval.');
+ else {
+  status(!user?'Sign into your Daily Tales account first.':!isAdult()?'Open your Adult Owner profile first.':'Checking for pending invitations and child approvals…');
+  if(user&&isAdult()){
+   $('shareRequests').textContent='Checking for pending requests…';
+   refresh();
+  }
+ }
 }
 window.DailyTalesOpenShare=()=>openShare();
 window.DailyTalesRefreshPublic=async dogId=>{
