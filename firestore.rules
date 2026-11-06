@@ -13,6 +13,9 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId))
         && get(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId)).data.role == role;
     }
+    function isDogAdmin(ownerUid, dogId) {
+      return isOwner(ownerUid) || hasDogRole(ownerUid, dogId, 'adult');
+    }
     function isDogMember(ownerUid, dogId) {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(ownerUid)/members/$(request.auth.uid)/dogs/$(dogId));
@@ -56,24 +59,14 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)/members/$(ownerUid)/dogs/$(request.resource.data.dogId)).data.role == request.resource.data.role;
       }
 
-      // Only the owner may issue/revoke memberships.
+      // Only an existing Adult Owner may grant or revoke family membership.
       match /members/{memberUid}/dogs/{dogId} {
-        allow get: if isOwner(ownerUid)
+        allow get: if isDogAdmin(ownerUid, dogId)
           || (signedIn() && request.auth.uid == memberUid);
-        allow list, update, delete: if isOwner(ownerUid);
-        allow create: if isOwner(ownerUid) || (
-          signedIn() && request.auth.uid == memberUid
+        allow list, delete: if isDogAdmin(ownerUid, dogId);
+        allow create, update: if isDogAdmin(ownerUid, dogId)
           && request.resource.data.keys().hasOnly(['role','inviteId','addedAt'])
-          && request.resource.data.role in ['adult','child']
-          && request.resource.data.inviteId is string
-          && request.resource.data.addedAt == request.time
-          && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteId))
-          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.usedBy == memberUid
-          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.ownerUid == ownerUid
-          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.dogId == dogId
-          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.role == request.resource.data.role
-          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.active == false
-        );
+          && request.resource.data.role in ['adult','child'];
       }
 
       // A deliberately limited, owner-published shared view. No private
@@ -81,36 +74,45 @@ service cloud.firestore {
       match /sharedProfiles/{dogId} {
         allow get: if isOwner(ownerUid) || isDogMember(ownerUid, dogId);
         allow list: if isOwner(ownerUid);
-        allow create, delete: if isOwner(ownerUid);
+        allow create, delete: if isDogAdmin(ownerUid, dogId);
         allow update: if isOwner(ownerUid)
           || (hasDogRole(ownerUid, dogId, 'adult')
             && request.resource.data.keys().hasOnly(['name', 'breed', 'dob', 'personality', 'favorites', 'cuteFact', 'photo', 'posts', 'updatedAt']));
       }
 
       match /joinRequests/{requestId} {
-        allow get: if isOwner(ownerUid)
-          || (signedIn() && resource.data.requesterUid == request.auth.uid);
-        allow list: if isOwner(ownerUid);
+        allow get: if signedIn() && (
+          !exists(/databases/$(database)/documents/users/$(ownerUid)/joinRequests/$(requestId))
+          || resource.data.requesterUid == request.auth.uid
+          || isDogAdmin(ownerUid, resource.data.dogId));
+        allow list: if isOwner(ownerUid) || hasDogRole(ownerUid, resource.data.dogId, 'adult');
         allow create: if signedIn()
-          && request.resource.data.keys().hasOnly(['ownerUid', 'dogId', 'requesterUid', 'requesterName', 'inviteId', 'role', 'status', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['ownerUid','dogId','requesterUid','requesterName','inviteId','role','status','createdAt'])
           && request.resource.data.ownerUid == ownerUid
           && request.resource.data.requesterUid == request.auth.uid
+          && request.resource.data.requesterName is string
           && request.resource.data.status == 'pending'
-          && request.resource.data.role in ['adult', 'child', 'friend']
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.role in ['adult','child']
           && request.resource.data.inviteId is string
           && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteId))
           && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.ownerUid == ownerUid
           && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.dogId == request.resource.data.dogId
           && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.role == request.resource.data.role
-          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.active == true;
-        allow update, delete: if isOwner(ownerUid);
+          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.active == true
+          && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.expiresAt > request.time;
+        allow update: if isDogAdmin(ownerUid, resource.data.dogId)
+          && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status in ['approved','declined'];
+        allow delete: if isDogAdmin(ownerUid, resource.data.dogId);
       }
 
       // Child edits are proposals only. They never directly modify a profile.
       match /proposedChanges/{proposalId} {
-        allow get: if isOwner(ownerUid)
+        allow get: if isDogAdmin(ownerUid, resource.data.dogId)
           || (signedIn() && resource.data.authorUid == request.auth.uid);
-        allow list: if isOwner(ownerUid);
+        allow list: if isOwner(ownerUid) || hasDogRole(ownerUid, resource.data.dogId, 'adult');
         allow create: if signedIn()
           && request.resource.data.keys().hasOnly(['authorUid', 'dogId', 'kind', 'payload', 'status', 'createdAt'])
           && request.resource.data.authorUid == request.auth.uid
@@ -118,7 +120,7 @@ service cloud.firestore {
           && request.resource.data.kind in ['photo', 'post', 'profile']
           && request.resource.data.status == 'pending'
           && hasDogRole(ownerUid, request.resource.data.dogId, 'child');
-        allow update, delete: if isOwner(ownerUid);
+        allow update, delete: if isDogAdmin(ownerUid, resource.data.dogId);
       }
     }
 
@@ -209,40 +211,23 @@ service cloud.firestore {
           || resource.data.targetOwnerUid == request.auth.uid);
     }
 
-    // Unpredictable invitation IDs serve as one-time entry links to request
-    // approval; possession alone does not grant access to a dog's information.
+    // Links allow requests only. An existing Adult Owner must grant membership.
     match /invites/{inviteId} {
       allow get: if signedIn();
-      allow list: if false;
+      allow list: if isDogAdmin(resource.data.ownerUid, resource.data.dogId);
       allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['ownerUid', 'dogId', 'name', 'role', 'active', 'createdAt', 'expiresAt'])
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.dogId is string
-        && request.resource.data.role in ['adult', 'child']
+        && request.resource.data.keys().hasOnly(['ownerUid','dogId','name','role','active','createdAt','expiresAt'])
+        && isDogAdmin(request.resource.data.ownerUid, request.resource.data.dogId)
+        && request.resource.data.role in ['adult','child']
         && request.resource.data.expiresAt is timestamp
         && request.resource.data.expiresAt > request.time
         && request.resource.data.expiresAt < request.time + duration.value(8, 'd')
         && request.resource.data.active == true;
-      allow update: if (
-          signedIn() && resource.data.ownerUid == request.auth.uid
-          && request.resource.data.ownerUid == resource.data.ownerUid
-          && request.resource.data.dogId == resource.data.dogId
-          && request.resource.data.role == resource.data.role
-        ) || (
-          signedIn()
-          && resource.data.ownerUid != request.auth.uid
-          && resource.data.active == true
-          && !('usedBy' in resource.data)
-          && resource.data.expiresAt > request.time
-          && resource.data.role in ['adult','child']
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','usedBy','acceptedAt'])
-          && request.resource.data.active == false
-          && request.resource.data.usedBy == request.auth.uid
-          && request.resource.data.acceptedAt == request.time
-          && getAfter(/databases/$(database)/documents/users/$(resource.data.ownerUid)/members/$(request.auth.uid)/dogs/$(resource.data.dogId)).data.inviteId == inviteId
-          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/joinedDogs/$(resource.data.ownerUid + '_' + resource.data.dogId)).data.ownerUid == resource.data.ownerUid
-        );
-      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow update: if isDogAdmin(resource.data.ownerUid, resource.data.dogId)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.dogId == resource.data.dogId
+        && request.resource.data.role == resource.data.role;
+      allow delete: if isDogAdmin(resource.data.ownerUid, resource.data.dogId);
     }
   }
 }
