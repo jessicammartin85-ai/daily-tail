@@ -72,10 +72,10 @@ function renderCards(){
  const toggle=document.createElement('button');toggle.className='secondary';toggle.type='button';
  toggle.textContent=showArchived?'Hide archived dogs':'Show archived dogs';
  toggle.style.marginTop='10px';toggle.onclick=()=>{showArchived=!showArchived;renderCards()};
- target.after(toggle);
  const duplicates=$('dogsPage').querySelectorAll('button[data-archive-toggle]');
- // Keep just the most recent toggle button in the cards area.
- toggle.dataset.archiveToggle='true';duplicates.forEach(b=>b.remove());
+ duplicates.forEach(b=>b.remove());
+ toggle.dataset.archiveToggle='true';
+ target.after(toggle);
 }
 function fillProfile(d){
  if(!d)return;
@@ -93,7 +93,7 @@ function fillProfile(d){
 function renderActivities(){
  const root=$('activities');root.replaceChildren();
  if(!activities.length){const p=document.createElement('p');p.className='muted';p.textContent='No activities yet. Add the first one below.';root.append(p);return}
- const today=day();
+ const today=day(),dogId=selectedId;
  activities.slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')).forEach(item=>{
   const row=document.createElement('div');row.className='activity'+(item.completedOn===today?' completed':'');
   const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=item.completedOn===today;
@@ -105,13 +105,13 @@ function renderActivities(){
   const remove=document.createElement('button');remove.className='secondary';remove.type='button';remove.textContent='Remove';
   checkbox.onchange=async()=>{
    const wanted=checkbox.checked;checkbox.disabled=true;
-   try{await updateDoc(doc(taskCollection(selectedId),item.id),{completedOn:wanted?day():null,updatedAt:serverTimestamp()});notice(wanted?'Activity completed.':'Activity marked incomplete.')}
+   try{await updateDoc(doc(taskCollection(dogId),item.id),{completedOn:wanted?day():null,updatedAt:serverTimestamp()});notice(wanted?'Activity completed.':'Activity marked incomplete.')}
    catch(e){checkbox.checked=!wanted;notice('Could not save completion: '+e.message,true)}
    finally{checkbox.disabled=false}
   };
   remove.onclick=async()=>{
    if(!confirm('Remove the activity "'+item.title+'"?'))return;
-   try{await deleteDoc(doc(taskCollection(selectedId),item.id));notice('Activity removed.')}
+   try{await deleteDoc(doc(taskCollection(dogId),item.id));notice('Activity removed.')}
    catch(e){notice('Could not remove activity: '+e.message,true)}
   };
   row.append(checkbox,name,remove);root.append(row);
@@ -120,12 +120,13 @@ function renderActivities(){
 function renderPosts(){
  const root=$('postCards');root.replaceChildren();
  if(!posts.length){const p=document.createElement('p');p.className='muted';p.textContent='No memories yet.';root.append(p);return}
+ const dogId=selectedId;
  posts.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).forEach(post=>{
   const card=document.createElement('article');card.className='data';
   const text=document.createElement('p');text.textContent=post.text||'';
   const small=document.createElement('small');small.textContent=post.createdAt?.toDate?.().toLocaleString()||'Saved online';
   const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Remove';remove.style.marginTop='7px';
-  remove.onclick=async()=>{if(!confirm('Remove this private memory?'))return;try{await deleteDoc(doc(postCollection(selectedId),post.id))}catch(e){notice('Unable to remove memory: '+e.message,true)}};
+  remove.onclick=async()=>{if(!confirm('Remove this private memory?'))return;try{await deleteDoc(doc(postCollection(dogId),post.id))}catch(e){notice('Unable to remove memory: '+e.message,true)}};
   card.append(text,small,remove);root.append(card);
  });
 }
