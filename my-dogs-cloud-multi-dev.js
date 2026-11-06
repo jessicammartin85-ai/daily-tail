@@ -108,6 +108,11 @@ function render(){
    };
  }
  notify(notice,noticeBad);paintTiles();
+ // A separate development-only details module handles profile fields and test schedules.
+ // No local Daily Tail records are passed or uploaded.
+ const choice={uid:user?.uid||null,dogId:selected||null};
+ window.DailyTailDevSelection=choice;
+ window.dispatchEvent(new CustomEvent('daily-tail-dev-selection',{detail:choice}));
 }
 function start(){
  const root=$('dtGateContent');if(!root)return;
