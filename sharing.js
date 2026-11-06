@@ -2,7 +2,7 @@ import {publicMemoryPosts} from './public-memory-posts.js';
 import {dailyTalesCloudDogStore as dogStore} from './cloud-dog-store.js';
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getFirestore,collection,doc,getDoc,getDocs,setDoc,updateDoc,writeBatch,runTransaction,onSnapshot,query,where,Timestamp,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,getDocs,setDoc,updateDoc,writeBatch,deleteDoc,runTransaction,onSnapshot,query,where,Timestamp,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const config={apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',storageBucket:'daily-tail.firebasestorage.app',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'};
 const app=getApps().find(a=>a.name==='daily-tail-cloud')||initializeApp(config,'daily-tail-cloud'),auth=getAuth(app),db=getFirestore(app);
 const $=id=>document.getElementById(id),safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -21,6 +21,7 @@ async function resumeMembership(i){
  if(i.ownerUid===user.uid){openJoinedDog();return true;}
  const member=await getDoc(doc(db,'users',i.ownerUid,'members',user.uid,'dogs',i.dogId));
  if(!member.exists()||!['adult','child'].includes(member.data().role))return false;
+ if(user.email)await updateDoc(doc(db,'users',i.ownerUid,'members',user.uid,'dogs',i.dogId),{accountName:user.displayName||'',accountEmail:user.email}).catch(e=>console.warn('Account label update',e));
  status('Access confirmed. Opening your dog profile…');
  await setDoc(doc(db,'users',user.uid,'joinedDogs',i.ownerUid+'_'+i.dogId),{ownerUid:i.ownerUid,dogId:i.dogId,role:member.data().role,name:i.name||'Dog',joinedAt:serverTimestamp()});
  openJoinedDog();return true;
@@ -79,7 +80,7 @@ async function acceptInvitation(){
   const requestRef=doc(db,'users',i.ownerUid,'joinRequests',inviteId+'_'+user.uid);
   const existing=await getDoc(requestRef);
   if(!existing.exists()){
-   await setDoc(requestRef,{ownerUid:i.ownerUid,dogId:i.dogId,requesterUid:user.uid,requesterName:user.displayName||user.email||'Daily Tales member',inviteId,role:i.role,status:'pending',createdAt:serverTimestamp()});
+   await setDoc(requestRef,{ownerUid:i.ownerUid,dogId:i.dogId,requesterUid:user.uid,requesterName:user.displayName||'',requesterEmail:user.email||'',inviteId,role:i.role,status:'pending',createdAt:serverTimestamp()});
   }
   watchJoinRequest(requestRef,i);
   if(btn){btn.disabled=true;btn.textContent='Waiting for owner approval';}
@@ -95,6 +96,7 @@ async function publish(d){
  const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
  if(JSON.stringify({...payload,updatedAt:null}).length>850000)throw Error('Shared profile is too large for Firestore. Reduce photo size.');
  await setDoc(doc(db,'users',profileOwner(),'sharedProfiles',d.id),payload);
+ if(profileOwner()===user.uid)await setDoc(doc(db,'users',user.uid,'dogAccounts',d.id),{accountName:user.displayName||'',accountEmail:user.email||''});
  return d;
 }
 async function createInvitation(){
@@ -153,7 +155,7 @@ async function decide(r,approve){
     const inviteRef=doc(db,'invites',value.inviteId),inv=await tx.get(inviteRef);
     if(!inv.exists()||!inv.data().active||inv.data().usedBy||inv.data().expiresAt.toMillis()<=Date.now())throw Error('This invitation expired or was used. Create a new invitation.');
     if(inv.data().ownerUid!==profileOwner()||inv.data().dogId!==value.dogId||inv.data().role!==value.role)throw Error('Invitation does not match the request.');
-    tx.set(doc(db,'users',profileOwner(),'members',value.requesterUid,'dogs',value.dogId),{role:value.role,inviteId:value.inviteId,addedAt:serverTimestamp()});
+    tx.set(doc(db,'users',profileOwner(),'members',value.requesterUid,'dogs',value.dogId),{role:value.role,inviteId:value.inviteId,addedAt:serverTimestamp(),accountName:value.requesterName||'',accountEmail:value.requesterEmail||''});
     tx.update(inviteRef,{active:false,usedBy:value.requesterUid,acceptedAt:serverTimestamp()});
    }
    tx.update(r.ref,{status:approve?'approved':'declined'});
@@ -186,27 +188,59 @@ async function decideChildProposal(record,approve){
    await refresh();
  }catch(e){status('Could not review child change: '+error(e),true)}
 }
+async function syncAccountLabels(){
+ if(!user?.email)return;
+ const links=await getDocs(collection(db,'users',user.uid,'joinedDogs'));
+ for(const record of links.docs){
+  const link=record.data();if(link.ownerUid===user.uid)continue;
+  const ref=doc(db,'users',link.ownerUid,'members',user.uid,'dogs',link.dogId);
+  const member=await getDoc(ref);
+  if(member.exists())await updateDoc(ref,{accountName:user.displayName||'',accountEmail:user.email});
+ }
+}
+async function removeProfileAccess(uid,name){
+ if(!isAdult()||uid===profileOwner()||uid===user.uid)return;
+ if(!confirm('Remove '+name+' from '+dog().name+'? They will lose access to this profile.'))return;
+ try{
+  await deleteDoc(doc(db,'users',profileOwner(),'members',uid,'dogs',dog().id));
+  await refresh();status('Access removed. This account can no longer open the private profile.');
+ }catch(e){status('Could not remove access: '+error(e),true)}
+}
 async function refreshAccessList(requests){
  const area=$('shareAccessList');if(!area)return;
  area.replaceChildren();
- const addRow=(name,role)=>{
+ const addRow=(uid,name,email,role,original=false)=>{
   const row=document.createElement('div');row.className='share-access-row';
-  const label=document.createElement('strong');label.textContent=name;
-  const level=document.createElement('span');level.textContent=role;
-  row.append(label,level);area.append(row);
+  const identity=document.createElement('div');identity.className='share-account-identity';
+  const label=document.createElement('strong');label.textContent=name||'Name unavailable';
+  const address=document.createElement('small');address.textContent=email||'Email unavailable · account must sign in again';
+  identity.append(label,address);
+  if(!email&&!original){const reference=document.createElement('small');reference.textContent='Account ID: '+uid;identity.append(reference);}
+  const actions=document.createElement('div');actions.className='share-access-actions';
+  const level=document.createElement('span');level.textContent=role;actions.append(level);
+  if(!original&&uid!==user.uid){
+   const remove=document.createElement('button');remove.type='button';remove.textContent='Remove access';
+   remove.onclick=()=>removeProfileAccess(uid,email||name||'this unnamed account');actions.append(remove);
+  }
+  row.append(identity,actions);area.append(row);
  };
- addRow(profileOwner()===user.uid?(user.displayName||user.email||'Profile owner'):(dog()?.owner||'Profile owner'),'Adult Owner · Original owner');
  try{
+  let original={accountName:dog()?.owner||'Profile owner',accountEmail:''};
+  if(profileOwner()===user.uid)original={accountName:user.displayName||'Profile owner',accountEmail:user.email||''};
+  else{const record=await getDoc(doc(db,'users',profileOwner(),'dogAccounts',dog().id));if(record.exists())original=record.data();}
+  addRow(profileOwner(),original.accountName,original.accountEmail,'Adult Owner · Original owner',true);
   const invitations=await getDocs(query(collection(db,'invites'),where('ownerUid','==',profileOwner()),where('dogId','==',dog().id)));
   const candidates=new Map();
-  for(const request of requests){const value=request.data();candidates.set(value.requesterUid,value.requesterName||'');}
-  for(const record of invitations.docs){const value=record.data();if(value.usedBy&&!candidates.has(value.usedBy))candidates.set(value.usedBy,'');}
-  for(const [uid,name] of candidates){
+  for(const request of requests){const value=request.data();candidates.set(value.requesterUid,{name:value.requesterName||'',email:value.requesterEmail||''});}
+  for(const record of invitations.docs){const value=record.data();if(value.usedBy&&!candidates.has(value.usedBy))candidates.set(value.usedBy,{name:'',email:''});}
+  for(const [uid,identity] of candidates){
    if(uid===profileOwner())continue;
    const member=await getDoc(doc(db,'users',profileOwner(),'members',uid,'dogs',dog().id));
    if(!member.exists())continue;
-   const role=member.data().role;
-   addRow(name||(uid===user.uid?(user.displayName||user.email):'Account '+uid),role==='adult'?'Adult Owner':role==='child'?'Child Owner':'Friend · View only');
+   const value=member.data(),self=uid===user.uid;
+   const name=value.accountName||identity.name||(self?user.displayName:'')||'';
+   const email=value.accountEmail||identity.email||(self?user.email:'')||'';
+   addRow(uid,name,email,value.role==='adult'?'Adult Owner':value.role==='child'?'Child Owner':'Friend · View only');
   }
  }catch(e){
   const message=document.createElement('p');message.textContent='Unable to load all connected accounts: '+error(e);area.append(message);
@@ -226,7 +260,7 @@ async function refresh(){
   if(!rows.length&&!edits.length){root.textContent='No pending requests or child changes.';return}
   for(const r of rows){
    const v=r.data(),item=document.createElement('div');item.className='share-request';
-   item.innerHTML='<strong>'+safe(v.requesterName)+'</strong> · '+safe(v.role)+' access <button>Approve</button> <button>Decline</button>';
+   item.innerHTML='<strong>'+safe(v.requesterName||'Name unavailable')+'</strong><br><small>'+safe(v.requesterEmail||'Email unavailable')+'</small> · '+safe(v.role)+' access <button>Approve</button> <button>Decline</button>';
    const bs=item.querySelectorAll('button');bs[0].onclick=()=>decide(r,true);bs[1].onclick=()=>decide(r,false);root.append(item);
   }
   for(const r of edits){
@@ -292,12 +326,12 @@ const style=document.createElement('style');style.textContent=[
 '.share-box button:not(#shareClose){border:1px solid #819caa;background:#d5e7f1;color:#2b4555;border-radius:9px;padding:9px 11px;margin:5px 2px;cursor:pointer;font-weight:700}',
 '.share-box input,.share-box select{padding:9px;border:1px solid #9cb6c6;border-radius:8px;max-width:100%;box-sizing:border-box}',
 '.share-box label{display:block}.share-box select{display:block;width:100%}.share-row{display:flex;gap:5px;margin:8px 0}.share-row input{min-width:0;flex:1}',
-'.share-access-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #c7d4d9;overflow-wrap:anywhere}.share-access-row span{flex-shrink:0;font-size:12px;color:#526b7b}.share-access-row strong{min-width:0}',
+'.share-access-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #c7d4d9;overflow-wrap:anywhere}.share-access-row span{flex-shrink:0;font-size:12px;color:#526b7b}.share-access-row strong{min-width:0}.share-account-identity{min-width:0;flex:1}.share-account-identity strong,.share-account-identity small{display:block;overflow-wrap:anywhere}.share-access-actions{display:flex;align-items:flex-end;flex-direction:column;gap:5px}.share-access-actions button{font-size:12px!important;padding:6px 8px!important}',
 '.share-request{border-bottom:1px solid #bacbd5;padding:7px 0}.share-box small{color:#586d79}#shareStatus{font-weight:700;overflow-wrap:anywhere}',
 '.share-dog{padding:12px;border:1px solid #c7d4d9;border-radius:10px;margin-top:12px}.share-dog img{width:110px;height:110px;border-radius:50%;object-fit:cover}',
 '@media(max-width:480px){#shareLaunch{right:9px;bottom:58px}}'
 ].join('\n');document.head.append(style);
-onAuthStateChanged(auth,u=>{if(stopJoinRequest){stopJoinRequest();stopJoinRequest=null}user=u;if(inviteId&&u&&$('shareShade'))openShare()});
+onAuthStateChanged(auth,u=>{if(stopJoinRequest){stopJoinRequest();stopJoinRequest=null}user=u;if(u)void syncAccountLabels().catch(e=>console.warn('Account label update',e));if(inviteId&&u&&$('shareShade'))openShare()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 
 setInterval(()=>{if(user&&isAdult()&&$('shareShade')&&!$('shareShade').hidden&&!inviteId)void refresh()},10000);
