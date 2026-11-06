@@ -41,6 +41,7 @@ function showSetup(mode){
      const error=$('dtOriginalOwnerError');
      error.textContent='';
      try{
+       if(cloudDogs.length){showSetup('conflict');return}
        if(!local()?.verifyOriginalOwner(form.elements.username.value,form.elements.pin.value))
          throw Error('Original Adult Owner verification failed.');
        form.elements.pin.value='';
@@ -61,9 +62,18 @@ function showSetup(mode){
  const localDogs=getLocal();
  $('dtCloudSetupInfo').textContent=mode==='conflict'?'This device and your account both have saved dog profiles. Choose which copy should be used. Nothing will be erased automatically.':
    'We found '+localDogs.length+' existing dog profile'+(localDogs.length===1?'':'s')+' on this device. Link them to your signed-in account to use Daily Tales on other devices.';
- $('dtCloudUseLocal').disabled=localDogs.length===0||cloudDogs.length>0;
- $('dtCloudUseRemote').hidden=cloudDogs.length===0;
- status(cloudDogs.length?'Cloud account contains '+cloudDogs.map(d=>d.name).join(', ')+'.':'Your existing browser profiles will be kept as a backup.');
+ const hasCloud=cloudDogs.length>0;
+ $('dtCloudUseLocal').hidden=hasCloud;
+ $('dtCloudUseLocal').disabled=localDogs.length===0||hasCloud;
+ const savedButton=$('dtCloudUseRemote');
+ savedButton.hidden=!hasCloud;
+ savedButton.style.display=hasCloud?'block':'none';
+ $('dtOriginalOwnerForm').hidden=hasCloud;
+ $('dtOriginalOwnerForm').style.display=hasCloud?'none':'block';
+ $('dtCloudSetupInfo').textContent=hasCloud
+  ?'Your signed-in account already has '+cloudDogs.map(d=>d.name).join(', ')+'. Open the saved cloud profile instead of creating another one. Your existing computer data will be retained as a recovery copy.'
+  :$('dtCloudSetupInfo').textContent;
+ status(hasCloud?'Cloud profile found. Choose “Use dogs already saved online.”':'Your existing browser profiles will be kept as a backup.');
 }
 function hideSetup(){
  const el=$('dtCloudSetup');if(el){el.hidden=true;el.style.display='none'}
@@ -146,7 +156,13 @@ function incoming(dogs){
    if(refresh.length&&local()?.applyCloudDogs(refresh))location.reload();
    return;
  }
- if(!connected||paused)return;
+ if(!connected||paused){
+   // Firestore often returns an empty owner-list snapshot before the saved
+   // dog records have finished loading. Refresh the setup options whenever
+   // the cloud list becomes available rather than leaving a stale PIN form.
+   if($('dtCloudSetup')&&!$('dtCloudSetup').hidden)showSetup('conflict');
+   return;
+ }
  const current=new Map(getLocal().map(d=>[d.id,d]));
  const changed=[];
  for(const d of dogs){
