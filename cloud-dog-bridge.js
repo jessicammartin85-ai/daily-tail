@@ -1,124 +1,145 @@
-/**
- * Migration adapter for the original Daily Tales interface.
- * Per-dog records are never automatically claimed by an arbitrary login.
- * A user must expressly select migration on the device holding their dogs.
- * Browsers remain a compatibility cache until all legacy features are ported.
+/* Cloud persistence controller for the original Daily Tales UI.
+ * Firebase user identity controls access. Browser data is an offline working
+ * cache, never a separate login authority. Migration is opt-in and non-destructive.
  */
-import {onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {dailyTalesCloudDogStore as store,dailyTalesAuth as auth} from './cloud-dog-store.js';
-let user=null,unwatch=null,linked=false,pending=false,paused=false;
-let cloudDogs=[],knownRevisions=new Map(),baseline=new Map(),lastError='',lastLocalChange=0;
+
+let user=null,stopWatch=null,cloudDogs=[],connected=false,paused=false,saving=false,initialized=false;
+const revisions=new Map(),baseline=new Map();
 const LINK_KEY='daily_tales_v2_linked_uid';
-const local=()=>window.DailyTalesLocalDogs;
-const digest=v=>JSON.stringify({name:v.name,profile:v.profile||{},meta:v.meta||{}});
-function status(message,bad=false){
- const el=document.getElementById('dtV2Status');
- if(el){el.textContent=message;el.style.color=bad?'#a62a24':'#2b5f45'}
- lastError=bad?message:'';
+const $=id=>document.getElementById(id), local=()=>window.DailyTalesLocalDogs;
+const signature=d=>JSON.stringify({name:d.name,profile:d.profile||{},meta:d.meta||{},extras:d.extras||{}});
+function getLocal(){return local()?.list()||[]}
+function status(t,bad=false){
+ const el=$('dtCloudSetupStatus');
+ if(el){el.textContent=t;el.style.color=bad?'#a32d28':'#365a47'}
 }
-function controls(){
- let box=document.getElementById('dtV2Box');
- if(!box){
-  box=document.createElement('aside');box.id='dtV2Box';box.style.cssText='position:fixed;bottom:72px;right:10px;z-index:19000;max-width:min(355px,calc(100vw - 20px));padding:12px 14px;border:2px solid #aac3d0;border-radius:14px;background:#fffaf3;color:#344b5b;box-shadow:0 3px 18px #0003;font:13px/1.5 Arial,sans-serif';
-  box.innerHTML='<strong>Cloud dog profiles</strong><p id="dtV2Status" role="status"></p><button id="dtV2Migrate" type="button" style="background:#365c76;color:#fff;border:0;border-radius:9px;padding:9px 12px;font-weight:700">Connect my existing dogs</button><button id="dtV2Hide" type="button" style="background:transparent;color:#365c76;border:0;margin-left:8px">Later</button>';
-  document.body.append(box);
-  box.querySelector('#dtV2Migrate').onclick=connect;
-  box.querySelector('#dtV2Hide').onclick=()=>box.hidden=true;
+function showSetup(mode){
+ let pane=$('dtCloudSetup');
+ if(!pane){
+   pane=document.createElement('div');pane.id='dtCloudSetup';
+   pane.style.cssText='position:fixed;inset:0;background:#1e2734c9;z-index:29000;display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
+   pane.innerHTML='<section style="width:min(100%,425px);max-height:90dvh;overflow:auto;border:3px solid #64819a;border-radius:24px;background:#fff9f0;padding:22px;text-align:center;font:15px/1.5 Arial,sans-serif;color:#365369"><h2 style="font:700 26px Georgia,serif;color:#653f29">Connect your dogs</h2><p id="dtCloudSetupInfo"></p><p id="dtCloudSetupStatus" role="status"></p><button type="button" id="dtCloudUseLocal" style="width:100%;margin:5px 0;background:#365c76;color:#fff;padding:12px;border:0;border-radius:12px;font-weight:700">Save my dogs to this account</button><button type="button" id="dtCloudUseRemote" style="width:100%;margin:5px 0;background:#e2eaf0;color:#365c76;padding:12px;border:1px solid #8ba7b7;border-radius:12px;font-weight:700">Use dogs already saved online</button><button type="button" id="dtCloudBack" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Use a different account</button></section>';
+   document.body.append(pane);
+   $('dtCloudUseLocal').onclick=uploadLocal;
+   $('dtCloudUseRemote').onclick=useRemote;
+   $('dtCloudBack').onclick=()=>window.DailyTalesOpenAccount?.();
  }
- box.hidden=!user||linked;
- if(!box.hidden)status('Keep your original dog profiles on this device until they are safely linked.');
+ pane.hidden=false;
+ const localDogs=getLocal();
+ $('dtCloudSetupInfo').textContent=mode==='conflict'?'This device and your account both have saved dog profiles. Choose which copy should be used. Nothing will be erased automatically.':
+   'We found '+localDogs.length+' existing dog profile'+(localDogs.length===1?'':'s')+' on this device. Link them to your signed-in account to use Daily Tales on other devices.';
+ $('dtCloudUseLocal').disabled=localDogs.length===0||cloudDogs.length>0;
+ $('dtCloudUseRemote').hidden=cloudDogs.length===0;
+ status(cloudDogs.length?'Cloud account contains '+cloudDogs.map(d=>d.name).join(', ')+'.':'Your existing browser profiles will be kept as a backup.');
 }
-async function connect(){
- if(!user||pending||!local())return;
- const dogs=local().list();
- if(!dogs.length)return status('No local dog profiles were found on this device.',true);
- const cloud=await store.listDogHeaders();
- if(cloud.length){
-   const ids=new Set(cloud.map(d=>d.id));
-   if(dogs.some(d=>ids.has(d.id))){
-      return status('One or more dogs already exist in your cloud account. Automatic overwrite is blocked; review those profiles first.',true);
-   }
+function hideSetup(){const el=$('dtCloudSetup');if(el)el.hidden=true}
+function connectCloud(dogs){
+ if(!user||!local())return false;
+ if(getLocal().length===0||localStorage.getItem(LINK_KEY)===user.uid){
+   const accepted=local().openCloudAccount(user.uid,dogs,user.email);
+   if(accepted){connected=true;localStorage.setItem(LINK_KEY,user.uid);hideSetup();return true}
  }
- if(!confirm('Connect '+dogs.map(d=>d.name).join(', ')+' to '+(user.email||'your signed-in account')+'? Your original browser data will remain untouched.'))return;
- pending=true;
+ return false;
+}
+async function uploadLocal(){
+ if(saving||!user)return;
+ const dogs=getLocal();
+ if(!dogs.length||cloudDogs.length)return status('Please choose your saved cloud dogs instead.',true);
+ if(!confirm('Save '+dogs.map(d=>d.name).join(', ')+' under '+(user.email||'this account')+'? Your browser originals will be preserved.'))return;
+ saving=true;
  try{
    const results=await store.migrateDogs(dogs);
-   linked=true;paused=false;
+   if(results.some(x=>x.status!=='migrated'))throw Error('Some dogs already exist online. Please review them first.');
+   cloudDogs=await Promise.all(dogs.map(d=>store.readDog(d.id)));
+   for(const d of cloudDogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
    localStorage.setItem(LINK_KEY,user.uid);
-   for(const d of dogs)baseline.set(d.id,digest(d));
-   status(results.length+' dogs saved to your account.');
-   document.getElementById('dtV2Box').hidden=true;
- }catch(e){status('Cloud migration did not finish: '+e.message+'. Your browser data is unchanged.',true)}
- finally{pending=false}
+   connected=true;paused=false;hideSetup();
+   local()?.openCloudAccount(user.uid,cloudDogs,user.email);
+ }catch(e){status('Could not finish migration: '+e.message+'. Your local dogs have not been deleted.',true)}
+ finally{saving=false}
 }
-function receive(items){
- cloudDogs=items;
- if(!user||!local())return;
- const myLocal=new Map(local().list().map(d=>[d.id,d]));
- const incoming=[];
- for(const d of items){
-   const oldRev=knownRevisions.get(d.id);
-   knownRevisions.set(d.id,d.revision);
-   const localDog=myLocal.get(d.id);
-   if(!localDog){incoming.push(d);continue}
-   if(oldRev===d.revision)continue;
-   const previous=baseline.get(d.id);
-   if(previous!==undefined&&digest(localDog)!==previous){
-     paused=true;
-     status('A cloud update arrived while this device has unsaved changes. Sync paused; no data was replaced.',true);
-     return;
-   }
-   if(previous===undefined&&digest(localDog)!==digest(d)){
-     // A device with pre-existing data must not be linked automatically.
-     continue;
-   }
-   incoming.push(d);
+function useRemote(){
+ if(!user||!cloudDogs.length)return;
+ const localDogs=getLocal();
+ if(localDogs.length){
+   if(!confirm('Use the cloud copies for this account? The original browser data will be retained for recovery. Unsaved changes in this browser will not be uploaded.'))return;
+   try{localStorage.setItem('daily_tales_v2_migration_recovery_'+user.uid,JSON.stringify({at:new Date().toISOString(),dogs:localDogs}))}catch(e){return status('A recovery copy could not be stored. Export a backup before continuing.',true)}
+   // Only replace matching dog IDs after the explicit user confirmation.
+   const existingIds=new Set(cloudDogs.map(d=>d.id));
+   if(localDogs.some(d=>!existingIds.has(d.id)))return status('Some local dogs are missing online. Export a backup and review before proceeding.',true);
+   localStorage.setItem(LINK_KEY,user.uid);
+   const changed=local().applyCloudDogs(cloudDogs);
+   connected=true;paused=false;hideSetup();
+   local().openCloudAccount(user.uid,cloudDogs,user.email);
+   if(changed)location.reload();
+ }else connectCloud(cloudDogs);
+ for(const d of cloudDogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
+}
+function incoming(dogs){
+ if(!user)return;
+ cloudDogs=dogs;
+ if(!initialized){initialized=true;
+   const existing=getLocal();
+   if(existing.length===0){connectCloud(dogs);for(const d of dogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}return}
+   if(localStorage.getItem(LINK_KEY)!==user.uid){showSetup(dogs.length?'conflict':'new');return}
+   connected=true;local()?.openCloudAccount(user.uid,dogs,user.email);
+   for(const d of dogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
+   hideSetup();return;
  }
- if(incoming.length&&linked){
-   const changed=local().applyCloudDogs(incoming);
-   for(const d of incoming)baseline.set(d.id,digest(d));
-   if(changed&&window.dtRole==='adult'){
-      // UI is heavily stateful; reloading is safer than leaving stale editor data.
-      location.reload();
+ if(!connected||paused)return;
+ const current=new Map(getLocal().map(d=>[d.id,d]));
+ const changed=[];
+ for(const d of dogs){
+   const oldRevision=revisions.get(d.id);
+   if(oldRevision===d.revision)continue;
+   const mine=current.get(d.id),prior=baseline.get(d.id);
+   if(mine&&prior!==undefined&&signature(mine)!==prior){
+     paused=true;status('Another device changed '+d.name+' while this device has unsaved edits. Edits were not overwritten.',true);showSetup('conflict');return;
+   }
+   revisions.set(d.id,d.revision);baseline.set(d.id,signature(d));changed.push(d);
+ }
+ if(changed.length){
+   if(local()?.applyCloudDogs(changed)){
+      if(window.dtRole==='adult')location.reload();
+      else local()?.openCloudAccount(user.uid,dogs,user.email);
    }
  }
- if(linked&&!paused)status('Your dog profiles are connected and receiving cloud updates.');
 }
-window.DailyTalesCloudSignOut=()=>{if(auth.currentUser)void signOut(auth)};
-function watchUser(u){
- if(unwatch){unwatch();unwatch=null}
- user=u;linked=false;paused=false;knownRevisions.clear();baseline.clear();cloudDogs=[];
- if(u&&local()?.openLinkedAccount)queueMicrotask(()=>local()?.openLinkedAccount(u.uid));
- if(!u){controls();return}
- unwatch=store.watchDogs(items=>{
-   cloudDogs=items;
-   if(local()){
-     const current=local().list();
-     linked=localStorage.getItem(LINK_KEY)===u.uid&&items.length>0&&current.length>0&&current.every(d=>items.some(x=>x.id===d.id));
-     if(linked){
-       for(const dog of current)if(!baseline.has(dog.id))baseline.set(dog.id,digest(dog));
-     }
-   }
-   controls();receive(items);
- },e=>status('Cloud dog data could not load: '+e.message,true));
-}
-onAuthStateChanged(auth,watchUser);
-setInterval(async()=>{
- if(!user||!linked||paused||pending||document.hidden||!local()||window.dtRole!=='adult')return;
- const all=local().list();
- const dirty=all.filter(d=>baseline.has(d.id)&&digest(d)!==baseline.get(d.id));
- if(!dirty.length){lastLocalChange=0;return}
- if(!lastLocalChange){lastLocalChange=Date.now();return}
- if(Date.now()-lastLocalChange<1800)return;
- pending=true;
+async function flush(){
+ if(!connected||!user||paused||saving||document.hidden||!local()||window.dtRole!=='adult')return;
+ const original=getLocal();
+ const dirty=original.filter(d=>baseline.has(d.id)&&signature(d)!==baseline.get(d.id));
+ const newDogs=original.filter(d=>!baseline.has(d.id));
+ if(!dirty.length&&!newDogs.length)return;
+ saving=true;
  try{
-   for(const dog of dirty){
-     const revision=knownRevisions.get(dog.id);
-     if(!Number.isInteger(revision))throw Error('Missing cloud revision for '+dog.name);
-     const next=await store.saveDog(dog,revision);
-     knownRevisions.set(dog.id,next);baseline.set(dog.id,digest(dog));
+   for(const dog of newDogs){
+     const revision=await store.saveDog(dog,null);
+     revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));
    }
-   lastLocalChange=0;
- }catch(e){paused=true;status('Sync paused to protect your changes: '+e.message,true)}
- finally{pending=false}
+   for(const dog of dirty){
+     const revision=await store.saveDog(dog,revisions.get(dog.id));
+     revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));
+   }
+ }catch(e){
+   paused=true;status('Cloud saving paused to protect your information: '+e.message,true);
+   showSetup('conflict');
+ }finally{saving=false}
+}
+let lastChange=0;
+setInterval(()=>{
+ if(!connected||paused||saving||!user||window.dtRole!=='adult')return;
+ const current=getLocal(),dirty=current.some(d=>!baseline.has(d.id)||signature(d)!==baseline.get(d.id));
+ if(!dirty){lastChange=0;return}
+ if(!lastChange){lastChange=Date.now();return}
+ if(Date.now()-lastChange>1500){lastChange=0;void flush()}
 },1000);
+onAuthStateChanged(auth,u=>{
+ if(stopWatch){stopWatch();stopWatch=null}
+ user=u;connected=false;paused=false;initialized=false;saving=false;
+ cloudDogs=[];revisions.clear();baseline.clear();lastChange=0;hideSetup();
+ if(!u)return;
+ stopWatch=store.watchDogs(incoming,e=>{status('Your cloud dogs could not load: '+e.message,true);showSetup('conflict')});
+});
