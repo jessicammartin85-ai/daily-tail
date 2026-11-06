@@ -53,8 +53,7 @@ service cloud.firestore {
           && request.resource.data.ownerUid is string
           && request.resource.data.dogId is string
           && request.resource.data.role in ['adult','child']
-          && getAfter(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)/members/$(ownerUid)/dogs/$(request.resource.data.dogId)).data.role == request.resource.data.role
-          && get(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)/members/$(ownerUid)/dogs/$(request.resource.data.dogId)).data.role == request.resource.data.role;
+          && getAfter(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)/members/$(ownerUid)/dogs/$(request.resource.data.dogId)).data.role == request.resource.data.role;
       }
 
       // Only the owner may issue/revoke memberships.
