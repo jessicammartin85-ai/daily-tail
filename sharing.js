@@ -103,7 +103,6 @@ async function createInvitation(){
    });
    await setDoc(linkRef,{shareId,createdAt:serverTimestamp()});
    $('shareLink').value=location.origin+location.pathname.replace(/[^/]*$/,'')+'friend.html?share='+encodeURIComponent(shareId);
-   $('shareCode').value=shareId;$('shareCopyCode').hidden=false;
    $('shareCopy').hidden=false;
    $('shareRevoke').hidden=false;
    status('Friend link is ready! Anyone with this link can view the shared details without signing in.');
@@ -111,7 +110,6 @@ async function createInvitation(){
    const r=doc(collection(db,'invites'));
    await setDoc(r,{ownerUid:user.uid,dogId:current.id,name:current.name,role,active:true,createdAt:serverTimestamp(),expiresAt:Timestamp.fromMillis(Date.now()+7*24*60*60*1000)});
    $('shareLink').value=location.origin+location.pathname+'?dtInvite='+encodeURIComponent(r.id);
-   $('shareCode').value=r.id;$('shareCopyCode').hidden=false;
    $('shareCopy').hidden=false;$('shareRevoke').hidden=true;
    status('Invitation ready! The recipient signs in and taps Accept. This single-use link expires after 7 days.');
   }
@@ -222,12 +220,11 @@ window.DailyTalesRefreshPublic=async dogId=>{
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
- shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children accept a secure invitation link after signing in.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><div class="share-row"><input id="shareCode" readonly aria-label="Invitation code" placeholder="Invitation code"><button id="shareCopyCode" hidden>Copy code</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Child updates awaiting approval</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p><small>Friend links share only the published profile. Anyone who has the link can view it. Family invitations connect directly after sign-in. Child posts and photos still require approval.</small></section>';
+ shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children accept a secure invitation link after signing in.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Child updates awaiting approval</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p><small>Friend links share only the published profile. Anyone who has the link can view it. Family invitations connect directly after sign-in. Child posts and photos still require approval.</small></section>';
  document.body.append(shade);
  btn.onclick=openShare;$('shareClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
  $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;$('shareRevoke').onclick=revokeFriendLink;
  $('shareCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('shareLink').value);status('Link copied.')}catch{status('Select and copy the link manually.')}};
- $('shareCopyCode').onclick=async()=>{try{await navigator.clipboard.writeText($('shareCode').value);status('Invitation code copied.')}catch{status('Select and copy the code manually.')}};
  if(inviteId&&user)openShare();
 }
 const style=document.createElement('style');style.textContent=[
