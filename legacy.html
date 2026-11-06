@@ -2233,7 +2233,8 @@ window.DailyTalesLocalDogs={
     }
     if(changed)dtStore();
     dtSafeStorage.setItem(linkKey,uid);
-    if(window.dtRole==='locked'){
+    if(window.dtRole==='locked'||dtCurrentUsername!==account.username){
+      if(window.dtRole==='adult')dtSnapshotActive();
       dtCurrentUsername=account.username;
       dtRememberUser(account.username,true);
       dtDogPicker();
