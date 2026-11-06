@@ -2170,6 +2170,15 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
 
 function dtSnapshotActive(){const d=dtDog();if(!d)return;d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));dtStore()}
 window.DailyTalesLocalDogs={
+  openLinkedAccount(uid){
+    if(!uid||dtSafeStorage.getItem('daily_tales_v2_linked_uid')!==uid)return false;
+    if(window.dtRole!=='locked')return true;
+    const remembered=dtSafeStorage.getItem(DT_REMEMBER_KEY);
+    const user=(remembered&&dtFindUser(remembered))||(dtAccess.users||[]).find(u=>dtLinks(u).some(x=>x.role==='adult'));
+    if(!user)return false;
+    dtEnterNamedUser(user,true);
+    return true;
+  },
   list(){
     if(window.dtRole==='adult')dtSnapshotActive();
     return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{}}))));
@@ -2222,7 +2231,7 @@ save=function(){if(window.dtRole==='child'){
 };
 saveMeta=function(){dtOriginalSaveMeta();if(window.dtRole==='adult')dtSnapshotActive()};
 function dtEnter(role,person,dogId){dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?'Codes & approvals':'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
-function dtSignOut(){dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
+function dtSignOut(){if(window.DailyTalesCloudSignOut)window.DailyTalesCloudSignOut();dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
 $('dtRoleSignOut').onclick=dtSignOut;
 $('dtSwitchDogs').onclick=()=>dtDogPicker();
 $('dtBackupBtn').onclick=dtDownloadBackup;
