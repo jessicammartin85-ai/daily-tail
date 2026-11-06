@@ -1,3 +1,4 @@
+import {dailyTalesCloudDogStore as dogStore} from './cloud-dog-store.js';
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {getFirestore,collection,doc,getDoc,getDocs,setDoc,updateDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
@@ -110,16 +111,51 @@ async function decide(r,approve){
   await refresh();status(approve?'Approved. The guest can tap Check access using their invitation link.':'Declined.');
  }catch(e){status(error(e),true)}
 }
+async function decideChildProposal(record,approve){
+ const proposal=record.data();
+ const message=(approve?'Approve':'Decline')+' this '+proposal.kind+' change from a Child Owner?';
+ if(!confirm(message))return;
+ try{
+   if(approve){
+     const current=await dogStore.readDog(proposal.dogId,user.uid);
+     if(!current)throw Error('Dog not found online.');
+     const changes=proposal.payload||{};
+     if(proposal.kind==='photo'){
+       if(typeof changes.image!=='string')throw Error('Invalid submitted photo.');
+       current.profile={...(current.profile||{}),profile:changes.image};
+     }else if(proposal.kind==='post'){
+       if(!Array.isArray(changes.posts))throw Error('Invalid submitted posts.');
+       current.profile={...(current.profile||{}),posts:changes.posts};
+     }else if(proposal.kind==='profile'){
+       current.meta={...(current.meta||{}),...(changes.changes||{})};
+     }
+     await dogStore.saveDog(current,current.revision);
+   }
+   await updateDoc(record.ref,{status:approve?'approved':'declined',reviewedAt:serverTimestamp()});
+   status(approve?'Child update approved and saved online.':'Child change declined.');
+   await refresh();
+ }catch(e){status('Could not review child change: '+error(e),true)}
+}
 async function refresh(){
  if(!user||!dog()||!isAdult())return status('Sign in and open the Adult Owner view.',true);
  try{
-  const q=await getDocs(collection(db,'users',user.uid,'joinRequests')),rows=q.docs.filter(r=>r.data().dogId===dog().id&&r.data().status==='pending');
-  $('shareRequests').innerHTML='';
-  if(!rows.length){$('shareRequests').textContent='No pending requests.';return}
+  const [joins,proposals]=await Promise.all([
+    getDocs(collection(db,'users',user.uid,'joinRequests')),
+    getDocs(collection(db,'users',user.uid,'proposedChanges'))
+  ]);
+  const rows=joins.docs.filter(r=>r.data().dogId===dog().id&&r.data().status==='pending');
+  const edits=proposals.docs.filter(r=>r.data().dogId===dog().id&&r.data().status==='pending');
+  const root=$('shareRequests');root.replaceChildren();
+  if(!rows.length&&!edits.length){root.textContent='No pending requests or child changes.';return}
   for(const r of rows){
    const v=r.data(),item=document.createElement('div');item.className='share-request';
-   item.innerHTML='<strong>'+safe(v.requesterName)+'</strong> · '+safe(v.role)+' <button>Approve</button> <button>Decline</button>';
-   const bs=item.querySelectorAll('button');bs[0].onclick=()=>decide(r,true);bs[1].onclick=()=>decide(r,false);$('shareRequests').append(item);
+   item.innerHTML='<strong>'+safe(v.requesterName)+'</strong> · '+safe(v.role)+' access <button>Approve</button> <button>Decline</button>';
+   const bs=item.querySelectorAll('button');bs[0].onclick=()=>decide(r,true);bs[1].onclick=()=>decide(r,false);root.append(item);
+  }
+  for(const r of edits){
+   const v=r.data(),item=document.createElement('div');item.className='share-request';
+   item.innerHTML='<strong>Child Owner '+safe(v.kind)+' change</strong><p>Review this proposed update before publishing it.</p><button>Approve</button> <button>Decline</button>';
+   const bs=item.querySelectorAll('button');bs[0].onclick=()=>decideChildProposal(r,true);bs[1].onclick=()=>decideChildProposal(r,false);root.append(item);
   }
  }catch(e){status(error(e),true)}
 }
