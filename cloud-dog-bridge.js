@@ -136,6 +136,7 @@ function incoming(dogs){
    rememberBaseline();
    if(local()?.applyCloudDogs(changed)){
       local()?.openCloudAccount(user.uid,dogs,user.email);
+      for(const d of changed)if(d.ownerUid===user.uid&&window.DailyTalesRefreshPublic)void window.DailyTalesRefreshPublic(d.id).catch(console.warn);
       if(window.dtRole==='adult')location.reload();
    }
  }
@@ -151,11 +152,13 @@ async function flush(){
    for(const dog of newDogs){
      const revision=await store.saveDog(dog,null);
      revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));rememberBaseline();
+     if(window.DailyTalesRefreshPublic)void window.DailyTalesRefreshPublic(dog.id).catch(console.warn);
    }
    for(const dog of dirty){
      const ownerUid=cloudDogs.find(c=>c.id===dog.id)?.ownerUid||user.uid;
      const revision=await store.saveDog(dog,revisions.get(dog.id),ownerUid);
-     revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));
+     revisions.set(dog.id,revision);baseline.set(dog.id,signature(dog));rememberBaseline();
+     if(window.DailyTalesRefreshPublic&&ownerUid===user.uid)void window.DailyTalesRefreshPublic(dog.id).catch(console.warn);
    }
  }catch(e){
    paused=true;status('Cloud saving paused to protect your information: '+e.message,true);
