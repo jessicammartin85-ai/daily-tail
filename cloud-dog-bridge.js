@@ -13,6 +13,13 @@ function rememberBaseline(){if(user)try{localStorage.setItem(baselineKey(user.ui
 function restoreBaseline(uid){try{return new Map(Object.entries(JSON.parse(localStorage.getItem(baselineKey(uid))||'{}')))}catch{return new Map()}}
 const $=id=>document.getElementById(id), local=()=>window.DailyTalesLocalDogs;
 const signature=d=>JSON.stringify({name:d.name,profile:d.profile||{},meta:d.meta||{},extras:d.extras||{}});
+window.DailyTalesSubmitProposal=async item=>{
+ const d=cloudDogs.find(d=>d.id===item.dogId);
+ if(!user||!d||d.role!=='child')return;
+ try{await store.submitChildProposal(d.ownerUid,item)}
+ catch(err){status('Could not submit child approval request: '+err.message,true);showSetup('conflict')}
+};
+
 function getLocal(){return local()?.list()||[]}
 function status(t,bad=false){
  const el=$('dtCloudSetupStatus');
