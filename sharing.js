@@ -36,11 +36,17 @@ async function checkAccess(notice=true){
  try{
   const m=await getDoc(doc(db,'users',invite.ownerUid,'members',user.uid,'dogs',invite.dogId));
   if(!m.exists()){if(notice)status('Awaiting owner approval.');return}
+  // A private pointer lets this user find approved dogs from any device.
+  // Access still depends on the owner's actual Firestore membership record.
+  await setDoc(doc(db,'users',user.uid,'joinedDogs',invite.ownerUid+'_'+invite.dogId),{
+    ownerUid:invite.ownerUid,dogId:invite.dogId,role:m.data().role,name:invite.name,joinedAt:serverTimestamp()
+  });
+  window.dispatchEvent(new Event('daily-tales-membership-updated'));
   const d=await getDoc(doc(db,'users',invite.ownerUid,'sharedProfiles',invite.dogId));
   if(!d.exists())return status('Approved. The owner needs to publish the shared profile.');
   const p=d.data();
   $('shareDog').innerHTML='<article class="share-dog"><h3>'+safe(p.name)+'</h3>'+(p.photo?'<img alt="Dog photo" src="'+safe(p.photo)+'">':'')+'<p><strong>Breed:</strong> '+safe(p.breed||'Not shared')+'</p><p><strong>Birthday:</strong> '+safe(p.dob||'Not shared')+'</p><p>'+safe(p.personality||'')+'</p><p>'+safe(p.cuteFact||'')+'</p></article>';
-  status('Approved: '+m.data().role+' access.');
+  status('Approved: '+m.data().role+' access. This dog is now connected to your online account.');
  }catch(e){status(error(e),true)}
 }
 async function publish(d){
