@@ -2268,6 +2268,13 @@ window.DailyTalesLocalDogs={
       }
     }
     if(changed){
+      const active=dtAccess.dogs.find(d=>d.id===dtAccess.activeId);
+      if(active?.extras){
+        for(const key of DT_PER_DOG_KEYS){
+          if(Object.prototype.hasOwnProperty.call(active.extras,key))dtSafeStorage.setItem(key,active.extras[key]);
+          else dtSafeStorage.removeItem(key);
+        }
+      }
       dtStore();
       window.dispatchEvent(new CustomEvent('daily-tales-cloud-dogs-changed'));
     }
