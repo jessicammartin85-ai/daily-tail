@@ -7,7 +7,22 @@ const config={apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily
 const app=getApps().find(a=>a.name==='daily-tail-cloud')||initializeApp(config,'daily-tail-cloud'),auth=getAuth(app),db=getFirestore(app);
 const $=id=>document.getElementById(id),safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const inviteId=new URLSearchParams(location.search).get('dtInvite');
-let user=null,invite=null;
+let user=null,invite=null,openingJoinedDog=false;
+function openJoinedDog(){
+ if(openingJoinedDog)return;
+ openingJoinedDog=true;
+ if($('shareShade'))$('shareShade').hidden=true;
+ window.dispatchEvent(new Event('daily-tales-membership-updated'));
+ const target=new URL('./legacy.html',location.href);
+ location.replace(target.href);
+}
+async function resumeMembership(i){
+ if(i.ownerUid===user.uid){openJoinedDog();return true;}
+ const member=await getDoc(doc(db,'users',i.ownerUid,'members',user.uid,'dogs',i.dogId));
+ if(!member.exists()||!['adult','child'].includes(member.data().role))return false;
+ await setDoc(doc(db,'users',user.uid,'joinedDogs',i.ownerUid+'_'+i.dogId),{ownerUid:i.ownerUid,dogId:i.dogId,role:member.data().role,name:i.name||'Dog',joinedAt:serverTimestamp()});
+ openJoinedDog();return true;
+}
 const status=(s,bad=false)=>{const x=$('shareStatus');if(x){x.textContent=s;x.style.color=bad?'#a33':'#36586b'}};
 const error=e=>String(e?.message||e).slice(0,290);
 const dog=()=>{try{const a=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');return a.dogs?.find(d=>d.id===a.activeId)}catch{return null}};
@@ -23,6 +38,7 @@ async function loadInvitation(){
   const r=await getDoc(doc(db,'invites',inviteId));
   if(!r.exists())throw Error('This invitation is unavailable.');
   invite=r.data();
+  if(await resumeMembership(invite))return;
   const expired=invite.expiresAt?.toMillis?.()<=Date.now();
   const alreadyUsed=!!invite.usedBy;
   const usable=invite.active===true&&!alreadyUsed&&!expired;
@@ -30,7 +46,7 @@ async function loadInvitation(){
    +(usable?'<button id="shareAccept">Accept invitation</button>':'<p>This invitation was already used, revoked, or expired. Ask the owner for a new link.</p>')
    +'<div id="shareDog"></div>';
   if(usable)$('shareAccept').onclick=acceptInvitation;
-  await checkAccess(false);
+
  }catch(e){status(error(e),true)}
 }
 async function acceptInvitation(){
@@ -41,6 +57,7 @@ async function acceptInvitation(){
   const snap=await getDoc(inviteRef);
   if(!snap.exists())throw Error('Invitation not found.');
   const i=snap.data();
+  if(await resumeMembership(i))return;
   if(i.active!==true||i.usedBy||!i.expiresAt||i.expiresAt.toMillis()<=Date.now())throw Error('This link is no longer valid. Ask for another invitation.');
   if(!['adult','child'].includes(i.role))throw Error('This invitation is not a family invitation.');
   if(i.ownerUid===user.uid)throw Error('You already own this profile. Open My Dogs.');
@@ -52,27 +69,8 @@ async function acceptInvitation(){
   batch.set(joined,{ownerUid:i.ownerUid,dogId:i.dogId,role:i.role,name:i.name,joinedAt:serverTimestamp()});
   await batch.commit();
   status('You are connected to '+i.name+'! Opening your profile…');
-  window.dispatchEvent(new Event('daily-tales-membership-updated'));
-  location.assign('./legacy.html');
+  openJoinedDog();
  }catch(e){status('Could not accept invitation: '+error(e),true);if(btn){btn.disabled=false;btn.textContent='Accept invitation'}}
-}
-async function checkAccess(notice=true){
- if(!user||!invite)return;
- try{
-  const m=await getDoc(doc(db,'users',invite.ownerUid,'members',user.uid,'dogs',invite.dogId));
-  if(!m.exists()){if(notice)status('Awaiting owner approval.');return}
-  // A private pointer lets this user find approved dogs from any device.
-  // Access still depends on the owner's actual Firestore membership record.
-  await setDoc(doc(db,'users',user.uid,'joinedDogs',invite.ownerUid+'_'+invite.dogId),{
-    ownerUid:invite.ownerUid,dogId:invite.dogId,role:m.data().role,name:invite.name,joinedAt:serverTimestamp()
-  });
-  window.dispatchEvent(new Event('daily-tales-membership-updated'));
-  const d=await getDoc(doc(db,'users',invite.ownerUid,'sharedProfiles',invite.dogId));
-  if(!d.exists())return status('Approved. The owner needs to publish the shared profile.');
-  const p=d.data();
-  $('shareDog').innerHTML='<article class="share-dog"><h3>'+safe(p.name)+'</h3>'+(p.photo?'<img alt="Dog photo" src="'+safe(p.photo)+'">':'')+'<p><strong>Breed:</strong> '+safe(p.breed||'Not shared')+'</p><p><strong>Birthday:</strong> '+safe(p.dob||'Not shared')+'</p><p>'+safe(p.personality||'')+'</p><p>'+safe(p.cuteFact||'')+'</p></article>';
-  status('Approved: '+m.data().role+' access. This dog is now connected to your online account.');
- }catch(e){status(error(e),true)}
 }
 async function publish(d){
  if(!user||!d||!isAdult())throw Error('Sign in and open the Adult Owner view.');
