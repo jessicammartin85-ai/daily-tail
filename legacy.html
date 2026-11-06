@@ -2169,6 +2169,36 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
 }
 
 function dtSnapshotActive(){const d=dtDog();if(!d)return;d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));dtStore()}
+window.DailyTalesLocalDogs={
+  list(){
+    if(window.dtRole==='adult')dtSnapshotActive();
+    return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{}}))));
+  },
+  hasLocalDogs(){return dtAccess.dogs.length>0},
+  applyCloudDogs(items){
+    if(!Array.isArray(items))throw Error('Expected cloud dog records.');
+    if(window.dtRole==='adult')dtSnapshotActive();
+    let changed=false;
+    for(const remote of items){
+      if(!remote||!remote.id||!remote.name)continue;
+      const local=dtAccess.dogs.find(d=>d.id===remote.id);
+      if(local){
+        if(JSON.stringify({name:local.name,profile:local.profile,meta:local.meta})===JSON.stringify({name:remote.name,profile:remote.profile,meta:remote.meta}))continue;
+        local.name=remote.name;local.profile=JSON.parse(JSON.stringify(remote.profile||{}));local.meta=JSON.parse(JSON.stringify(remote.meta||{}));changed=true;
+      }else{
+        // Cloud dogs have no legacy access code or local PIN credentials.
+        // Never manufacture an owner authorization from cloud data.
+        dtAccess.dogs.push({id:remote.id,name:remote.name,owner:remote.ownerDisplay||'',profile:remote.profile||{},meta:remote.meta||{},adult:'',child:'',friend:''});
+        changed=true;
+      }
+    }
+    if(changed){
+      dtStore();
+      window.dispatchEvent(new CustomEvent('daily-tales-cloud-dogs-changed'));
+    }
+    return changed;
+  }
+};
 function dtLoadDog(id){
  const d=dtAccess.dogs.find(x=>x.id===id);if(!d)return;
  if(dtAccess.activeId && dtAccess.activeId!==id && window.dtRole==='adult')dtSnapshotActive();
@@ -2346,4 +2376,4 @@ try{dtSignInGate()}catch(err){
  window.DailyTailPush={attach};
 })();
 </script>
-<script type="module" src="./cloud-sync.js?v=unified-login-20261106b" onerror="document.getElementById('cloudBootstrapStatus').textContent='Google sign-in could not load. Check your connection, then reload. Your saved local profile is still available below.'"></script><script type="module" src="./sharing.js"></script><script type="module" src="./find-friends.js?v=single-entry-20261104b"></script><script src="./navigation.js?v=20261105-three-and-check21" defer></script><script src="./profile-design.js?v=20261105-bone-fit14" defer></script><script src="./friend-design.js?v=20261105-friendthumb8" defer></script><script src="./snapshot-mobile.js?v=20261104-a" defer></script></body></html>
+<script type="module" src="./cloud-sync.js?v=unified-login-20261106b" onerror="document.getElementById('cloudBootstrapStatus').textContent='Google sign-in could not load. Check your connection, then reload. Your saved local profile is still available below.'"></script><script type="module" src="./cloud-dog-bridge.js"></script><script type="module" src="./sharing.js"></script><script type="module" src="./find-friends.js?v=single-entry-20261104b"></script><script src="./navigation.js?v=20261105-three-and-check21" defer></script><script src="./profile-design.js?v=20261105-bone-fit14" defer></script><script src="./friend-design.js?v=20261105-friendthumb8" defer></script><script src="./snapshot-mobile.js?v=20261104-a" defer></script></body></html>
