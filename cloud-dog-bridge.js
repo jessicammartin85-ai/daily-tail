@@ -30,13 +30,22 @@ function showSetup(mode){
  if(!pane){
    pane=document.createElement('div');pane.id='dtCloudSetup';
    pane.style.cssText='position:fixed;inset:0;background:#1e2734c9;z-index:29000;display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
-   pane.innerHTML='<section style="width:min(100%,425px);max-height:90dvh;overflow:auto;border:3px solid #64819a;border-radius:24px;background:#fff9f0;padding:22px;text-align:center;font:15px/1.5 Arial,sans-serif;color:#365369"><h2 style="font:700 26px Georgia,serif;color:#653f29">Connect your dogs</h2><p id="dtCloudSetupInfo"></p><p id="dtCloudSetupStatus" role="status"></p><button type="button" id="dtCloudUseLocal" style="width:100%;margin:5px 0;background:#365c76;color:#fff;padding:12px;border:0;border-radius:12px;font-weight:700">Save my dogs to this account</button><button type="button" id="dtCloudUseRemote" style="width:100%;margin:5px 0;background:#e2eaf0;color:#365c76;padding:12px;border:1px solid #8ba7b7;border-radius:12px;font-weight:700">Use dogs already saved online</button><button type="button" id="dtCloudBack" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Use a different account</button></section>';
+   pane.innerHTML='<section style="width:min(100%,425px);max-height:90dvh;overflow:auto;border:3px solid #64819a;border-radius:24px;background:#fff9f0;padding:22px;text-align:center;font:15px/1.5 Arial,sans-serif;color:#365369"><h2 style="font:700 26px Georgia,serif;color:#653f29">Connect your dogs</h2><p id="dtCloudSetupInfo"></p><p id="dtCloudSetupStatus" role="status"></p><button type="button" id="dtCloudUseLocal" style="width:100%;margin:5px 0;background:#365c76;color:#fff;padding:12px;border:0;border-radius:12px;font-weight:700">Save my dogs to this account</button><button type="button" id="dtCloudUseRemote" style="width:100%;margin:5px 0;background:#e2eaf0;color:#365c76;padding:12px;border:1px solid #8ba7b7;border-radius:12px;font-weight:700">Use dogs already saved online</button><button type="button" id="dtCloudUnlock" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Unlock original owner profile (one-time only)</button><button type="button" id="dtCloudBack" style="width:100%;margin:5px 0;background:transparent;color:#365c76;padding:10px;border:0">Use a different account</button></section>';
    document.body.append(pane);
    $('dtCloudUseLocal').onclick=uploadLocal;
    $('dtCloudUseRemote').onclick=useRemote;
    $('dtCloudBack').onclick=()=>window.DailyTalesOpenAccount?.();
+   $('dtCloudUnlock').onclick=()=>{hideSetup();const launcher=$('dtCloudResume');if(launcher)launcher.hidden=false};
  }
  pane.hidden=false;
+ let launcher=$('dtCloudResume');
+ if(!launcher){
+   launcher=document.createElement('button');launcher.id='dtCloudResume';launcher.type='button';
+   launcher.textContent='Finish cloud account linking';
+   launcher.style.cssText='position:fixed;z-index:18010;bottom:14px;left:12px;background:#365c76;color:#fff;border:2px solid #fff;border-radius:14px;padding:12px;font-weight:700;box-shadow:0 3px 12px #0005';
+   launcher.onclick=()=>showSetup('new');document.body.append(launcher);
+ }
+ launcher.hidden=true;
  window.DailyTalesCloudResolved?.();
  const localDogs=getLocal();
  $('dtCloudSetupInfo').textContent=mode==='conflict'?'This device and your account both have saved dog profiles. Choose which copy should be used. Nothing will be erased automatically.':
@@ -45,7 +54,7 @@ function showSetup(mode){
  $('dtCloudUseRemote').hidden=cloudDogs.length===0;
  status(cloudDogs.length?'Cloud account contains '+cloudDogs.map(d=>d.name).join(', ')+'.':'Your existing browser profiles will be kept as a backup.');
 }
-function hideSetup(){const el=$('dtCloudSetup');if(el)el.hidden=true}
+function hideSetup(){const el=$('dtCloudSetup');if(el)el.hidden=true;const launcher=$('dtCloudResume');if(launcher)launcher.hidden=true}
 function connectCloud(dogs){
  if(!user||!local())return false;
  if(getLocal().length===0||localStorage.getItem(LINK_KEY)===user.uid){
