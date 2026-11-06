@@ -45,11 +45,36 @@ service cloud.firestore {
         }
       }
 
+      // The recipient may maintain only their own verified joined-dog pointer.
+      match /joinedDogs/{joinId} {
+        allow get, list, delete: if isOwner(ownerUid);
+        allow create, update: if isOwner(ownerUid)
+          && request.resource.data.keys().hasOnly(['ownerUid','dogId','role','name','joinedAt'])
+          && request.resource.data.ownerUid is string
+          && request.resource.data.dogId is string
+          && request.resource.data.role in ['adult','child']
+          && getAfter(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)/members/$(ownerUid)/dogs/$(request.resource.data.dogId)).data.role == request.resource.data.role
+          && get(/databases/$(database)/documents/users/$(request.resource.data.ownerUid)/members/$(ownerUid)/dogs/$(request.resource.data.dogId)).data.role == request.resource.data.role;
+      }
+
       // Only the owner may issue/revoke memberships.
       match /members/{memberUid}/dogs/{dogId} {
         allow get: if isOwner(ownerUid)
           || (signedIn() && request.auth.uid == memberUid);
-        allow list, create, update, delete: if isOwner(ownerUid);
+        allow list, update, delete: if isOwner(ownerUid);
+        allow create: if isOwner(ownerUid) || (
+          signedIn() && request.auth.uid == memberUid
+          && request.resource.data.keys().hasOnly(['role','inviteId','addedAt'])
+          && request.resource.data.role in ['adult','child']
+          && request.resource.data.inviteId is string
+          && request.resource.data.addedAt == request.time
+          && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteId))
+          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.usedBy == memberUid
+          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.ownerUid == ownerUid
+          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.dogId == dogId
+          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.role == request.resource.data.role
+          && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.active == false
+        );
       }
 
       // A deliberately limited, owner-published shared view. No private
@@ -191,16 +216,33 @@ service cloud.firestore {
       allow get: if signedIn();
       allow list: if false;
       allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['ownerUid', 'dogId', 'name', 'role', 'active', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['ownerUid', 'dogId', 'name', 'role', 'active', 'createdAt', 'expiresAt'])
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.dogId is string
-        && request.resource.data.role in ['adult', 'child', 'friend']
+        && request.resource.data.role in ['adult', 'child']
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(8, 'd')
         && request.resource.data.active == true;
-      allow update: if signedIn()
-        && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerUid == resource.data.ownerUid
-        && request.resource.data.dogId == resource.data.dogId
-        && request.resource.data.role == resource.data.role;
+      allow update: if (
+          signedIn() && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.dogId == resource.data.dogId
+          && request.resource.data.role == resource.data.role
+        ) || (
+          signedIn()
+          && resource.data.ownerUid != request.auth.uid
+          && resource.data.active == true
+          && !('usedBy' in resource.data)
+          && resource.data.expiresAt > request.time
+          && resource.data.role in ['adult','child']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','usedBy','acceptedAt'])
+          && request.resource.data.active == false
+          && request.resource.data.usedBy == request.auth.uid
+          && request.resource.data.acceptedAt == request.time
+          && getAfter(/databases/$(database)/documents/users/$(resource.data.ownerUid)/members/$(request.auth.uid)/dogs/$(resource.data.dogId)).data.inviteId == inviteId
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/joinedDogs/$(resource.data.ownerUid + '_' + resource.data.dogId)).data.ownerUid == resource.data.ownerUid
+        );
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
     }
   }
