@@ -2206,6 +2206,13 @@ window.DailyTalesShowOriginalLogin=()=>{
  window.scrollTo(0,0);
 };
 window.DailyTalesLocalDogs={
+  verifyOriginalOwner(username,pin){
+    const candidate=dtFindUser(username);
+    if(!candidate||candidate.cloudManaged||!dtLinks(candidate).some(link=>link.role==='adult'))throw Error('Original Adult Owner account not found.');
+    dtUnlockUser(username,pin,true);
+    if(!this.migrationAuthorized())throw Error('This account does not have Adult Owner access.');
+    return true;
+  },
   migrationAuthorized(){
     const person=dtFindUser(dtCurrentUsername);
     return !!person && dtLinks(person).some(link=>link.role==='adult');
