@@ -1,0 +1,36 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firebase-cloud-preview.json",
+      "firebase-app-preview.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.md",
+      "**/*.rules",
+      "firebase-preview/**",
+      "firebase-account-lab.html",
+      "**/*.zip"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      }
+    ]
+  }
+}
