@@ -75,6 +75,14 @@ function listen(s){
  if(!user)return;
  if(!s.exists()){remote=null;active=false;ui();return}
  const next=s.data();if(!next.generation||!next.parts)return;
+ // A new, empty device can safely retrieve an existing account automatically.
+ // Never do this when local dog profiles exist because they may belong to another account.
+ if(!collect()['daily_tail_roles_v2']&&!settings.enabled&&!applyingRemote){
+   remote=next;active=true;baseline=hash(serialize());
+   status('Loading your saved dogs from your account…');
+   void restore(true);
+   return;
+ }
  const previousGeneration=remote?.generation;
  remote=next;
  const sameAccount=settings.uid===user.uid&&settings.enabled;
