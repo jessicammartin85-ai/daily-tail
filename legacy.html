@@ -2295,14 +2295,14 @@ save=function(){if(window.dtRole==='child'){
  dtOriginalSave();if(window.dtRole==='adult')dtSnapshotActive();
 };
 saveMeta=function(){dtOriginalSaveMeta();if(window.dtRole==='adult')dtSnapshotActive()};
-function dtEnter(role,person,dogId){dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?'Codes & approvals':'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
+function dtEnter(role,person,dogId){dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?(dtFindUser(dtCurrentUsername)?.cloudManaged?'Share & approvals':'Codes & approvals'):'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
 function dtSignOut(){if(window.DailyTalesCloudSignOut)window.DailyTalesCloudSignOut();dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
 $('dtRoleSignOut').onclick=dtSignOut;
 $('dtSwitchDogs').onclick=()=>dtDogPicker();
 $('dtBackupBtn').onclick=dtDownloadBackup;
 $('dtRestoreGateBtn').onclick=()=>$('dtRestoreFile').click();
 $('dtRestoreFile').onchange=e=>dtRestoreBackup(e.target.files?.[0]);
-$('dtRoleManage').onclick=()=>window.dtRole==='adult'?dtManageCodes():dtManagePending();
+$('dtRoleManage').onclick=()=>{const u=dtFindUser(dtCurrentUsername);if(u?.cloudManaged&&window.DailyTalesOpenShare){window.DailyTalesOpenShare();return}window.dtRole==='adult'?dtManageCodes():dtManagePending()};
 $('dtAskFriend').onclick=()=>{if(window.dtRole==='friend')dtRequestForm();else alert('This is how the Friend Request button appears to guests. Sign in with a Friend invitation to send a request.');};
  $('dtFindDogFriends').onclick=dtOpenFriendSearch;
 // The preview switch is for people who have already authenticated as an owner.
