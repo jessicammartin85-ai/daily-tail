@@ -2246,7 +2246,7 @@ window.DailyTalesLocalDogs={
   },
   list(){
     if(window.dtRole==='adult')dtSnapshotActive();
-    return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{},extras:d.extras||{}}))));
+    return JSON.parse(JSON.stringify(dtAccess.dogs.map(d=>({id:d.id,name:d.name,owner:d.owner,profile:d.profile||{profile:'',posts:[]},meta:d.meta||{},extras:d.id===dtAccess.activeId?{...(d.extras||{}),...dtExtrasForActive()}:(d.extras||{})}))));
   },
   hasLocalDogs(){return dtAccess.dogs.length>0},
   applyCloudDogs(items){
