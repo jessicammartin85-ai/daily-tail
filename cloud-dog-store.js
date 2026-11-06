@@ -77,8 +77,8 @@ export async function readDog(id, uid=assertAccount()){
  * Atomic compare-and-set. A concurrent remote edit is never silently replaced.
  * The version changes only after all data chunks have been committed.
  */
-export async function saveDog(input, expectedRevision=null){
- const uid=assertAccount(),dog=publicSafeDog(input),target=dogPath(uid,dog.id);
+export async function saveDog(input, expectedRevision=null,ownerUid=null){
+ const uid=ownerUid||assertAccount(),dog=publicSafeDog(input),target=dogPath(uid,dog.id);
  const pieces=chunkJson(dog);
  const revision=await runTransaction(db,async tx=>{
    const current=await tx.get(target),old=current.exists()?current.data():null;
@@ -137,5 +137,58 @@ export async function listDogHeaders(){
  const results=await getDocs(ownerDogs(uid));
  return results.docs.map(d=>({id:d.id,...d.data()}));
 }
-export const dailyTalesCloudDogStore={readDog,saveDog,migrateDogs,watchDogs,listDogHeaders};
+/**
+ * Guest membership pointers are created only after owner approval.
+ * Verify the actual membership document before reading any dog content.
+ */
+export function watchJoinedDogs(onChange,onError){
+ const uid=assertAccount(),pointers=new Map(),dogs=new Map();
+ let closed=false,sequence=0;
+ const emit=()=>{if(!closed)onChange([...dogs.values()])};
+ function stop(id){const entry=pointers.get(id);if(entry){entry.stops.forEach(fn=>fn());pointers.delete(id);dogs.delete(id)}}
+ const stopList=onSnapshot(collection(db,'users',uid,'joinedDogs'),snapshot=>{
+   const ids=new Set(snapshot.docs.map(d=>d.id));
+   for(const id of pointers.keys())if(!ids.has(id))stop(id);
+   for(const record of snapshot.docs){
+     if(pointers.has(record.id))continue;
+     const link=record.data();
+     if(!validId(link.ownerUid)||!validId(link.dogId)||link.ownerUid===uid)continue;
+     const stops=[],key=record.id;
+     pointers.set(key,{stops});
+     const membership=doc(db,'users',link.ownerUid,'members',uid,'dogs',link.dogId);
+     let stopContent=null,role=null;
+     stops.push(onSnapshot(membership,m=>{
+       if(stopContent){stopContent();stopContent=null}
+       if(!m.exists()){dogs.delete(key);emit();return}
+       role=m.data().role;
+       if(!['adult','child','friend'].includes(role)){dogs.delete(key);emit();return}
+       const target=role==='adult'
+         ?dogPath(link.ownerUid,link.dogId)
+         :doc(db,'users',link.ownerUid,'sharedProfiles',link.dogId);
+       stopContent=onSnapshot(target,async d=>{
+         if(!d.exists()){dogs.delete(key);emit();return}
+         try{
+           let item;
+           if(role==='adult'){
+             item=await readDog(link.dogId,link.ownerUid);
+             if(!item)return;
+           }else{
+             const p=d.data();
+             item={id:link.dogId,name:p.name||link.name||'Dog',
+               profile:{profile:p.photo||'',posts:p.posts||[]},
+               meta:{petName:p.name||'',breed:p.breed||'',dob:p.dob||'',
+                 personality:p.personality||'',favorites:p.favorites||'',cuteFact:p.cuteFact||''},
+               extras:{},revision:0};
+           }
+           if(!closed&&pointers.has(key)){dogs.set(key,{...item,ownerUid:link.ownerUid,role});emit()}
+         }catch(e){if(!closed&&onError)onError(e)}
+       },e=>{dogs.delete(key);emit();if(!closed&&onError)onError(e)});
+     },e=>{dogs.delete(key);emit();if(!closed&&onError)onError(e)}));
+     stops.push(()=>{if(stopContent)stopContent()});
+   }
+   emit();
+ },onError);
+ return ()=>{closed=true;stopList();for(const id of [...pointers.keys()])stop(id)};
+}
+export const dailyTalesCloudDogStore={readDog,saveDog,migrateDogs,watchDogs,watchJoinedDogs,listDogHeaders};
 export const dailyTalesAuth=auth;
