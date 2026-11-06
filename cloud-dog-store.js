@@ -8,7 +8,7 @@
 import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
-  getFirestore, collection, doc, getDoc, getDocs, onSnapshot,
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, onSnapshot,
   writeBatch, runTransaction, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
@@ -190,5 +190,19 @@ export function watchJoinedDogs(onChange,onError){
  },onError);
  return ()=>{closed=true;stopList();for(const id of [...pointers.keys()])stop(id)};
 }
-export const dailyTalesCloudDogStore={readDog,saveDog,migrateDogs,watchDogs,watchJoinedDogs,listDogHeaders};
+export async function submitChildProposal(ownerUid,item){
+ const uid=assertAccount();
+ if(!validId(ownerUid)||!validId(item.dogId))throw Error('Invalid owner or dog.');
+ const kind=item.kind==='posts'?'post':item.kind==='photo'?'photo':'profile';
+ const payload=kind==='photo'?{image:item.image}:kind==='post'?{posts:item.posts}:{
+   changes:item.changes||{}
+ };
+ if(JSON.stringify(payload).length>700000)throw Error('The proposed image or post is too large. Try a smaller photo.');
+ const id=doc(collection(db,'users',ownerUid,'proposedChanges')).id;
+ await setDoc(doc(db,'users',ownerUid,'proposedChanges',id),{
+   authorUid:uid,dogId:item.dogId,kind,payload,status:'pending',createdAt:serverTimestamp()
+ });
+ return id;
+}
+export const dailyTalesCloudDogStore={readDog,saveDog,migrateDogs,watchDogs,watchJoinedDogs,submitChildProposal,listDogHeaders};
 export const dailyTalesAuth=auth;
