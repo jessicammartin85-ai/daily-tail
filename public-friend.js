@@ -41,19 +41,46 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getFirestore,doc,onSnapshot,collection,getDocs,query,where,limit,setDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import {getFirestore,doc,onSnapshot,collection,getDoc,getDocs,query,where,limit,setDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const firebase=initializeApp({apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'},'daily-tail-public-friend');
 const db=getFirestore(firebase),id=new URLSearchParams(location.search).get('share');
 const friendAuth=getAuth(firebase);
 let friendUser=null,publicDog=null;
 const requestStatus=t=>el('friendRequestStatus').textContent=t;
+let requestedEvent=null;
+const hasAccount=()=>friendUser&&!friendUser.isAnonymous;
+function requestEventDetails(event){
+ requestedEvent=event;
+ requestStatus('');
+ renderFriendAccount();
+ if(!el('friendAccount').open)el('friendAccount').showModal();
+}
+async function sendEventDetailsRequest(event,button){
+ const profile=publicDog,account=friendUser;
+ if(!profile||!hasAccount())return;
+ button.disabled=true;
+ try{
+  const ref=doc(db,'users',profile.ownerUid,'eventDetailRequests',profile.dogId,'requests',account.uid+'_'+event.id);
+  const existing=await getDoc(ref);
+  if(existing.exists()){
+   const request=existing.data();
+   requestStatus(request.status==='shared'?'Details shared privately: '+request.response:request.status==='declined'?'The Adult Owner declined this request.':'Your request is waiting for an Adult Owner.');
+   return;
+  }
+  await setDoc(ref,{requesterUid:account.uid,requesterName:String(account.displayName||'Daily Tails member').slice(0,100),eventId:event.id,eventTitle:event.title,shareId:id,status:'pending',createdAt:serverTimestamp()});
+  requestStatus('Request sent to the Adult Owners. Open Request Details again to check for a reply.');
+ }catch(error){requestStatus('Could not load or send the request. '+(error.code==='permission-denied'?'The owner may need to update the sharing rules.':'Please try again.'));}
+ finally{button.disabled=false;}
+}
 function renderFriendAccount(){
- el('friendAccountFields').hidden=!!friendUser;
- el('sendPublicRequest').hidden=!friendUser;
+ el('friendAccountFields').hidden=!!hasAccount();
+ el('sendPublicRequest').hidden=!hasAccount();
+ el('sendPublicRequest').textContent=requestedEvent?'Send or check request':'Send friend request';
+ if(requestedEvent){el('friendAccountIntro').textContent=(hasAccount()?'Ask the Adult Owners for more information about ':'Sign in to request details about ')+requestedEvent.title+'.';return;}
  el('friendAccountIntro').textContent=friendUser?'Signed in as '+(friendUser.email||friendUser.displayName||'Daily Tales member')+'. Send a request to connect with '+(publicDog?.name||'this dog')+'?':'Sign in or create an account to send a friend request.';
 }
 onAuthStateChanged(friendAuth,u=>{friendUser=u;renderFriendAccount()});
-el('dtAskFriend').onclick=()=>{requestStatus('');renderFriendAccount();el('friendAccount').showModal()};
+el('dtAskFriend').onclick=()=>{requestedEvent=null;requestStatus('');renderFriendAccount();el('friendAccount').showModal()};
 el('closeFriendAccount').onclick=()=>el('friendAccount').close();
 el('friendGoogle').onclick=async()=>{try{await signInWithPopup(friendAuth,new GoogleAuthProvider())}catch(e){requestStatus('Could not sign in: '+(e.code||e.message))}};
 el('friendEmailForm').onsubmit=async e=>{
@@ -65,8 +92,9 @@ el('friendEmailForm').onsubmit=async e=>{
  }catch(e){requestStatus('Could not sign in: '+(e.code||e.message))}
 };
 el('sendPublicRequest').onclick=async()=>{
- if(!friendUser)return renderFriendAccount();
- const button=el('sendPublicRequest');button.disabled=true;
+ if(!hasAccount())return renderFriendAccount();
+ const button=el('sendPublicRequest');
+ if(requestedEvent)return sendEventDetailsRequest(requestedEvent,button);button.disabled=true;
  try{
   if(!publicDog)throw Error('The profile is not available. Please refresh.');
   if(friendUser.uid===publicDog.ownerUid)throw Error('This is your own dog profile.');
@@ -95,7 +123,7 @@ if(!id||!/^[a-zA-Z0-9]{16,40}$/.test(id)){notice.textContent='This sharing link 
 else onSnapshot(doc(db,'publicProfiles',id),snap=>{
  if(!snap.exists()||!snap.data().active){notice.hidden=false;notice.textContent='This Friend link is no longer available.';window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close();return;}
  publicDog=snap.data();const d=publicDog;
- window.DailyTailsFriendSections?.render(d.sharedSections);
+ window.DailyTailsFriendSections?.render(d.sharedSections,requestEventDetails);
  window.DailyTalesSocialContext={ownerUid:d.ownerUid,dogId:d.dogId,public:true};notice.hidden=true;
  el('dtFactsDogName').textContent=d.name||'My Dog';el('publicDogName').textContent=d.name||'My Dog';
  const breeds={cocker:'Cocker Spaniel'};el('dtFactsBreed').textContent=breeds[d.breed]||d.breed||'Not added yet';
