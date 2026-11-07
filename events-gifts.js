@@ -148,10 +148,9 @@ function init(){
  const anchor=document.querySelector('.dog-friends-section');
  if(!anchor||!store())return;
  const section=document.createElement('section');section.id='dtEventsGiftsHome';section.className='dog-friends-section';
- section.innerHTML=`<h2>Events &amp; Gifts</h2>
- <div class="dt-eg-tiles">
-  <button type="button" class="dt-eg-tile"><span class="dt-eg-icon" aria-hidden="true">📅</span><span><strong>Events</strong><small>Create or join an event</small></span><span aria-hidden="true">›</span></button>
-  <button type="button" class="dt-eg-tile"><span class="dt-eg-icon" aria-hidden="true">🎁</span><span><strong>Gift List</strong><small>Save and share gift ideas</small></span><span aria-hidden="true">›</span></button>
+ section.innerHTML=`<div class="dt-eg-header">
+  <div><h2>Events</h2><button type="button" class="dt-eg-events-link">+ Events</button></div>
+  <button type="button" class="dt-eg-gift-button"><span aria-hidden="true">🎁</span> Gift List</button>
  </div>`;
  anchor.after(section);
  const [events,gifts]=section.querySelectorAll('button');
@@ -159,13 +158,12 @@ function init(){
  const style=document.createElement('style');
  style.textContent=`
  body:not(.dt-role-adult) #dtEventsGiftsHome,body.friend-view #dtEventsGiftsHome,body.dt-locked #dtEventsGiftsHome{display:none}
- #dtEventsGiftsHome h2{font:700 clamp(23px,5vw,29px)/1.2 Georgia,serif;color:#6b4935;margin:0 0 13px}
- .dt-eg-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
- #dtEventsGiftsHome .dt-eg-tile{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;padding:12px 10px;text-align:left;background:#fff9ef;color:#25475d;border:1px solid #aabecb;border-radius:14px;cursor:pointer}
- .dt-eg-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e1edf3;font-size:18px}
- .dt-eg-tile strong,.dt-eg-tile small{display:block}
- .dt-eg-tile small{margin-top:3px;font:12px/1.3 Arial,sans-serif;color:#4d6474}
- .dt-eg-tile:focus-visible,.dt-events-gifts button:focus-visible{outline:2px solid #265a7b;outline-offset:2px}
+ .dt-eg-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+ #dtEventsGiftsHome h2{font:700 clamp(23px,5vw,29px)/1.2 Georgia,serif;color:#6b4935;margin:0}
+ #dtEventsGiftsHome button{cursor:pointer;font:700 13px Arial,sans-serif;color:#25475d;min-height:36px}
+ .dt-eg-events-link{padding:4px 0;border:0;background:transparent;text-decoration:underline;text-underline-offset:3px}
+ .dt-eg-gift-button{flex-shrink:0;white-space:nowrap;padding:6px 10px;border:1px solid #aabecb;border-radius:10px;background:#fff9ef}
+ #dtEventsGiftsHome button:focus-visible,.dt-events-gifts button:focus-visible{outline:2px solid #265a7b;outline-offset:2px}
  .dt-events-gifts form,.dt-event-entry{margin:12px 0;padding:14px;border:1px solid #b8cbd7;border-radius:15px;background:#fff9ef}
  .dt-events-gifts label{display:block;margin:8px 0;color:#294c63;font-weight:700}
  .dt-events-gifts input,.dt-events-gifts textarea{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1px solid #9bb5c7;border-radius:9px;background:#fffefa;color:#263b4a;font:16px Arial,sans-serif}
@@ -177,7 +175,6 @@ function init(){
  .dt-events-gifts p,.dt-events-gifts li{overflow-wrap:anywhere}
  .dt-eg-gift-items{list-style:none;padding:0;display:grid;gap:8px}
  .dt-eg-gift-items li{background:#fff9ef;border:1px solid #b8cbd7;border-radius:10px;padding:10px 12px}
- @media(max-width:400px){.dt-eg-tiles{grid-template-columns:1fr}}
  `;
  document.head.append(style);
  const resume=()=>{
