@@ -96,11 +96,25 @@ function programOverview(){
  const next=program.lessons.findIndex(l=>!l.completedAt);
  frame(`<h3>${esc(program.name)}</h3>
  ${program.url?link(program.url,'Open program resource'):''}
+ <p role="status">${program.lessons.filter(l=>l.completedAt).length} of ${program.lessons.length} lessons complete</p>
  <p>${next<0?'All lessons completed.':'Next lesson: '+esc(program.lessons[next].title)}</p>
- <ol>${program.lessons.map((l,i)=>`<li><button class="dt-training-tile" data-program-lesson="${i}">${l.completedAt?'✓ ':''}${esc(l.title)}</button></li>`).join('')}</ol>
+ <ol>${program.lessons.map((lesson,index)=>programLessonRow(program,lesson,index)).join('')}</ol>
  ${adult()?'<button id="dtEditProgram">Edit program</button>':''}
  ${data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''}`);
  document.querySelectorAll('[data-program-lesson]').forEach(b=>b.onclick=()=>programLesson(Number(b.dataset.programLesson)));
+ document.querySelectorAll('[data-program-check]').forEach(check=>check.onchange=()=>run(()=>{
+  const index=Number(check.dataset.programCheck);
+  const latest=read();
+  const lesson=latest.program?.lessons[index];
+  if(latest.program?.name!==program.name||lesson?.title!==program.lessons[index]?.title){
+   programOverview();
+   throw Error('The program changed. Please try again.');
+  }
+  lesson.completedAt=check.checked?(lesson.completedAt||new Date().toISOString()):null;
+  try{write(latest);}catch(error){check.checked=!check.checked;throw error;}
+  programOverview();
+  document.querySelector('[data-program-check="'+index+'"]')?.focus({preventScroll:true});
+ }));
  const edit=$('dtEditProgram');if(edit)edit.onclick=programSetup;
  const previous=$('dtPreviousPlan');if(previous)previous.onclick=overview;
 }
@@ -149,15 +163,30 @@ const supplementalSkills = {
  'Come when called from five feet':'recall','Come when called':'recall',
  'Use cues, shaping, and targeting':'touch'
 };
-function programLessonResources(program, lesson){
+function programLessonDetails(program, lesson){
  const entry=Object.entries(programPresets).find(([,preset])=>preset.url===program.url||preset.name===program.name);
- if(!entry)return '';
+ if(!entry)return null;
  const [id,preset]=entry;
  const index=preset.lessons.indexOf(lesson.title);
- if(index<0)return '';
+ if(index<0)return null;
  const example=skills.find(skill=>skill.id===supplementalSkills[lesson.title]);
+ return {id,preset,description:programExplanations[id][index],example};
+}
+function programLessonRow(program,lesson,index){
+ const details=programLessonDetails(program,lesson);
+ const preview=lesson.directions||details?.description||'Open lesson for practice notes.';
+ const video=lesson.video||details?.id==='cgc'||details?.example;
+ return `<li><div style="display:flex;align-items:center;gap:10px">
+ <input type="checkbox" data-program-check="${index}" aria-label="Complete ${esc(lesson.title)}" ${lesson.completedAt?'checked':''} ${adult()?'':'disabled'}>
+ <button class="dt-training-tile" style="flex:1;min-width:0" data-program-lesson="${index}"><strong>${esc(lesson.title)}</strong><small>${esc(preview.length>150?preview.slice(0,147)+'…':preview)}</small>${video?'<small>▶ Video</small>':''}</button>
+ </div></li>`;
+}
+function programLessonResources(program,lesson){
+ const details=programLessonDetails(program,lesson);
+ if(!details)return '';
+ const {id,preset,description,example}=details;
  return `<div class="dt-training-resources"><h4>What to practice</h4>
- <p>${esc(programExplanations[id][index])}</p>
+ <p>${esc(description)}</p>
  ${link(preset.url,id==='cgc'?'AKC test instructions and demonstration':id==='kpa'?'Course outline and course access':'AKC puppy program checklist')}
  ${example?'<p>'+link(example.video||example.videoPage||example.source,'▶ Supplemental demonstration: '+(example.videoCredit||example.credit))+'</p>':''}
  </div>`;
