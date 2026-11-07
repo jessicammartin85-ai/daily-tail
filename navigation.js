@@ -782,9 +782,17 @@
 
 /* Keep the full schedule entry visible above the upcoming preview. */
 (function(){const style=document.createElement('style');style.textContent=`
-.dt-concept-next .dt-concept-head,#dtImageDesignedHome .dt-concept-head{display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:center!important;justify-content:space-between!important}
+.dt-concept-next .dt-concept-head,#dtImageDesignedHome .dt-concept-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;column-gap:12px!important;row-gap:5px!important;align-items:center!important}
 #dtOpenDailySchedule{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;max-width:100%;padding:8px 12px!important;border:1px solid #9eb8c9!important;border-radius:22px!important;background:#e0ecf3!important;color:#294f68!important;font:700 14px/1.2 Arial,sans-serif!important;cursor:pointer}
-.dt-concept-head .dt-concept-time{flex-basis:100%!important;text-align:right!important}
+.dt-concept-head .dt-concept-time{grid-column:1 / -1!important;text-align:left!important;margin:0!important;line-height:1.3!important}
+#dtImageDesignedHome .dt-concept-head h3,.dt-concept-next .dt-concept-head h3{margin:0!important;line-height:1.15!important}
+#dtImageDesignedHome .dt-concept-task,.dt-concept-next .dt-concept-task{grid-template-columns:28px minmax(0,1fr) 44px 28px!important;gap:10px!important;align-items:center!important;margin-top:10px!important}
+#dtImageDesignedHome #dtConceptCheck,#dtConceptCheck{width:28px!important;height:28px!important;min-width:28px!important;margin:0!important;padding:0!important;justify-self:start!important;align-self:center!important}
+#dtImageDesignedHome #dtConceptTask,#dtConceptTask{margin:0!important;padding:5px 0!important;line-height:1.25!important}
+#dtImageDesignedHome #dtUpNextEventNote,#dtUpNextEventNote{box-sizing:border-box!important;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;margin:0!important;padding:6px!important;align-self:center!important;justify-self:center!important}
+#dtImageDesignedHome #dtConceptArrow,#dtConceptArrow{box-sizing:border-box!important;width:28px!important;min-height:44px!important;margin:0!important;padding:0!important;align-self:center!important;justify-self:center!important}
+@media(max-width:380px){#dtImageDesignedHome .dt-concept-task,.dt-concept-next .dt-concept-task{grid-template-columns:24px minmax(0,1fr) 40px 24px!important;gap:7px!important}#dtImageDesignedHome #dtConceptCheck,#dtConceptCheck{width:24px!important;height:24px!important;min-width:24px!important}#dtImageDesignedHome #dtUpNextEventNote,#dtUpNextEventNote{width:40px!important;min-width:40px!important}}
+
 #dtOpenDailySchedule:focus-visible{outline:3px solid #294f68;outline-offset:3px}
 @media(max-width:380px){#dtOpenDailySchedule{font-size:12px!important;padding:8px!important}}
 `;document.head.append(style);})();
