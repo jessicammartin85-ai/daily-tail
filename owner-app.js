@@ -1087,8 +1087,7 @@ function dtDogPicker(note=''){
 function dtOpenLinkedDog(id){
  const u=dtFindUser(dtCurrentUsername),link=dtLinks(u).find(link=>link.dogId===id);
  if(!link){dtDogPicker('This dog is not connected to your username.');return}
- if(u.cloudManaged && window.dtRole==='locked' && sessionStorage.getItem('dtCloudPendingDog')!==id){
-   if(window.dtRole==='adult')dtSnapshotActive();
+ if(u.cloudManaged && window.dtRole==='locked' && dtAccess.activeId!==id && sessionStorage.getItem('dtCloudPendingDog')!==id){
    const chosen=dtAccess.dogs.find(d=>d.id===id);
    if(!chosen)return;
    dtAccess.activeId=id;
@@ -1233,7 +1232,10 @@ window.DailyTalesLocalDogs={
       dtCurrentUsername=account.username;
       dtRememberUser(account.username,true);
       const pending=sessionStorage.getItem('dtCloudPendingDog');
-      const selected=cloudDogs.find(d=>d.id===pending)||cloudDogs.find(d=>d.id===dtAccess.activeId);
+      const pendingLink=dtLinks(account).find(link=>link.dogId===pending);
+      const selected=cloudDogs.find(d=>d.id===pending)
+        ||(pendingLink&&{id:pendingLink.dogId,role:pendingLink.role})
+        ||cloudDogs.find(d=>d.id===dtAccess.activeId);
       sessionStorage.removeItem('dtCloudPendingDog');
       if(selected&&dtAccess.dogs.some(d=>d.id===selected.id)){
         dtEnter(selected.role||'adult',account.name,selected.id);
