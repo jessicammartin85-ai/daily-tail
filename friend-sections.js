@@ -10,6 +10,19 @@ function parse(value){try{return JSON.parse(value||'{}')||{};}catch{return {};}}
 const list=value=>Array.isArray(value)?value:[];
 const text=(value,max)=>String(value??'').trim().slice(0,max);
 function url(value){try{const link=new URL(value);return ['https:','http:'].includes(link.protocol)?link.href:'';}catch{return '';}}
+const trainerTopics=new Set([
+ 'owner responsibilities and class preparation',
+ 'clicker training and learning basics',
+ 'plan short practice sessions',
+ 'understand canine body language',
+ 'use cues, shaping, and targeting',
+ 'apply rewards in everyday life',
+ 'review progress and next steps'
+]);
+function isDogSkill(title){
+ const normalized=text(title,100).toLowerCase();
+ return normalized!==''&&!trainerTopics.has(normalized);
+}
 function build(extras={}){
  const prefs=parse(extras[preferenceKey]), result={};
  if(prefs.training===true){
@@ -18,7 +31,7 @@ function build(extras={}){
   if(lessons.length){
    const levels=['Learning with help','Can do it in a quiet setting','Reliable in different settings'];
    const badges=lessons.flatMap(lesson=>{
-    if(!lesson?.title)return [];
+    if(!isDogSkill(lesson?.title))return [];
     const level=levels.includes(lesson.skillLevel)?lesson.skillLevel:lesson.completedAt?'Completed':list(lesson.practiceDays).length?'Practicing':'';
     return level?[{skill:text(lesson.title,100),level}]:[];
    }).slice(0,30);
@@ -67,7 +80,7 @@ function render(details,requestDetails){
   element(section,'h2',title);return section;
  }
  if(details.training){
-  const t=details.training, badges=list(t.badges);
+  const t=details.training, badges=list(t.badges).filter(badge=>isDogSkill(badge?.skill));
   const section=element(panel,'details','');
   section.className='dt-shared-detail-card dt-shared-training';
   section.open=trainingOpen;
