@@ -147,7 +147,12 @@ function syncUpNext(){
    const line=node('div',undefined,'dt-upnext-event-line');
    title.before(group);group.append(line);line.append(title,button);
   }
-  if(time&&time.parentElement!==group)group.append(time);
+  const header=container.previousElementSibling;
+  if(time&&header?.classList.contains('dt-concept-head')){
+   let heading=header.querySelector('.dt-upnext-heading');
+   if(!heading){heading=node('div',undefined,'dt-upnext-heading');const title=header.querySelector('h3');if(title){title.before(heading);heading.append(title);}}
+   if(heading&&time.parentElement!==heading)heading.append(time);
+  }
   container.classList.add('dt-upnext-unified');
  }
  const index=schedule()?.getCurrentIndex?.(),entry=schedule()?.getEntries?.()[index];
@@ -160,6 +165,9 @@ function syncUpNext(){
 function start(){
  if($('dtEventNoteDialog'))return;
  const style=node('style');style.textContent=[
+ '#dtImageDesignedHome .dt-concept-head .dt-upnext-heading,.dt-concept-head .dt-upnext-heading{display:flex!important;align-items:baseline!important;gap:10px!important;flex-wrap:wrap;min-width:0}',
+ '#dtImageDesignedHome .dt-upnext-heading #dtConceptTime,.dt-upnext-heading #dtConceptTime{display:inline!important;flex:0 1 auto!important;grid-column:auto!important;margin:0!important;padding:0!important;text-align:left!important;font:600 11px/1.3 Arial,sans-serif!important;letter-spacing:0!important;color:#647b89!important}',
+
 
  '#dtImageDesignedHome .dt-concept-task.dt-upnext-unified,.dt-concept-next .dt-concept-task.dt-upnext-unified{display:grid!important;grid-template-columns:28px minmax(0,1fr) 28px!important;gap:10px!important;margin-top:12px!important;align-items:center!important}',
  '.dt-upnext-event-group{min-width:0;display:flex;flex-direction:column;gap:3px}',
