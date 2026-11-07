@@ -149,7 +149,65 @@ function open(){
  $('findGoogle').hidden=!!current;$('findOwnerSettings').hidden=true;
  refreshMine();loadDirectory();if(current)loadInbox();loadConnections();
 }
+function initFriendsFeed(){
+ const section=document.querySelector('.dog-friends-section');
+ if(!section)return;
+ const feed=document.createElement('details');
+ feed.id='dtDogFriendsFeed';
+ feed.innerHTML='<summary>Friends feed</summary><button class="dt-find-btn" type="button">Refresh feed</button><div aria-live="polite"></div>';
+ section.append(feed);
+ const panel=feed.querySelector('div');
+ let generation=0;
+ async function refresh(){
+  const request=++generation, uid=current?.uid;
+  panel.textContent=uid?'Loading shared posts…':'Sign in to see posts from approved connections.';
+  if(!uid)return;
+  try{
+   const requests=await getDocs(query(collection(db,'friendRequests'),where('requesterUid','==',uid),limit(100)));
+   const approved=requests.docs.map(row=>row.data()).filter(row=>row.status==='approved'&&row.listingId);
+   const listings=[...new Set(approved.map(row=>row.listingId))];
+   const results=await Promise.allSettled(listings.map(async id=>{
+    const listing=await getDoc(doc(db,'directory',id));
+    const share=listing.data();
+    if(!share?.discoverable||!share.shareId)return null;
+    const publicProfile=(await getDoc(doc(db,'publicProfiles',share.shareId))).data();
+    if(!publicProfile?.active||publicProfile.ownerUid!==share.ownerUid||publicProfile.dogId!==share.dogId)return null;
+    const posts=Array.isArray(publicProfile.posts)?publicProfile.posts.filter(post=>post&&typeof post==='object'):[];
+    const post=[...posts].sort((a,b)=>postTime(b)-postTime(a))[0];
+    return post?{post,name:publicProfile.name||share.dogName||'Dog friend',shareId:share.shareId}:null;
+   }));
+   if(request!==generation||current?.uid!==uid)return;
+   const entries=results.filter(result=>result.status==='fulfilled'&&result.value).map(result=>result.value);
+   const failed=results.some(result=>result.status==='rejected');
+   entries.sort((a,b)=>postTime(b.post)-postTime(a.post));
+   panel.replaceChildren();
+   if(!entries.length||failed){
+    const message=document.createElement('p');
+    message.textContent=failed?'Some shared posts couldn’t be loaded. Try refreshing.':'No shared posts from approved connections yet.';
+    panel.append(message);
+   }
+   for(const {post,name,shareId} of entries){
+    const card=document.createElement('article');card.className='dt-friend-feed-post';
+    const heading=document.createElement('strong');heading.textContent=name;
+    const title=document.createElement('h3');title.textContent=post.title||'Shared memory';
+    const summary=document.createElement('p');summary.textContent=String(post.story||post.text||'').slice(0,240);
+    if(typeof post.photo==='string'&&/^(https:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(post.photo)){
+     const photo=document.createElement('img');photo.src=post.photo;photo.alt='Shared memory photo';photo.loading='lazy';card.append(photo);
+    }
+    const link=document.createElement('a');link.href=friendUrl(shareId);link.textContent='View shared profile ›';
+    card.append(heading,title,summary,link);panel.append(card);
+   }
+  }catch(error){
+   if(request===generation&&current?.uid===uid)panel.textContent='Couldn’t load the friends feed. Try refreshing.';
+  }
+ }
+ feed.ontoggle=()=>{if(feed.open)refresh();else{generation++;panel.replaceChildren();}};
+ feed.querySelector('button').onclick=refresh;
+ onAuthStateChanged(auth,()=>{if(feed.open)refresh();});
+}
+function postTime(post){return Date.parse(post.date)||0;}
 function init(){
+ initFriendsFeed();
  const button=$('dtFindDogFriends');
  if(button){
   button.textContent='🔎 Find Dog Friends';
@@ -196,6 +254,7 @@ const style=document.createElement('style');style.textContent=[
  '.find-card a{color:#2e607b;text-decoration:underline;font-weight:700;display:inline-block;margin:7px 6px 4px 0}',
  '.find-settings{border-top:1px solid #c4ced4;margin-top:12px;padding-top:11px}.find-settings summary{cursor:pointer;font-weight:700;font-size:15px}',
  '.find-toggle{display:flex!important;gap:9px;align-items:center}.find-help{font-size:12px;color:#566b79;line-height:1.5}',
+ 'body.friend-view #dtDogFriendsFeed,body.dt-locked #dtDogFriendsFeed{display:none!important}#dtDogFriendsFeed{margin-top:12px}#dtDogFriendsFeed summary{font-weight:700;cursor:pointer;padding:8px 0}.dt-friend-feed-post{background:#fff9ee;border-radius:12px;padding:12px;margin-top:10px;overflow-wrap:anywhere}.dt-friend-feed-post img{width:100%;max-height:220px;object-fit:contain;border-radius:8px}.dt-friend-feed-post h3,.dt-friend-feed-post p{margin:6px 0}',
  '.find-request{border-bottom:1px solid #c5d2d8;padding:8px 0}#findStatus{font-weight:700;overflow-wrap:anywhere}',
  '@media(max-width:480px){#findLaunch{right:9px;bottom:107px;padding:9px 12px}}'
 ].join('\n');document.head.append(style);
