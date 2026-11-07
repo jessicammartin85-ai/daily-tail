@@ -1,3 +1,4 @@
+import {registerMessaging,approvedConnections,messageInbox} from './friend-messages.js?v=20261107';
 import {publicMemoryPosts} from './public-memory-posts.js?v=memory-bylines-20261107';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
@@ -150,6 +151,52 @@ function open(){
  $('findGoogle').hidden=!!current;$('findOwnerSettings').hidden=true;
  refreshMine();loadDirectory();if(current)loadInbox();loadConnections();
 }
+function initMessaging(){
+ const section=document.querySelector('.dog-friends-section');
+ if(!section)return;
+ const button=document.createElement('button');
+ button.type='button';
+ button.className='dt-find-btn';
+ button.textContent='Messages';
+ const status=document.createElement('p');
+ status.setAttribute('role','status');
+ status.hidden=true;
+ section.append(button,status);
+ let registered='';
+ function refresh(){
+  const account=current,active=dog();
+  const allowed=window.dtRole==='adult'&&account&&!account.isAnonymous&&active&&!document.body.classList.contains('friend-view');
+  button.hidden=!allowed;
+  if(!allowed){
+   status.hidden=true;
+   const dialog=document.getElementById('dtMessages');
+   if(dialog?.open)dialog.close();
+   return;
+  }
+  const key=[account.uid,active.ownerUid,active.id].join('/');
+  if(key===registered)return;
+  registered=key;
+  registerMessaging(db,account,active).catch(()=>{if(registered===key)registered='';});
+ }
+ button.onclick=async()=>{
+  const account=current,active=dog();
+  if(window.dtRole!=='adult'||!account||account.isAnonymous||!active)return;
+  button.disabled=true;
+  status.hidden=false;
+  status.textContent='Loading conversations…';
+  try{
+   await registerMessaging(db,account,active);
+   const connections=await approvedConnections(db,account.uid);
+   if(current?.uid===account.uid&&window.dtRole==='adult'&&!button.hidden)messageInbox(db,account,connections);
+   status.hidden=true;
+  }catch{status.textContent='Messages are unavailable right now. Try again in a moment.';}
+  finally{button.disabled=false;}
+ };
+ new MutationObserver(refresh).observe(document.body,{attributes:true,attributeFilter:['class']});
+ window.addEventListener('daily-tales-cloud-dogs-changed',refresh);
+ onAuthStateChanged(auth,account=>{current=account;refresh();});
+ refresh();
+}
 function initFriendsFeed(){
  const section=document.querySelector('.dog-friends-section');
  if(!section)return;
@@ -211,6 +258,7 @@ function initFriendsFeed(){
 function postTime(post){return Date.parse(post.date)||0;}
 function init(){
  initFriendsFeed();
+ initMessaging();
  const button=$('dtFindDogFriends');
  if(button){
   button.textContent='🔎 Find Dog Friends';
