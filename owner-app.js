@@ -486,7 +486,7 @@ function editSchedule(){
   const [h,m]=t.split(':').map(Number);
   return String((h%12)||12)+':'+String(m).padStart(2,'0')+(h>=12?' PM':' AM');
  };
- show('Edit Daily Schedule','<p class="muted">Edit activity names, times, and notes. Add or remove activities, then save. Changes will appear in Today’s Schedule and Up Next.</p><div class="schedule-edit-list" id="dtScheduleEditRows"></div><div class="schedule-edit-actions"><button type="button" id="dtScheduleAdd">+ Add activity</button><button type="button" id="dtScheduleCancel">Cancel</button><button class="primary" type="button" id="dtScheduleSave">Save schedule</button></div><p role="status" id="dtScheduleEditStatus" class="muted"></p>','scheduleedit');
+ show('Edit Daily Schedule','<p class="muted">Edit activity names, times, and notes. Add or remove activities, then save. Changes will appear in Daily Plan and Up Next.</p><div class="schedule-edit-list" id="dtScheduleEditRows"></div><div class="schedule-edit-actions"><button type="button" id="dtScheduleAdd">+ Add activity</button><button type="button" id="dtScheduleCancel">Cancel</button><button class="primary" type="button" id="dtScheduleSave">Save schedule</button></div><p role="status" id="dtScheduleEditStatus" class="muted"></p>','scheduleedit');
  const container=$('dtScheduleEditRows');
  const escapeAttr=(value)=>safe(String(value||''));
  let rowId=0;
