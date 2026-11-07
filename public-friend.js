@@ -93,8 +93,9 @@ el('publicFriends').onclick=()=>document.querySelector('.dog-friends-section').s
 const design=document.createElement('script');design.src='./friend-design.js?v=public-connected-20261106';document.body.append(design);
 if(!id||!/^[a-zA-Z0-9]{16,40}$/.test(id)){notice.textContent='This sharing link is incomplete.';}
 else onSnapshot(doc(db,'publicProfiles',id),snap=>{
- if(!snap.exists()||!snap.data().active){notice.hidden=false;notice.textContent='This Friend link is no longer available.';document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close();return;}
+ if(!snap.exists()||!snap.data().active){notice.hidden=false;notice.textContent='This Friend link is no longer available.';window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close();return;}
  publicDog=snap.data();const d=publicDog;
+ window.DailyTailsFriendSections?.render(d.sharedSections);
  window.DailyTalesSocialContext={ownerUid:d.ownerUid,dogId:d.dogId,public:true};notice.hidden=true;
  el('dtFactsDogName').textContent=d.name||'My Dog';el('publicDogName').textContent=d.name||'My Dog';
  const breeds={cocker:'Cocker Spaniel'};el('dtFactsBreed').textContent=breeds[d.breed]||d.breed||'Not added yet';
@@ -104,4 +105,4 @@ else onSnapshot(doc(db,'publicProfiles',id),snap=>{
  const latest=d.posts?.[0];el('recentPostTitle').textContent=latest?.title||'Memories coming soon';el('recentPostSummary').textContent=latest?.story||latest?.text||'See our shared moments';
  const thumb=el('recentPostThumb');if(latest?.photo){thumb.src=latest.photo;thumb.hidden=false}else{thumb.hidden=true;thumb.removeAttribute('src')}
  if(panel==='friend-feed')openMemories();
-},()=>{notice.hidden=false;notice.textContent='Unable to load the shared profile. Please try again.';document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close()});
+},()=>{notice.hidden=false;notice.textContent='Unable to load the shared profile. Please try again.';window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close()});
