@@ -1,5 +1,6 @@
 (()=>{
 const cardOptions={cardShape:{"original":"Original","rounded":"Soft rounded","compact":"Rounded rectangle","ticket":"Ticket","folder":"Folder tab","asymmetric":"Asymmetric corners","clipped":"Clipped corners"},cardBorder:{"original":"Original","classic":"Classic outline","stitched":"Stitched","double":"Double frame","accent":"Accent edge","shadow":"Shadow only","top":"Top accent","weighted":"Weighted bottom edge","beveled":"Beveled rim","cream":"Cream outline","stacked":"Stacked paper","brackets":"Corner brackets","rails":"Side rails","bands":"Cream side bands","piping":"Collar piping","perforated":"Perforated edges","rivets":"Corner rivets"}};
+cardOptions.buttonShape={"original":"Original","soft":"Soft rectangle","pill":"Pill","square":"Square","clipped":"Clipped corners","asymmetric":"Asymmetric"};
 cardOptions.mainCardShape=cardOptions.cardShape;
 cardOptions.mainCardBorder=cardOptions.cardBorder;
 function cardStyles(value){
