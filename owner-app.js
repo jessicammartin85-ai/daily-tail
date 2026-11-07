@@ -482,7 +482,7 @@ $('scheduleCustomize').onclick=editSchedule;
 $('scheduleClear').onclick=()=>{ids.forEach(id=>delete state.done[id]);save();updateUpNext();render()};
 document.querySelectorAll('[data-schedule-id]').forEach(ch=>{ch.onchange=()=>{const id=ids[Number(ch.dataset.scheduleId)];if(ch.checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();const sc=$('content').scrollTop;render();$('content').scrollTop=sc}})
 }
-if($('scheduleArt')) $('scheduleArt').onclick=render; if($('upNextActivity')) $('upNextActivity').onclick=()=>window.DailyTailSchedule.openEvent(window.DailyTailSchedule.getCurrentIndex());
+if($('scheduleArt')) $('scheduleArt').onclick=()=>{window.dispatchEvent(new Event('daily-tales-schedule-today'));render();}; if($('upNextActivity')) $('upNextActivity').onclick=()=>window.DailyTailSchedule.openEvent(window.DailyTailSchedule.getCurrentIndex());
 if($('upNextCheck')) $('upNextCheck').onchange=e=>{
  const id=e.currentTarget.dataset.activityId;
  if(!id)return;
@@ -490,7 +490,9 @@ if($('upNextCheck')) $('upNextCheck').onchange=e=>{
  save();updateUpNext();
 }; window.DailyTailSchedule={
  getCurrentIndex:()=>{const id=$('upNextCheck')?.dataset.activityId;return id?Number(id.split('|').pop()):-1;},
- openEvent:(index)=>{render();requestAnimationFrame(()=>{const checkbox=document.querySelector('[data-schedule-id="'+index+'"]'),row=checkbox?.closest('.schedule-event');if(row){row.classList.add('dt-event-highlight');row.scrollIntoView({behavior:'smooth',block:'center'});checkbox.focus({preventScroll:true});setTimeout(()=>row.classList.remove('dt-event-highlight'),3000);}});},
+ openEvent:(index)=>{window.dispatchEvent(new Event('daily-tales-schedule-today'));render();requestAnimationFrame(()=>{const checkbox=document.querySelector('[data-schedule-id="'+index+'"]'),row=checkbox?.closest('.schedule-event');if(row){row.classList.add('dt-event-highlight');row.scrollIntoView({behavior:'smooth',block:'center'});checkbox.focus({preventScroll:true});setTimeout(()=>row.classList.remove('dt-event-highlight'),3000);}});},
+ render:()=>render(),
+ getJournalNotes:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tail_journal_v1')||'{}')}catch{return {}}},
  getEventNotes:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tail_event_notes_v1')||'{}')}catch{return {}}},
  saveEventNotes:notes=>{if(window.dtRole!=='adult')throw Error('Only Adult Owners can save event notes.');dtSafeStorage.setItem('daily_tail_event_notes_v1',JSON.stringify(notes));dtSnapshotActive();window.dispatchEvent(new Event('daily-tales-event-notes-changed'));},
  getEntries:()=>plan(weeks()).flatMap(g=>g[1]),getDone:()=>state.done,setDone:(index,checked)=>{const events=plan(weeks()).flatMap(g=>g[1]);if(!Number.isInteger(index)||index<0||index>=events.length)return false;const id=day()+'|'+index;if(checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();return true;}};updateUpNext();window.addEventListener('focus',updateUpNext);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateUpNext()});window.setInterval(updateUpNext,60000);window.addEventListener('storage',e=>{if(e.key===KEY){try{state={done:{},...JSON.parse(e.newValue||'{}')}}catch{state={done:{}}}updateUpNext()}});
