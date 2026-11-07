@@ -15,7 +15,7 @@ function readShare(hash){
    return {type:'event',id:data.id.slice(0,100),title:data.title.slice(0,100),date:data.date,place:String(data.place||'').slice(0,200),details:String(data.details||'').slice(0,800)};
   }
   if(data.type==='gifts'&&Array.isArray(data.items)){
-   return {type:'gifts',title:String(data.title||'Gift list').slice(0,100),items:data.items.slice(0,20).filter(item=>item&&typeof item.name==='string').map(item=>({name:item.name.slice(0,120),url:webLink(item.url)}))};
+   return {type:'gifts',title:String(data.title||'Gift list').slice(0,100),externalUrl:webLink(data.externalUrl),items:data.items.slice(0,20).filter(item=>item&&typeof item.name==='string').map(item=>({name:item.name.slice(0,120),url:webLink(item.url)}))};
   }
  }catch{}
  return null;
@@ -25,7 +25,10 @@ function eventDetails(event){
  (event.place?'<p>'+esc(event.place)+'</p>':'')+(event.details?'<p style="white-space:pre-wrap">'+esc(event.details)+'</p>':'');
 }
 function giftItems(list){
- return '<ul class="dt-eg-gift-items">'+list.items.map(item=>'<li>'+(webLink(item.url)?'<a href="'+esc(webLink(item.url))+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a>':esc(item.name))+'</li>').join('')+'</ul>';
+ const externalUrl=webLink(list.externalUrl);
+ const external=externalUrl?'<p><a href="'+esc(externalUrl)+'" target="_blank" rel="noopener noreferrer">Open external gift list ↗</a></p>':'';
+ if(!list.items.length)return external;
+ return external+'<ul class="dt-eg-gift-items">'+list.items.map(item=>'<li>'+(webLink(item.url)?'<a href="'+esc(webLink(item.url))+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a>':esc(item.name))+'</li>').join('')+'</ul>';
 }
 function startShared(root){
  const shared=readShare(location.hash);
@@ -128,7 +131,8 @@ function openGifts(){
  const list=store().read().gifts, dogId=store().dogId();
  screen('Gift List','<form id="dtGiftsEditor">'+
   '<label>List name<input name="title" maxlength="100" required value="'+esc(list?.title||'Gift list')+'"></label>'+
-  '<label>Gift ideas, one per line<textarea name="items" maxlength="4000" required>'+esc(list?.items.map(item=>item.name+(item.url?' | '+item.url:'')).join('\n')||'')+'</textarea></label>'+
+  '<label>External gift list link (optional)<input type="url" name="externalUrl" maxlength="2000" placeholder="https://" value="'+esc(list?.externalUrl||'')+'"></label>'+
+  '<label>Gift ideas, one per line (optional with a link)<textarea name="items" maxlength="4000">'+esc(list?.items.map(item=>item.name+(item.url?' | '+item.url:'')).join('\n')||'')+'</textarea></label>'+
   '<p>To add a shopping link, write the item name, then |, then the link.</p>'+
   '<button>Save gift list</button></form><p id="dtEventMessage" role="status"></p>'+
   (list?giftItems(list)+'<button type="button" id="dtShareGifts">Share saved gift list</button>':''));
@@ -139,10 +143,14 @@ function openGifts(){
   const values=new FormData(submit.currentTarget), title=values.get('title').trim();
   const lines=values.get('items').split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
   const items=lines.map(line=>{const [name,...url]=line.split('|');return {name:name.trim().slice(0,120),url:webLink(url.join('|').trim())};});
-  if(!title||!items.length||items.length>20||items.some(item=>!item.name)){
-   content().querySelector('#dtEventMessage').textContent='Enter a name and 1–20 gift ideas.';return;
+  const enteredLink=values.get('externalUrl').trim(), externalUrl=webLink(enteredLink);
+  if(enteredLink&&!externalUrl){
+   content().querySelector('#dtEventMessage').textContent='Enter a gift list link beginning with https:// or http://.';return;
   }
-  saveAndReturn(dogId,latest=>{latest.gifts={type:'gifts',title,items};},openGifts);
+  if(!title||(!items.length&&!externalUrl)||items.length>20||items.some(item=>!item.name)){
+   content().querySelector('#dtEventMessage').textContent='Enter a list name and either a gift list link or 1–20 gift ideas.';return;
+  }
+  saveAndReturn(dogId,latest=>{latest.gifts={type:'gifts',title,items,externalUrl};},openGifts);
  };
 }
 function upcomingEvents(events,now=Date.now()){
