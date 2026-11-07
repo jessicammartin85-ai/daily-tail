@@ -129,13 +129,22 @@ function editEvent(event){
 }
 function openGifts(){
  const list=store().read().gifts, dogId=store().dogId();
- screen('Gift List','<form id="dtGiftsEditor">'+
+ const externalUrl=webLink(list?.externalUrl);
+ const preview=list?
+  '<section class="dt-eg-saved-gifts"><span class="dt-eg-gift-kicker">🎁 Saved gift list</span><h3>'+esc(list.title)+'</h3>'+
+  '<div class="dt-eg-gift-actions">'+
+  (externalUrl?'<a class="dt-eg-open-list" href="'+esc(externalUrl)+'" target="_blank" rel="noopener noreferrer">Open gift list ↗</a>':'')+
+  '<button type="button" id="dtShareGifts">Share link</button></div>'+
+  giftItems({...list,externalUrl:''})+'</section>':'<p>Add a registry link or a few gift ideas to share.</p>';
+ const form='<form id="dtGiftsEditor">'+
   '<label>List name<input name="title" maxlength="100" required value="'+esc(list?.title||'Gift list')+'"></label>'+
-  '<label>External gift list link (optional)<input type="url" name="externalUrl" maxlength="2000" placeholder="https://" value="'+esc(list?.externalUrl||'')+'"></label>'+
-  '<label>Gift ideas, one per line (optional with a link)<textarea name="items" maxlength="4000">'+esc(list?.items.map(item=>item.name+(item.url?' | '+item.url:'')).join('\n')||'')+'</textarea></label>'+
-  '<p>To add a shopping link, write the item name, then |, then the link.</p>'+
-  '<button>Save gift list</button></form><p id="dtEventMessage" role="status"></p>'+
-  (list?giftItems(list)+'<button type="button" id="dtShareGifts">Share saved gift list</button>':''));
+  '<label>Registry or wishlist link<input type="url" name="externalUrl" maxlength="2000" placeholder="https://" value="'+esc(list?.externalUrl||'')+'"></label>'+
+  '<details class="dt-eg-ideas"'+(list?.items.length?' open':'')+'><summary>Individual gift ideas (optional with a link)</summary>'+
+  '<label>One idea per line<textarea name="items" maxlength="4000">'+esc(list?.items.map(item=>item.name+(item.url?' | '+item.url:'')).join('\n')||'')+'</textarea></label>'+
+  '<small>For a shopping link, use: Item name | https://…</small></details>'+
+  '<button>Save gift list</button></form>';
+ screen('Gift List',preview+(list?'<details class="dt-eg-edit-list"><summary>Edit gift list</summary>'+form+'</details>':form)+
+  '<p id="dtEventMessage" role="status"></p>');
  const shareButton=content().querySelector('#dtShareGifts');
  if(shareButton)shareButton.onclick=()=>share(list,openGifts);
  content().querySelector('#dtGiftsEditor').onsubmit=submit=>{
@@ -197,6 +206,16 @@ function init(){
  .dt-event-entry h3{margin:0 0 6px;color:#6b4935;font-family:Georgia,serif}
  .dt-event-entry p{margin:6px 0}
  .dt-events-gifts p,.dt-events-gifts li{overflow-wrap:anywhere}
+ .dt-eg-saved-gifts{padding:16px;border:1px solid #a9bfce;border-radius:15px;background:#e3eef4}
+ .dt-eg-gift-kicker{color:#466376;font-size:12px;font-weight:700}
+ .dt-eg-saved-gifts h3{margin:5px 0 10px;font:700 24px Georgia,serif;color:#294c63;overflow-wrap:anywhere}
+ .dt-eg-gift-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+ .dt-eg-gift-actions .dt-eg-open-list,.dt-eg-gift-actions #dtShareGifts{display:inline-flex;align-items:center;min-height:42px;box-sizing:border-box;padding:8px 12px;margin:0;border:1px solid #335c74;border-radius:10px;text-decoration:none;font:700 14px Arial,sans-serif}
+ .dt-eg-gift-actions .dt-eg-open-list{background:#335c74;color:#fff}
+ .dt-eg-gift-actions #dtShareGifts{background:#fff9ef;color:#294c63}
+ .dt-eg-edit-list,.dt-eg-ideas{margin:12px 0;color:#294c63}
+ .dt-eg-edit-list summary,.dt-eg-ideas summary{cursor:pointer;font-weight:700;padding:7px 0}
+ #dtGiftsEditor button{color:#fff!important}
  .dt-eg-gift-items{list-style:none;padding:0;display:grid;gap:8px}
  .dt-eg-gift-items li{background:#fff9ef;border:1px solid #b8cbd7;border-radius:10px;padding:10px 12px}
  `;
