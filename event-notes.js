@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const schedule=()=>window.DailyTailSchedule;
 const currentDog=()=>{try{const data=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');return data.activeId||''}catch{return ''}};
-let active=null,draft=[],returnFocus=null;
+let active=null,draft=[],returnFocus=null,viewedDate=today();
 const types=[['Potty','🚽'],['Accident','💦'],['Meal','🥣'],['Walk','🐕'],['Meds','💊'],['Training','🎓'],['Health','🩺']];
 function recordFor(entry,date=today()){return schedule()?.getEventNotes?.()[date+'|'+entry.eventId]||null;}
 function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
@@ -14,31 +14,31 @@ function renderStamps(){
  draft.forEach((stamp,index)=>{
   const row=node('div',undefined,'dt-event-stamp');
   row.append(node('span',stamp.emoji+' '+stamp.kind+' · '+stamp.time));
-  if(window.dtRole==='adult'){
+  if(window.dtRole==='adult'&&active?.date===today()){
    const remove=node('button','×');remove.type='button';remove.setAttribute('aria-label','Delete '+stamp.kind+' timestamp at '+stamp.time);
    remove.onclick=()=>{draft.splice(index,1);renderStamps();};row.append(remove);
   }
   list.append(row);
  });
 }
-function openNote(index,trigger){
- const entry=schedule()?.getEntries?.()[index];if(!entry)return;
- active={entry,index,date:today(),dogId:currentDog()};returnFocus=trigger||document.activeElement;
+function openNote(index,trigger,date=today(),savedEntry=null){
+ const entry=savedEntry||schedule()?.getEntries?.()[index];if(!entry)return;
+ active={entry,index,date,dogId:currentDog()};returnFocus=trigger||document.activeElement;
  const record=recordFor(entry,active.date);
  draft=Array.isArray(record?.stamps)?record.stamps.map(s=>({...s})):[];
  $('dtEventNoteTitle').textContent='Note for '+entry.title;
  $('dtEventNoteWhen').textContent=new Date(active.date+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' · '+entry.time;
  $('dtEventNoteText').value=record?.text||'';
- const editable=window.dtRole==='adult';
+ const editable=window.dtRole==='adult'&&active.date===today();
  $('dtEventNoteText').readOnly=!editable;$('dtEventNoteSave').hidden=!editable;
  $('dtEventQuickAdds').hidden=!editable;
- $('dtEventNoteStatus').textContent=editable?'':'Only Adult Owners can add or edit event notes.';
+ $('dtEventNoteStatus').textContent=editable?'':active.date!==today()?'Past notes are read-only.':'Only Adult Owners can add or edit event notes.';
  renderStamps();$('dtEventNoteDialog').showModal();
  if(editable)$('dtEventNoteText').focus();
 }
 function closeNote(){$('dtEventNoteDialog').close();active=null;returnFocus?.focus?.({preventScroll:true});}
 function saveNote(){
- if(!active)return;
+ if(!active||active.date!==today()||window.dtRole!=='adult')return;
  if(currentDog()!==active.dogId){$('dtEventNoteStatus').textContent='The selected dog changed. Close this note and reopen the event.';return;}
  const text=$('dtEventNoteText').value.trim(),notes={...schedule().getEventNotes()},key=active.date+'|'+active.entry.eventId;
  if(text||draft.length)notes[key]={eventId:active.entry.eventId,date:active.date,eventTitle:active.entry.title,eventTime:active.entry.time,text,stamps:draft.map(s=>({...s})),updatedAt:new Date().toISOString()};
@@ -47,7 +47,7 @@ function saveNote(){
  catch(e){$('dtEventNoteStatus').textContent=e.message||'Could not save the event note. Please try again.';}
 }
 function addStamp(kind,emoji){
- if(!active||window.dtRole!=='adult')return;
+ if(!active||active.date!==today()||window.dtRole!=='adult')return;
  const now=new Date();draft.push({id:Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8),kind,emoji,time:now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}),createdAt:now.toISOString()});renderStamps();
 }
 function appendRecord(parent,record){
@@ -57,6 +57,8 @@ function appendRecord(parent,record){
  if(record.text)parent.append(node('p',record.text,'dt-event-note-copy'));
 }
 function decorateSchedule(){
+ decorateHistory();
+ if(viewedDate!==today())return;
  document.querySelectorAll('#content [data-schedule-id]').forEach(check=>{
   const index=Number(check.dataset.scheduleId),entry=schedule()?.getEntries?.()[index],row=check.closest('.schedule-event');
   if(!entry||!row)return;
@@ -69,6 +71,64 @@ function decorateSchedule(){
   (row.querySelector('.schedule-event-content')||row).append(control);
  });
 }
+
+function dayRecords(date){
+ return Object.values(schedule()?.getEventNotes?.()||{}).filter(r=>r&&r.date===date&&r.eventId).sort((a,b)=>{
+  const minute=t=>{const m=/(\d+):(\d+)\s*(AM|PM)/i.exec(t||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3].toUpperCase()==='PM'?720:0):1440;};
+  return minute(a.eventTime)-minute(b.eventTime);
+ });
+}
+function goDate(date){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date>today())return;
+ viewedDate=date;schedule()?.render?.();
+}
+function decorateHistory(){
+ const body=document.querySelector('#content .dt-schedule-body');if(!body)return;
+ const past=viewedDate!==today(),records=dayRecords(viewedDate);
+ let nav=body.querySelector('.dt-history-nav');
+ if(!nav){
+  nav=node('div',undefined,'dt-history-nav');
+  const prev=node('button','‹'),input=node('input'),next=node('button','›'),now=node('button','Today');
+  prev.type=next.type=now.type='button';prev.setAttribute('aria-label','Previous day');next.setAttribute('aria-label','Next day');
+  input.type='date';input.setAttribute('aria-label','Schedule notes date');input.max=today();
+  const shift=amount=>{const d=new Date(viewedDate+'T12:00:00');d.setDate(d.getDate()+amount);goDate(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));};
+  prev.onclick=()=>shift(-1);next.onclick=()=>shift(1);now.onclick=()=>goDate(today());input.onchange=()=>goDate(input.value);
+  nav.append(prev,input,next,now);body.prepend(nav);
+ }
+ nav.querySelector('input').value=viewedDate;nav.querySelectorAll('button')[1].disabled=!past;
+ const topline=body.querySelector('.dt-schedule-topline');
+ if(topline){topline.querySelector('strong').textContent=new Date(viewedDate+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});topline.querySelector('.schedule-meta').hidden=past;topline.querySelector('.dt-schedule-options').hidden=past;}
+ for(const el of body.querySelectorAll('.dt-schedule-completed,.schedule-progress,.dt-schedule-reference'))el.hidden=past;
+ for(const group of body.querySelectorAll('.schedule-group'))group.hidden=past;
+ body.querySelector('.dt-history-events')?.remove();
+ const old=body.querySelector('.dt-day-notes'),wasOpen=old?.open||false;old?.remove();
+ const summary=node('details',undefined,'dt-day-notes');summary.open=wasOpen;
+ summary.append(node('summary','📝 All notes for this day · '+records.length+' '+(records.length===1?'event':'events')));
+ if(!records.length)summary.append(node('p','No saved event notes for this day.'));
+ for(const record of records){
+  const item=node('div',undefined,'dt-day-note-item'),link=node('button',(record.eventTime?record.eventTime+' · ':'')+record.eventTitle);
+  link.type='button';link.onclick=()=>{
+   const rows=body.querySelectorAll('.schedule-event'),row=Array.from(rows).find(el=>el.dataset.eventId===record.eventId);
+   if(row){const detail=row.querySelector('details');if(detail)detail.open=true;row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('dt-event-highlight');setTimeout(()=>row.classList.remove('dt-event-highlight'),2500);}
+   else openNote(-1,link,viewedDate,{eventId:record.eventId,title:record.eventTitle,time:record.eventTime});
+  };
+  item.append(link);appendRecord(item,record);summary.append(item);
+ }
+ const journal=schedule()?.getJournalNotes?.()[viewedDate];
+ if(journal){const item=node('div',undefined,'dt-day-note-item');item.append(node('strong','Daily Notes'),node('p',journal,'dt-event-note-copy'));summary.append(item);}
+ (topline||nav).after(summary);
+ if(past){
+  const archive=node('section',undefined,'dt-history-events');archive.append(node('h3','Saved events'));
+  if(!records.length)archive.append(node('p','No event notes were saved on this date.'));
+  for(const record of records){
+   const row=node('div',undefined,'schedule-event'),content=node('div',undefined,'schedule-event-content');
+   row.dataset.eventId=record.eventId;row.append(node('time',record.eventTime,'schedule-time'));content.append(node('strong',record.eventTitle));
+   const detail=node('details');detail.append(node('summary','📝 Saved event note'));appendRecord(detail,record);content.append(detail);row.append(content);archive.append(row);
+  }
+  summary.after(archive);
+ }
+}
+
 function syncUpNext(){
  const container=document.querySelector('#dtImageDesignedHome .dt-concept-task')||document.querySelector('.dt-concept-task');
  if(!container)return;
@@ -89,6 +149,7 @@ function syncUpNext(){
 function start(){
  if($('dtEventNoteDialog'))return;
  const style=node('style');style.textContent=[
+ '.dt-history-nav{display:flex;gap:7px;align-items:center;margin:0 0 15px}.dt-history-nav input{min-width:0;flex:1;width:130px;padding:9px;border:1px solid #a4bac9;border-radius:10px;background:#fff9ef;color:#294b62;font:16px Arial}.dt-history-nav button,.dt-day-note-item button{min-height:42px;border:1px solid #a4bac9;border-radius:10px;padding:7px 12px;background:#e5eef4;color:#294b62;cursor:pointer}.dt-history-nav button:disabled{opacity:.4}.dt-day-notes{padding:12px;border:1px solid #adc2d0;border-radius:13px;background:#fff9ef;margin:12px 0}.dt-day-notes>summary{cursor:pointer;font-weight:bold}.dt-day-note-item{padding:12px 0;border-bottom:1px solid #d5dfe5}.dt-day-note-item:last-child{border:0}.dt-day-note-item button{text-align:left}.dt-history-events .schedule-event{display:flex;gap:14px}.dt-schedule-body [hidden]{display:none!important}',
  '.dt-quick-panel,#dtImageDesignedHome .dt-design-actions{display:none!important}',
  '#dtImageDesignedHome .dt-concept-task,.dt-concept-task{display:grid!important;grid-template-columns:24px minmax(0,1fr) auto 28px!important;gap:8px!important;align-items:center!important}',
  '#dtImageDesignedHome #dtConceptTask,#dtConceptTask{min-width:0!important;width:auto!important;white-space:normal!important;text-align:left!important}',
@@ -127,6 +188,7 @@ function start(){
  dialog.addEventListener('cancel',()=>{active=null;});
  const content=$('content');if(content)new MutationObserver(()=>decorateSchedule()).observe(content,{childList:true});
  for(const id of ['upNextActivity','upNextTime'])if($(id))new MutationObserver(syncUpNext).observe($(id),{childList:true,characterData:true,subtree:true});
+ window.addEventListener('daily-tales-schedule-today',()=>{viewedDate=today();});
  window.addEventListener('daily-tail-schedule-change',syncUpNext);
  window.addEventListener('daily-tales-event-notes-changed',()=>{syncUpNext();decorateSchedule();});
  window.addEventListener('daily-tales-cloud-dogs-changed',()=>{syncUpNext();decorateSchedule();});
