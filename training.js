@@ -26,6 +26,26 @@ function frame(body){api().show('<div class="dt-training">'+body+'<p id="dtTrain
 function link(url,label){return '<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(label)+' ↗</a>';}
 function safeURL(value){if(!value)return '';const u=new URL(value);if(u.protocol!=='https:')throw Error('Use an https:// resource link.');return u.href;}
 function open(){if(!['adult','child'].includes(window.dtRole)||document.body.classList.contains('friend-view'))return;screenDog=api().dogId();const data=read();if(data.program)programOverview();else programSetup();}
+const programPresets = {
+ star: {
+  name: 'AKC S.T.A.R. Puppy',
+  description: 'Puppy class readiness checklist based on the public AKC test items. Follow your instructor’s class order.',
+  url: 'https://www.akc.org/products-services/training-programs/canine-good-citizen/akc-star-puppy/akc-star-puppy-20-steps-for-success/',
+  lessons: ['Owner responsibilities and class preparation','Comfort around people and puppies','Comfort wearing a collar or harness','Gentle handling and holding','Giving up a toy or treat','Petting by another person','Ear and paw handling','Walk 15 steps on leash','Pass people on leash','Sit','Lie down','Come when called from five feet','Handle mild distractions','Brief handoff to another person']
+ },
+ cgc: {
+  name: 'AKC Canine Good Citizen',
+  description: 'Practice checklist in the order of AKC’s ten public test items. The linked page includes test instructions and a demonstration.',
+  url: 'https://www.akc.org/products-services/training-programs/canine-good-citizen/canine-good-citizen-test-items/',
+  lessons: ['Greet a friendly stranger','Sit politely for petting','Accept a grooming and handling check','Walk on a loose leash','Walk through a crowd','Sit, down, and stay','Come when called','Pass another dog politely','Respond calmly to distractions','Supervised separation']
+ },
+ kpa: {
+  name: 'Karen Pryor Academy Dog Trainer Foundations',
+  description: 'A tracker for topics from the public course outline. Use the provider’s paid course for the actual lessons, exercises, and videos.',
+  url: 'https://karenpryoracademy.com/courses/dog-trainer-foundations/',
+  lessons: ['Clicker training and learning basics','Plan short practice sessions','Build foundation behaviors','Understand canine body language','Use cues, shaping, and targeting','Apply rewards in everyday life','Review progress and next steps']
+ }
+};
 function programSetup(){
  const data=read(), program=data.program;
  if(!adult()){
@@ -35,13 +55,29 @@ function programSetup(){
  frame(`<h3>Which training program are you following?</h3>
  <p>Enter the lessons from your trainer or course in the order they teach them.</p>
  <form id="dtProgramForm">
+ <label>Choose a starter program<select id="dtProgramPreset"><option value="">Enter my own program</option>${Object.entries(programPresets).map(([id,preset])=>`<option value="${id}">${esc(preset.name)}</option>`).join('')}</select></label>
+ <p id="dtProgramPresetHelp">Choose a starter to fill in an editable checklist, or enter your trainer’s program below.</p>
+ <button id="dtLoadProgramPreset" type="button" disabled>Use this starter checklist</button>
  <label>Program name<input name="name" maxlength="100" required value="${esc(program?.name||'')}"></label>
  <label>Program or trainer link (optional)<input name="url" type="url" value="${esc(program?.url||'')}"></label>
  <label>Lessons in order (one per line)<textarea name="lessons" maxlength="6000" required>${esc(program?.lessons.map(l=>l.title).join('\n')||'')}</textarea></label>
  <button class="primary">Save program</button></form>`+
  (data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''));
  const previous=$('dtPreviousPlan');if(previous)previous.onclick=overview;
- $('dtProgramForm').onsubmit=e=>{
+ const form=$('dtProgramForm'), presetSelect=$('dtProgramPreset'), loadPreset=$('dtLoadProgramPreset');
+ presetSelect.onchange=()=>{
+  const preset=programPresets[presetSelect.value];
+  loadPreset.disabled=!preset;
+  $('dtProgramPresetHelp').textContent=preset?.description||'Enter your trainer’s program below.';
+ };
+ loadPreset.onclick=()=>{
+  const preset=programPresets[presetSelect.value];
+  if(!preset)return;
+  form.elements.namedItem('name').value=preset.name;
+  form.elements.namedItem('url').value=preset.url;
+  form.elements.namedItem('lessons').value=preset.lessons.join('\n');
+ };
+ form.onsubmit=e=>{
   e.preventDefault();
   run(()=>{
    const fields=new FormData(e.currentTarget), name=fields.get('name').trim();
