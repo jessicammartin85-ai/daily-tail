@@ -207,6 +207,7 @@ function programLessonResources(program,lesson){
  ${example?'<p>'+link(example.video||example.videoPage||example.source,'▶ Supplemental demonstration: '+(example.videoCredit||example.credit))+'</p>':''}
  </div>`;
 }
+const lessonSkillLevels=['Not started','Learning with help','Can do it in a quiet setting','Reliable in different settings'];
 function programLesson(index){
  const data=read(), lesson=data.program.lessons[index];
  if(!lesson)return;
@@ -215,20 +216,23 @@ function programLesson(index){
  ${programLessonResources(data.program,lesson)}
  ${lesson.video?link(lesson.video,'▶ Your trainer’s video'):''}
  <form id="dtProgramLesson">
+ <label>How is your dog doing?<select name="skillLevel" ${adult()?'':'disabled'}>${lessonSkillLevels.map(level=>`<option ${level===(lesson.skillLevel||lessonSkillLevels[0])?'selected':''}>${level}</option>`).join('')}</select></label>
  <label>Trainer’s directions<textarea name="directions" maxlength="3000">${esc(lesson.directions||'')}</textarea></label>
  <label>When the trainer says to advance<textarea name="criteria" maxlength="1500">${esc(lesson.criteria||'')}</textarea></label>
  <label>Trainer’s video link (optional)<input type="url" name="video" value="${esc(lesson.video||'')}"></label>
  <label>Practice notes<textarea name="notes" maxlength="3000">${esc(lesson.notes||'')}</textarea></label>
- ${adult()?'<button class="primary">Save lesson notes</button>':''}
+ ${adult()?'<button class="primary">Save lesson progress</button>':''}
  </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`);
  $('dtProgramBack').onclick=programOverview;
  const form=$('dtProgramLesson');
  function captureNotes(){
   const fields=new FormData(form);
   lesson.video=safeURL(fields.get('video').trim());
+  const level=fields.get('skillLevel');
+  if(lessonSkillLevels.includes(level))lesson.skillLevel=level;
   for(const key of ['directions','criteria','notes'])lesson[key]=fields.get(key).trim();
  }
- form.onsubmit=e=>{e.preventDefault();run(()=>{captureNotes();write(data);programLesson(index);$('dtTrainingStatus').textContent='Lesson notes saved.';});};
+ form.onsubmit=e=>{e.preventDefault();run(()=>{captureNotes();write(data);programLesson(index);$('dtTrainingStatus').textContent='Lesson progress saved.';});};
  const done=$('dtProgramDone');
  if(done)done.onclick=()=>run(()=>{
   captureNotes();
