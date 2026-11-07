@@ -25,7 +25,75 @@ function stageFor(s,p){const i=s.steps.findIndex((_,i)=>!p.done?.includes(i));re
 function frame(body){api().show('<div class="dt-training">'+body+'<p id="dtTrainingStatus" role="status"></p></div>');const content=$('content');if(content)content.querySelector('h3')?.setAttribute('tabindex','-1');}
 function link(url,label){return '<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(label)+' ↗</a>';}
 function safeURL(value){if(!value)return '';const u=new URL(value);if(u.protocol!=='https:')throw Error('Use an https:// resource link.');return u.href;}
-function open(){if(!['adult','child'].includes(window.dtRole)||document.body.classList.contains('friend-view'))return;screenDog=api().dogId();const data=read();if(!data.settings){setup();return;}overview();}
+function open(){if(!['adult','child'].includes(window.dtRole)||document.body.classList.contains('friend-view'))return;screenDog=api().dogId();const data=read();if(data.program)programOverview();else programSetup();}
+function programSetup(){
+ const data=read(), program=data.program;
+ if(!adult()){
+  frame('<h3>Training program</h3><p>An Adult Owner can enter the lessons from your trainer’s program.</p>');
+  return;
+ }
+ frame(`<h3>Which training program are you following?</h3>
+ <p>Enter the lessons from your trainer or course in the order they teach them.</p>
+ <form id="dtProgramForm">
+ <label>Program name<input name="name" maxlength="100" required value="${esc(program?.name||'')}"></label>
+ <label>Program or trainer link (optional)<input name="url" type="url" value="${esc(program?.url||'')}"></label>
+ <label>Lessons in order (one per line)<textarea name="lessons" maxlength="6000" required>${esc(program?.lessons.map(l=>l.title).join('\n')||'')}</textarea></label>
+ <button class="primary">Save program</button></form>`+
+ (data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''));
+ const previous=$('dtPreviousPlan');if(previous)previous.onclick=overview;
+ $('dtProgramForm').onsubmit=e=>{
+  e.preventDefault();
+  run(()=>{
+   const fields=new FormData(e.currentTarget), name=fields.get('name').trim();
+   const titles=fields.get('lessons').split(/\r?\n/).map(t=>t.trim()).filter(Boolean);
+   if(!name||!titles.length)throw Error('Enter a program name and at least one lesson.');
+   if(new Set(titles).size!==titles.length)throw Error('Give each lesson a distinct name.');
+   const archived=[...(program?.archived||[]),...(program?.lessons||[])];
+   const lessons=titles.map(title=>archived.find(l=>l.title===title)||{title});
+   data.program={name,url:safeURL(fields.get('url').trim()),lessons,archived:archived.filter(l=>!titles.includes(l.title))};
+   write(data);programOverview();
+  });
+ };
+}
+function programOverview(){
+ const data=read(), program=data.program;
+ const next=program.lessons.findIndex(l=>!l.completedAt);
+ frame(`<h3>${esc(program.name)}</h3>
+ ${program.url?link(program.url,'Open program resource'):''}
+ <p>${next<0?'All lessons completed.':'Next lesson: '+esc(program.lessons[next].title)}</p>
+ <ol>${program.lessons.map((l,i)=>`<li><button class="dt-training-tile" data-program-lesson="${i}">${l.completedAt?'✓ ':''}${esc(l.title)}</button></li>`).join('')}</ol>
+ ${adult()?'<button id="dtEditProgram">Edit program</button>':''}
+ ${data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''}`);
+ document.querySelectorAll('[data-program-lesson]').forEach(b=>b.onclick=()=>programLesson(Number(b.dataset.programLesson)));
+ const edit=$('dtEditProgram');if(edit)edit.onclick=programSetup;
+ const previous=$('dtPreviousPlan');if(previous)previous.onclick=overview;
+}
+function programLesson(index){
+ const data=read(), lesson=data.program.lessons[index];
+ if(!lesson)return;
+ frame(`<button id="dtProgramBack">‹ Program lessons</button>
+ <h3>${esc(lesson.title)}</h3>
+ <form id="dtProgramLesson">
+ <label>Trainer’s directions<textarea name="directions" maxlength="3000">${esc(lesson.directions||'')}</textarea></label>
+ <label>When the trainer says to advance<textarea name="criteria" maxlength="1500">${esc(lesson.criteria||'')}</textarea></label>
+ <label>Practice notes<textarea name="notes" maxlength="3000">${esc(lesson.notes||'')}</textarea></label>
+ ${adult()?'<button class="primary">Save lesson notes</button>':''}
+ </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`);
+ $('dtProgramBack').onclick=programOverview;
+ const form=$('dtProgramLesson');
+ function captureNotes(){
+  const fields=new FormData(form);
+  for(const key of ['directions','criteria','notes'])lesson[key]=fields.get(key).trim();
+ }
+ form.onsubmit=e=>{e.preventDefault();run(()=>{captureNotes();write(data);$('dtTrainingStatus').textContent='Lesson notes saved.';});};
+ const done=$('dtProgramDone');
+ if(done)done.onclick=()=>run(()=>{
+  captureNotes();
+  lesson.completedAt=lesson.completedAt?null:new Date().toISOString();
+  write(data);programOverview();
+ });
+}
+
 function setup(){const data=read(),settings=data.settings||{},profile=info();frame('<h3>Set up your training plan</h3><p>Choose a shared approach for this dog. You can change it later without losing progress.</p><form id="dtTrainingSetup"><label>Training preference<select name="method">'+Object.entries(options).map(([id,v])=>'<option value="'+id+'" '+(settings.method===id?'selected':'')+'>'+v[0]+'</option>').join('')+'</select></label><p id="dtMethodDescription"></p><label>Marker<select name="marker"><option value="Yes!">Say “Yes!”</option><option value="Click">Clicker</option></select></label><label>Birthday (optional)<input name="dob" type="date" value="'+esc(settings.dob||profile.dob||'')+'" max="'+new Date().toLocaleDateString('en-CA')+'"></label><label>Comfort or mobility considerations<textarea name="limitations" maxlength="1000">'+esc(settings.limitations||'')+'</textarea></label><label>Practice time<select name="minutes"><option value="1">About 1 minute</option><option value="3">Up to 3 minutes</option><option value="5">Up to 5 minutes, with breaks</option></select></label>'+(!data.settings?'<h4>Where are you starting?</h4><p>These set a starting step, not a mastery badge.</p>'+skills.map(s=>'<label>'+s.title+'<select name="base_'+s.id+'"><option value="0">Not started</option><option value="1">Learning the basics</option><option value="3">Reliable in familiar places</option></select></label>').join(''):'')+'<button type="submit" class="primary" '+(!adult()?'disabled':'')+'>Save training plan</button></form><button id="dtOldTraining">Earlier training references ›</button>');
  const f=$('dtTrainingSetup');f.elements.marker.value=settings.marker||'Yes!';f.elements.minutes.value=settings.minutes||'1';const describe=()=>{$('dtMethodDescription').textContent=options[f.elements.method.value][1];};f.elements.method.onchange=describe;describe();$('dtOldTraining').onclick=()=>legacyOpen?.();
  f.onsubmit=e=>{e.preventDefault();run(()=>{const fields=new FormData(f),dob=fields.get('dob');if(dob&&new Date(dob+'T12:00:00')>new Date())throw Error('Birthday cannot be in the future.');data.settings={method:fields.get('method'),marker:fields.get('marker'),dob,limitations:fields.get('limitations').trim(),minutes:fields.get('minutes')};if(!read().settings)for(const s of skills){const baseline=Number(fields.get('base_'+s.id)||0);data.skills[s.id]={...stateFor(data,s.id),done:Array.from({length:baseline},(_,i)=>i)};}write(data);overview();});};
@@ -49,8 +117,10 @@ function skill(id){selected=id;const data=read(),s=skills.find(s=>s.id===id);if(
 function updateCard(){
  const anchor=$('dtTimelineDashboard')||document.querySelector('.dog-friends-section');if(!anchor)return;
  let card=$('dtTrainingHome');if(!card){card=document.createElement('section');card.id='dtTrainingHome';anchor.before(card);}
- const data=read(),s=skills.find(s=>!stateFor(data,s.id).masteredAt)||skills[0],p=stateFor(data,s.id),stage=stageFor(s,p);
- card.innerHTML='<div><h3>🎓 Training</h3><p>'+esc(data.settings?(p.masteredAt?'Keep your skills fresh':s.title+' · Stage '+(stage+1)+' of '+s.steps.length):'Choose an approach for your dog')+'</p>'+(data.settings?'<small>'+esc(s.steps[stage])+'</small>':'')+'</div><button type="button">'+(data.settings?'Continue ›':'Set up your plan ›')+'</button>';card.querySelector('button').onclick=open;
+ const program=read().program;
+ const next=program?.lessons.find(lesson=>!lesson.completedAt);
+ card.innerHTML='<div><h3>🎓 Training</h3><p>'+esc(program?.name||'Add your training program')+'</p>'+(program?'<small>'+esc(next?.title||'All lessons completed')+'</small>':'')+'</div><button type="button">'+(program?'Continue ›':'Set up program ›')+'</button>';
+ card.querySelector('button').onclick=open;
 }
 function init(){if(!api())return;const trigger=$('trainingArt');if(trigger){legacyOpen=trigger.onclick;trigger.onclick=open;}
  const style=document.createElement('style');style.textContent=`#dtTrainingHome{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#d4e2ec;border:2px solid #9eb5c5;border-radius:22px;padding:17px 20px;margin:14px 0;color:#294d65;font:15px/1.4 Arial,sans-serif}#dtTrainingHome h3{font:700 26px Georgia,serif;margin:0 0 5px}#dtTrainingHome p{margin:0}#dtTrainingHome button{flex-shrink:0;background:#fff9ef;border:1px solid #a6bac9;border-radius:17px;padding:12px;color:#294d65;font-weight:bold;min-height:44px}body.friend-view #dtTrainingHome,body.dt-locked #dtTrainingHome{display:none!important}.dt-training{color:#294d65;font:16px/1.5 Arial,sans-serif}.dt-training h3{font:700 28px Georgia,serif;color:#6b462e}.dt-training h4{font:700 22px Georgia,serif;margin:12px 0}.dt-training label{display:block;margin:12px 0}.dt-training input:not([type=checkbox]),.dt-training select,.dt-training textarea{display:block;box-sizing:border-box;width:100%;padding:11px;border:1px solid #9db2c1;border-radius:10px;background:#fffefa;font:16px Arial;color:#294d65}.dt-training textarea{min-height:90px}.dt-training button{min-height:44px;cursor:pointer;margin:5px 0;padding:10px 13px;border:1px solid #9eb5c5;border-radius:12px;background:#e0ebf2;color:#294d65;font-weight:bold}.dt-training button:disabled{opacity:.5;cursor:default}.dt-training button.primary{background:#345b73;color:white}.dt-training details,.dt-training-quick,.dt-training-resources{padding:14px;margin:12px 0;border:1px solid #b6c8d4;border-radius:14px;background:#fff9ef}.dt-training-quick{background:#d6e5ef}.dt-training summary{cursor:pointer;font-weight:bold;min-height:30px}.dt-training-tile{display:flex;width:100%;flex-direction:column;align-items:start;text-align:left;gap:5px}.dt-training-tile strong{font:700 22px Georgia}.dt-training-tile span{font-weight:normal}.dt-training-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.dt-training-check{display:flex!important;align-items:start;gap:9px}.dt-training-check input{margin-top:5px;flex-shrink:0}.dt-training a{color:#245b7b;overflow-wrap:anywhere}.dt-training-history{border-bottom:1px solid #d2dde5;padding:10px 0}.dt-training-history p{margin:4px 0}.dt-training-note{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:400px){#dtTrainingHome{padding:14px 12px}#dtTrainingHome h3{font-size:23px}#dtTrainingHome button{font-size:12px;max-width:125px}}`;document.head.append(style);
