@@ -100,6 +100,10 @@ async function publish(d){
  if(profileOwner()===user.uid)await setDoc(doc(db,'users',user.uid,'dogAccounts',d.id),{accountName:user.displayName||'',accountEmail:user.email||''});
  return d;
 }
+function sharedSectionFields(dog,previous){
+ const saved=window.DailyTalesFriendSections?.build(dog?.extras)||{};
+ return Object.keys(saved).length||previous?.sharedSections?{sharedSections:saved}:{};
+}
 async function createInvitation(){
  const d=dog();if(!d)return status('Open the dog’s profile first.',true);
  if(!user||!isAdult())return status('Sign in to Cloud Sync and open Adult Owner view first.',true);
@@ -114,6 +118,7 @@ async function createInvitation(){
    if(!shared.exists())throw Error('Could not prepare the shared profile.');
    const p=shared.data();
    await setDoc(doc(db,'publicProfiles',shareId),{
+    ...sharedSectionFields(dog()?.id===current.id?dog():current),
     ownerUid:profileOwner(),dogId:current.id,active:true,name:p.name||current.name,
     breed:p.breed||'',dob:p.dob||'',personality:p.personality||'',
     favorites:p.favorites||'',cuteFact:p.cuteFact||'',photo:p.photo||'',
@@ -319,7 +324,8 @@ window.DailyTalesRefreshPublic=async dogId=>{
  const p=source.data(),ref=doc(db,'publicProfiles',link.data().shareId);
  const existing=await getDoc(ref);
  if(!existing.exists()||existing.data().active!==true)return;
- await updateDoc(ref,{name:p.name||shared.name,breed:p.breed||'',dob:p.dob||'',
+ const latest=dog()?.id===dogId?dog():shared;
+ await updateDoc(ref,{...sharedSectionFields(latest,existing.data()),name:p.name||shared.name,breed:p.breed||'',dob:p.dob||'',
    personality:p.personality||'',favorites:p.favorites||'',cuteFact:p.cuteFact||'',
    photo:p.photo||'',posts:p.posts||[],postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()});
 };
