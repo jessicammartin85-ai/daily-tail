@@ -783,7 +783,7 @@
 /* Keep the full schedule entry visible above the upcoming preview. */
 (function(){const style=document.createElement('style');style.textContent=`
 .dt-concept-next .dt-concept-head,#dtImageDesignedHome .dt-concept-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;column-gap:12px!important;row-gap:5px!important;align-items:center!important}
-#dtOpenDailySchedule{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;max-width:100%;padding:8px 12px!important;border:1px solid #9eb8c9!important;border-radius:22px!important;background:#e0ecf3!important;color:#294f68!important;font:700 14px/1.2 Arial,sans-serif!important;cursor:pointer}
+#dtOpenDailySchedule{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;max-width:100%;padding:6px 8px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:#5c7689!important;font:600 12px/1.2 Arial,sans-serif!important;cursor:pointer}
 .dt-concept-head .dt-concept-time{grid-column:1 / -1!important;text-align:left!important;margin:0!important;line-height:1.3!important}
 #dtImageDesignedHome .dt-concept-head h3,.dt-concept-next .dt-concept-head h3{margin:0!important;line-height:1.15!important}
 #dtImageDesignedHome .dt-concept-task,.dt-concept-next .dt-concept-task{grid-template-columns:28px fit-content(calc(100% - 130px)) 44px minmax(28px,1fr)!important;gap:10px!important;align-items:center!important;margin-top:10px!important}
