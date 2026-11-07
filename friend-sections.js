@@ -1,5 +1,7 @@
 (()=>{
 const cardOptions={cardShape:{"original":"Original","rounded":"Soft rounded","compact":"Rounded rectangle","ticket":"Ticket","folder":"Folder tab","asymmetric":"Asymmetric corners","clipped":"Clipped corners"},cardBorder:{"original":"Original","classic":"Classic outline","stitched":"Stitched","double":"Double frame","accent":"Accent edge","shadow":"Shadow only","top":"Top accent","weighted":"Weighted bottom edge","beveled":"Beveled rim","cream":"Cream outline","stacked":"Stacked paper","brackets":"Corner brackets","rails":"Side rails","bands":"Cream side bands","piping":"Collar piping","perforated":"Perforated edges","rivets":"Corner rivets"}};
+cardOptions.mainCardShape=cardOptions.cardShape;
+cardOptions.mainCardBorder=cardOptions.cardBorder;
 function cardStyles(value){
  const styles={};
  for(const [key,options] of Object.entries(cardOptions)){
@@ -91,8 +93,10 @@ const badgeLevels=new Map([
 ]);
 function render(details,requestDetails){
  const appearance=cardStyles(details?.appearance);
- document.body.dataset.friendCardShape=appearance.cardShape||'original';
- document.body.dataset.friendCardBorder=appearance.cardBorder||'original';
+ for(const key of Object.keys(cardOptions)){
+  const attribute='friend'+key[0].toUpperCase()+key.slice(1);
+  document.body.dataset[attribute]=appearance[key]||'original';
+ }
  const previous=document.getElementById('dtSharedExtras');
  const trainingOpen=previous?.querySelector('.dt-shared-training')?.open||false;
  previous?.remove();
