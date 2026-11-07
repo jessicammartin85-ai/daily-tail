@@ -91,6 +91,22 @@ function programSetup(){
   });
  };
 }
+const programActivityGroups={
+ star:{'Class preparation':[0],'Socialization and confidence':[1,5,12,13],'Handling and equipment':[2,3,6],'Leash walking':[7,8],'Basic cues and manners':[4,9,10,11]},
+ cgc:{'Greetings and social skills':[0,1,7],'Handling and grooming':[2],'Leash walking':[3,4],'Basic cues':[5,6],'Confidence and independence':[8,9]},
+ kpa:{'Training foundations':[0,1],'Building skills':[2,4],'Understanding your dog':[3,5],'Review and next steps':[6]}
+};
+function groupedProgramLessons(program){
+ const id=Object.keys(programPresets).find(key=>programPresets[key].url===program.url||programPresets[key].name===program.name);
+ const groups=new Map();
+ program.lessons.forEach((lesson,index)=>{
+  const presetIndex=id?programPresets[id].lessons.indexOf(lesson.title):-1;
+  const group=id?Object.entries(programActivityGroups[id]).find(([,indices])=>indices.includes(presetIndex))?.[0]||'Other activities':'Trainer’s activities';
+  if(!groups.has(group))groups.set(group,[]);
+  groups.get(group).push(programLessonRow(program,lesson,index));
+ });
+ return Array.from(groups,([title,rows])=>`<section><h4>${esc(title)}</h4><ol style="padding-inline-start:24px">${rows.join('')}</ol></section>`).join('');
+}
 function programOverview(){
  const data=read(), program=data.program;
  const next=program.lessons.findIndex(l=>!l.completedAt);
@@ -98,7 +114,7 @@ function programOverview(){
  ${program.url?link(program.url,'Open program resource'):''}
  <p role="status">${program.lessons.filter(l=>l.completedAt).length} of ${program.lessons.length} lessons complete</p>
  <p>${next<0?'All lessons completed.':'Next lesson: '+esc(program.lessons[next].title)}</p>
- <ol>${program.lessons.map((lesson,index)=>programLessonRow(program,lesson,index)).join('')}</ol>
+ ${groupedProgramLessons(program)}
  ${adult()?'<button id="dtEditProgram">Edit program</button>':''}
  ${data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''}`);
  document.querySelectorAll('[data-program-lesson]').forEach(b=>b.onclick=()=>programLesson(Number(b.dataset.programLesson)));
@@ -176,7 +192,7 @@ function programLessonRow(program,lesson,index){
  const details=programLessonDetails(program,lesson);
  const preview=lesson.directions||details?.description||'Open lesson for practice notes.';
  const video=lesson.video||details?.id==='cgc'||details?.example;
- return `<li><div style="display:flex;align-items:center;gap:10px">
+ return `<li value="${index+1}"><div style="display:flex;align-items:center;gap:10px">
  <input type="checkbox" data-program-check="${index}" aria-label="Complete ${esc(lesson.title)}" ${lesson.completedAt?'checked':''} ${adult()?'':'disabled'}>
  <button class="dt-training-tile" style="flex:1;min-width:0" data-program-lesson="${index}"><strong>${esc(lesson.title)}</strong><small>${esc(preview.length>150?preview.slice(0,147)+'…':preview)}</small>${video?'<small>▶ Video</small>':''}</button>
  </div></li>`;
@@ -246,8 +262,21 @@ function updateCard(){
  let card=$('dtTrainingHome');if(!card){card=document.createElement('section');card.id='dtTrainingHome';anchor.before(card);}
  const program=read().program;
  const next=program?.lessons.find(lesson=>!lesson.completedAt);
- card.innerHTML='<div><h3>🎓 Training</h3><p>'+esc(program?.name||'Add your training program')+'</p>'+(program?'<small>'+esc(next?.title||'All lessons completed')+'</small>':'')+'</div><button type="button">'+(program?'Continue ›':'Set up program ›')+'</button>';
+ const dogId=api().dogId();
+ card.innerHTML='<div><h3>🎓 Training</h3><p>'+esc(program?.name||'Add your training program')+'</p>'+(program?'<small>'+(next?'<label><input type="checkbox" data-home-training-check '+(adult()?'':'disabled')+'> '+esc(next.title)+'</label>':'All lessons completed')+'</small>':'')+'</div><button type="button">'+(program?'Continue ›':'Set up program ›')+'</button>';
  card.querySelector('button').onclick=open;
+ const check=card.querySelector('[data-home-training-check]');
+ if(check)check.onchange=()=>{
+  const data=read();
+  const lesson=data.program?.lessons.find(item=>!item.completedAt);
+  if(!adult()||dogId!==api().dogId()||data.program?.name!==program.name||lesson?.title!==next.title){updateCard();return;}
+  try{
+   lesson.completedAt=new Date().toISOString();
+   api().save(data);
+   updateCard();
+   card.querySelector('[data-home-training-check],button')?.focus({preventScroll:true});
+  }catch(error){check.checked=false;alert(error.message);}
+ };
 }
 function init(){if(!api())return;const trigger=$('trainingArt');if(trigger){legacyOpen=trigger.onclick;trigger.onclick=open;}
  const style=document.createElement('style');style.textContent=`#dtTrainingHome{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#d4e2ec;border:2px solid #9eb5c5;border-radius:22px;box-sizing:border-box;padding:12px 14px;margin:14px 12px;color:#294d65;font:15px/1.4 Arial,sans-serif}#dtTrainingHome h3{font:700 22px Georgia,serif;margin:0 0 3px}#dtTrainingHome p{margin:0}#dtTrainingHome button{flex-shrink:0;background:#fff9ef;border:1px solid #a6bac9;border-radius:17px;padding:12px;color:#294d65;font-weight:bold;min-height:44px}body.friend-view #dtTrainingHome,body.dt-locked #dtTrainingHome{display:none!important}.dt-training{color:#294d65;font:16px/1.5 Arial,sans-serif}.dt-training h3{font:700 28px Georgia,serif;color:#6b462e}.dt-training h4{font:700 22px Georgia,serif;margin:12px 0}.dt-training label{display:block;margin:12px 0}.dt-training input:not([type=checkbox]),.dt-training select,.dt-training textarea{display:block;box-sizing:border-box;width:100%;padding:11px;border:1px solid #9db2c1;border-radius:10px;background:#fffefa;font:16px Arial;color:#294d65}.dt-training textarea{min-height:90px}.dt-training button{min-height:44px;cursor:pointer;margin:5px 0;padding:10px 13px;border:1px solid #9eb5c5;border-radius:12px;background:#e0ebf2;color:#294d65;font-weight:bold}.dt-training button:disabled{opacity:.5;cursor:default}.dt-training button.primary{background:#345b73;color:white}.dt-training details,.dt-training-quick,.dt-training-resources{padding:14px;margin:12px 0;border:1px solid #b6c8d4;border-radius:14px;background:#fff9ef}.dt-training-quick{background:#d6e5ef}.dt-training summary{cursor:pointer;font-weight:bold;min-height:30px}.dt-training-tile{display:flex;width:100%;flex-direction:column;align-items:start;text-align:left;gap:5px}.dt-training-tile strong{font:700 22px Georgia}.dt-training-tile span{font-weight:normal}.dt-training-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.dt-training-check{display:flex!important;align-items:start;gap:9px}.dt-training-check input{margin-top:5px;flex-shrink:0}.dt-training a{color:#245b7b;overflow-wrap:anywhere}.dt-training-history{border-bottom:1px solid #d2dde5;padding:10px 0}.dt-training-history p{margin:4px 0}.dt-training-note{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:400px){#dtTrainingHome{padding:10px 12px;gap:8px;font-size:13px}#dtTrainingHome h3{font-size:20px}#dtTrainingHome button{font-size:12px;padding:7px 10px;max-width:110px}}`;document.head.append(style);
