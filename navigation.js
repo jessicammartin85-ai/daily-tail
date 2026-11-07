@@ -152,7 +152,8 @@
    if(document.body.classList.contains('friend-view')){
     if(facts&&facts.parentNode&&facts.nextElementSibling!==friends)facts.after(friends);
    }else{
-    if(extras.nextElementSibling!==friends)extras.after(friends);
+    const anchor=$('dtTrainingHome')||extras;
+    if(anchor.nextElementSibling!==friends)anchor.after(friends);
    }
   }
   positionFriends();
