@@ -15,7 +15,15 @@ function build(extras={}){
  if(prefs.training===true){
   const training=parse(extras.daily_tales_training_plan_v1), program=training.program;
   const lessons=list(program?.lessons);
-  if(lessons.length)result.training={name:text(program.name,100),done:lessons.filter(lesson=>lesson?.completedAt).length,total:lessons.length};
+  if(lessons.length){
+   const levels=['Learning with help','Can do it in a quiet setting','Reliable in different settings'];
+   const badges=lessons.flatMap(lesson=>{
+    if(!lesson?.title)return [];
+    const level=levels.includes(lesson.skillLevel)?lesson.skillLevel:lesson.completedAt?'Completed':list(lesson.practiceDays).length?'Practicing':'';
+    return level?[{skill:text(lesson.title,100),level}]:[];
+   }).slice(0,30);
+   result.training={name:text(program.name,100),badges};
+  }
   else{
    const mastered=Object.values(training.skills||{}).filter(skill=>skill?.masteredAt).length;
    if(mastered)result.training={name:'Training',mastered};
@@ -59,11 +67,16 @@ function render(details,requestDetails){
  if(details.training){
   const t=details.training, section=card('🎓 Training progress');
   if(t.name)element(section,'p',t.name);
-  element(section,'strong',t.mastered?t.mastered+' skills mastered':t.done+' of '+t.total+' lessons complete');
-  if(Number.isFinite(t.total)&&t.total>0){
-   const progress=element(section,'progress','');progress.max=t.total;progress.value=Math.min(t.total,Math.max(0,Number(t.done)||0));
-   progress.setAttribute('aria-label','Training lessons completed');
-  }
+  const badges=list(t.badges);
+  if(badges.length){
+   const items=element(section,'ul','');items.className='dt-shared-skill-badges';
+   for(const badge of badges){
+    const item=element(items,'li','');
+    element(item,'strong',badge.skill);
+    element(item,'span',badge.level);
+   }
+  }else if(t.mastered)element(section,'p',t.mastered+' skills mastered');
+  else element(section,'p','No skill badges shared yet.');
  }
  for(const [key,label] of fields.filter(([key])=>key==='hosting'||key==='attending')){
   const events=list(details[key]).filter(event=>Date.parse(event.date)>=Date.now());
