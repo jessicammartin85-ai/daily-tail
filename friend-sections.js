@@ -81,6 +81,7 @@ const badgeLevels=new Map([
 ]);
 function render(details,requestDetails){
  const previous=document.getElementById('dtSharedExtras');
+ const giftsOpen=previous?.querySelector('.dt-shared-gift-button')?.getAttribute('aria-expanded')==='true';
  const trainingOpen=previous?.querySelector('.dt-shared-training')?.open||false;
  previous?.remove();
  const anchor=document.querySelector('.dog-friends-section');
@@ -93,10 +94,6 @@ function render(details,requestDetails){
   const href=url(value);
   if(!href){element(parent,'span',label);return;}
   const el=element(parent,'a',label);el.className=className;el.href=href;el.target='_blank';el.rel='noopener noreferrer';
- }
- function card(title){
-  const section=element(panel,'section','');section.className='dt-shared-detail-card';
-  element(section,'h2',title);return section;
  }
  if(details.training){
   const t=details.training, badges=list(t.badges).filter(badge=>isDogSkill(badge?.skill));
@@ -122,27 +119,48 @@ function render(details,requestDetails){
   }else if(t.mastered)element(section,'p',t.mastered+' skills mastered');
   else element(section,'p','No skill badges shared yet.');
  }
- for(const [key,label] of fields.filter(([key])=>key==='hosting'||key==='attending')){
-  const events=list(details[key]).filter(event=>Date.parse(event.date)>=Date.now());
-  if(!events.length)continue;
-  const section=card('📅 '+label);
-  const items=element(section,'ul','');
-  for(const event of events){
-   const row=element(items,'li',event.title+' · '+new Date(event.date).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}));
-   if(key==='hosting'&&event.id&&requestDetails){
-    const button=element(row,'button','Request Details');button.type='button';button.className='small';button.style.marginInlineStart='8px';button.onclick=()=>requestDetails(event);
+ const hasEvents=['hosting','attending'].some(key=>list(details[key]).some(event=>Date.parse(event.date)>=Date.now()));
+ if(hasEvents||details.gifts){
+  const section=element(panel,'section','');
+  section.className='dt-shared-detail-card';
+  const header=element(section,'div','');
+  header.className='dt-shared-events-header';
+  element(header,'h2','Events');
+  if(details.gifts){
+   const gift=details.gifts;
+   const button=element(header,'button','🎁 Gift List');
+   button.type='button';
+   button.className='dt-shared-gift-button';
+   const giftPanel=element(section,'div','');
+   giftPanel.id='dtSharedGiftList';
+   giftPanel.className='dt-shared-gift-list';
+   button.setAttribute('aria-controls',giftPanel.id);
+   function showGifts(open){
+    giftPanel.hidden=!open;
+    button.setAttribute('aria-expanded',String(open));
+   }
+   showGifts(giftsOpen);
+   button.onclick=()=>showGifts(giftPanel.hidden);
+   if(gift.title&&!/^gift list$/i.test(gift.title.trim()))element(giftPanel,'p',gift.title);
+   if(url(gift.externalUrl))link(giftPanel,'Open gift list ↗',gift.externalUrl,'dt-shared-gift-action');
+   if(list(gift.items).length){
+    const items=element(giftPanel,'ul','');
+    for(const item of gift.items)link(element(items,'li',''),item.name,item.url);
    }
   }
- }
- if(details.gifts){
-  const gift=details.gifts;
-  const section=card('🎁 Gift List');
-  if(gift.title&&!/^gift list$/i.test(gift.title.trim()))element(section,'p',gift.title);
-  if(url(gift.externalUrl))link(section,'Open gift list ↗',gift.externalUrl,'dt-shared-gift-action');
-  if(list(gift.items).length){
+  for(const [key,label] of fields.filter(([key])=>key==='hosting'||key==='attending')){
+   const events=list(details[key]).filter(event=>Date.parse(event.date)>=Date.now());
+   if(!events.length)continue;
+   element(section,'h3',label);
    const items=element(section,'ul','');
-   for(const item of gift.items)link(element(items,'li',''),item.name,item.url);
+   for(const event of events){
+    const row=element(items,'li',event.title+' · '+new Date(event.date).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}));
+    if(key==='hosting'&&event.id&&requestDetails){
+     const button=element(row,'button','Request Details');button.type='button';button.className='small';button.style.marginInlineStart='8px';button.onclick=()=>requestDetails(event);
+    }
+   }
   }
+  if(!hasEvents)element(section,'p','No upcoming events shared.');
  }
  if(panel.children.length)anchor.after(panel);
 }
