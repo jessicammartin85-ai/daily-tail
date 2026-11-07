@@ -319,7 +319,7 @@ function skill(id){selected=id;const data=read(),s=skills.find(s=>s.id===id);if(
  if($('dtRefresher'))$('dtRefresher').onclick=()=>run(()=>{p.masteredAt=null;p.done=p.done.filter(i=>i!==s.steps.length-1);data.skills[id]=p;append('Refresher started');write(data);skill(id);});
 }
 function updateCard(){
- const anchor=$('dtTimelineDashboard')||document.querySelector('.dog-friends-section');if(!anchor)return;
+ const anchor=document.querySelector('.dog-friends-section');if(!anchor)return;
  let card=$('dtTrainingHome');if(!card){card=document.createElement('section');card.id='dtTrainingHome';anchor.before(card);}
  const program=read().program;
  const next=program?.lessons.find(lesson=>!lesson.completedAt);
