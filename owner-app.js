@@ -1107,12 +1107,19 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
  $('dtCodeManageNow').onclick=()=>dtManageCodes();
 }
 
-const DT_PER_DOG_KEYS=['daily_tail_event_notes_v1','loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
+const DT_PER_DOG_KEYS=['daily_tales_training_plan_v1','daily_tail_event_notes_v1','loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
 function dtExtrasForActive(){
  const extras={};
  for(const k of DT_PER_DOG_KEYS){const v=dtSafeStorage.getItem(k);if(v!==null)extras[k]=v}
  return extras;
 }
+window.DailyTalesTrainingStore={
+ dogId:()=>dtAccess.activeId||'',
+ profile:()=>getProfileDetails(),
+ read:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tales_training_plan_v1')||'{}')}catch{return {}}},
+ save:data=>{if(window.dtRole!=='adult'||!dtDog())throw Error('Only a connected Adult Owner can save training.');dtSafeStorage.setItem('daily_tales_training_plan_v1',JSON.stringify(data));dtSnapshotActive();window.dispatchEvent(new Event('daily-tales-training-changed'));},
+ show:body=>show('Training',body,'training')
+};
 function dtSnapshotActive(){
  const d=dtDog();if(!d)return;
  d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));
