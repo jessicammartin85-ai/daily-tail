@@ -149,7 +149,7 @@ function init(){
  if(!anchor||!store())return;
  const section=document.createElement('section');section.id='dtEventsGiftsHome';section.className='dog-friends-section';
  section.innerHTML=`<div class="dt-eg-header">
-  <div><h2>Events</h2><button type="button" class="dt-eg-events-link">+ Events</button></div>
+  <div class="dt-eg-title"><h2>Events</h2><button type="button" class="dt-eg-events-link">+ Events</button></div>
   <button type="button" class="dt-eg-gift-button"><span aria-hidden="true">🎁</span> Gift List</button>
  </div>`;
  anchor.after(section);
@@ -161,7 +161,8 @@ function init(){
  .dt-eg-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
  #dtEventsGiftsHome h2{font:700 clamp(23px,5vw,29px)/1.2 Georgia,serif;color:#6b4935;margin:0}
  #dtEventsGiftsHome button{cursor:pointer;font:700 13px Arial,sans-serif;color:#25475d;min-height:36px}
- .dt-eg-events-link{padding:4px 0;border:0;background:transparent;text-decoration:underline;text-underline-offset:3px}
+ .dt-eg-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ .dt-eg-events-link{padding:4px 0;border:0;background:transparent;text-decoration:none;white-space:nowrap}
  .dt-eg-gift-button{flex-shrink:0;white-space:nowrap;padding:6px 10px;border:1px solid #aabecb;border-radius:10px;background:#fff9ef}
  #dtEventsGiftsHome button:focus-visible,.dt-events-gifts button:focus-visible{outline:2px solid #265a7b;outline-offset:2px}
  .dt-events-gifts form,.dt-event-entry{margin:12px 0;padding:14px;border:1px solid #b8cbd7;border-radius:15px;background:#fff9ef}
