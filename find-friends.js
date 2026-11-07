@@ -1,4 +1,4 @@
-import {publicMemoryPosts} from './public-memory-posts.js?v=post-social-20261106';
+import {publicMemoryPosts} from './public-memory-posts.js?v=memory-bylines-20261107';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -195,7 +195,9 @@ function initFriendsFeed(){
      const photo=document.createElement('img');photo.src=post.photo;photo.alt='Shared memory photo';photo.loading='lazy';card.append(photo);
     }
     const link=document.createElement('a');link.href=friendUrl(shareId);link.textContent='View shared profile ›';
-    card.append(heading,title,summary,link);panel.append(card);
+    card.append(heading,title);
+    if(post.authorName){const byline=document.createElement('small');byline.className='dt-memory-byline';byline.textContent='By '+post.authorName;card.append(byline);}
+    card.append(summary,link);panel.append(card);
    }
   }catch(error){
    if(request===generation&&current?.uid===uid)panel.textContent='Couldn’t load the friends feed. Try refreshing.';
