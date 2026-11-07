@@ -89,17 +89,18 @@ function render(details,requestDetails){
   if(badges.length)element(summary,'small',badges.length+' '+(badges.length===1?'skill':'skills'));
   if(t.name)element(section,'p',t.name);
   if(badges.length){
-   const medalColors={
-    'Learning with help':'bronze',
-    'Can do it in a quiet setting':'silver',
-    'Reliable in different settings':'gold',
-    'Completed':'gold'
+   const medalStyles={
+    'Learning with help':['learning','🐾'],
+    'Can do it in a quiet setting':['quiet','⌂'],
+    'Reliable in different settings':['reliable','★'],
+    'Completed':['complete','✓']
    };
    const items=element(section,'ul','');items.className='dt-shared-skill-badges';
    for(const badge of badges){
     const item=element(items,'li','');
-    const medal=element(item,'span','★');
-    medal.className='dt-skill-medal '+(Object.hasOwn(medalColors,badge.level)?medalColors[badge.level]:'blue');
+    const [style,symbol]=Object.hasOwn(medalStyles,badge.level)?medalStyles[badge.level]:['practice','↻'];
+    const medal=element(item,'span',symbol);
+    medal.className='dt-skill-medal '+style;
     medal.setAttribute('aria-hidden','true');
     element(item,'strong',badge.skill);
     element(item,'span',badge.level);
