@@ -22,7 +22,13 @@ function info(){return api()?.profile?.()||{};}
 function ageText(dob){if(!dob)return 'Age not set';const months=(Date.now()-new Date(dob+'T12:00:00').getTime())/2629800000;return months<6?'Puppy: start with very short, easy practice.':months<18?'Adolescent: revisit easier steps as needed.':months<96?'Adult: start from demonstrated skills, not age.':'Senior: prioritize comfortable movement and short practice.';}
 function stateFor(data,id){return data.skills[id]||{done:[],cue:skills.find(s=>s.id===id).cue,notes:'',url:'',masteredAt:null};}
 function stageFor(s,p){const i=s.steps.findIndex((_,i)=>!p.done?.includes(i));return i<0?s.steps.length-1:i;}
-function frame(body){api().show('<div class="dt-training">'+body+'<p id="dtTrainingStatus" role="status"></p></div>');const content=$('content');if(content)content.querySelector('h3')?.setAttribute('tabindex','-1');}
+function frame(body, backLabel='Back to Home', back=()=>$('close')?.click()){
+ const button='<button type="button" data-training-back>‹ '+esc(backLabel)+'</button>';
+ api().show('<div class="dt-training">'+button+body+'<p id="dtTrainingStatus" role="status"></p>'+button+'</div>');
+ const content=$('content');
+ content?.querySelector('h3')?.setAttribute('tabindex','-1');
+ content?.querySelectorAll('[data-training-back]').forEach(control=>control.onclick=back);
+}
 function link(url,label){return '<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(label)+' ↗</a>';}
 function safeURL(value){if(!value)return '';const u=new URL(value);if(u.protocol!=='https:')throw Error('Use an https:// resource link.');return u.href;}
 function open(){if(!['adult','child'].includes(window.dtRole)||document.body.classList.contains('friend-view'))return;screenDog=api().dogId();const data=read();if(data.program)programOverview();else programSetup();}
@@ -62,7 +68,8 @@ function programSetup(){
  <label>Program or trainer link (optional)<input name="url" type="url" value="${esc(program?.url||'')}"></label>
  <label>Lessons in order (one per line)<textarea name="lessons" maxlength="6000" required>${esc(program?.lessons.map(l=>l.title).join('\n')||'')}</textarea></label>
  <button class="primary">Save program</button></form>`+
- (data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''));
+ (data.settings?'<button id="dtPreviousPlan">Previous plan and history</button>':''),
+ program?'Back to program lessons':undefined,program?programOverview:undefined);
  const previous=$('dtPreviousPlan');if(previous)previous.onclick=overview;
  const form=$('dtProgramForm'), presetSelect=$('dtProgramPreset'), loadPreset=$('dtLoadProgramPreset');
  presetSelect.onchange=()=>{
@@ -211,8 +218,7 @@ const lessonSkillLevels=['Not started','Learning with help','Can do it in a quie
 function programLesson(index){
  const data=read(), lesson=data.program.lessons[index];
  if(!lesson)return;
- frame(`<button id="dtProgramBack">‹ Program lessons</button>
- <h3>${esc(lesson.title)}</h3>
+ frame(`<h3>${esc(lesson.title)}</h3>
  ${programLessonResources(data.program,lesson)}
  ${lesson.video?link(lesson.video,'▶ Your trainer’s video'):''}
  <form id="dtProgramLesson">
@@ -222,8 +228,7 @@ function programLesson(index){
  <label>Trainer’s video link (optional)<input type="url" name="video" value="${esc(lesson.video||'')}"></label>
  <label>Practice notes<textarea name="notes" maxlength="3000">${esc(lesson.notes||'')}</textarea></label>
  ${adult()?'<button class="primary">Save lesson progress</button>':''}
- </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`);
- $('dtProgramBack').onclick=programOverview;
+ </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`,'Back to program lessons',programOverview);
  const form=$('dtProgramLesson');
  function captureNotes(){
   const fields=new FormData(form);
