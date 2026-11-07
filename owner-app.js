@@ -895,6 +895,7 @@ function dtLinkDog(u,dogId,role){
  dtStore();
 }
 let dtCurrentUsername='';
+let dtManualDogPicker=false;
 
 function dtPinHash(pin,salt){let h=2166136261;const str=salt+':'+pin;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
 function dtRegisterUser(person,username,pin,role,dogId){
@@ -909,7 +910,14 @@ function dtRememberUser(username,remember){
  if(remember){try{dtSafeStorage.setItem(DT_REMEMBER_KEY,username)}catch{}}
  else dtSafeStorage.removeItem(DT_REMEMBER_KEY);
 }
-function dtEnterNamedUser(u,remember){if(!u)return;dtCurrentUsername=u.username;dtRememberUser(u.username,remember);dtDogPicker();}
+function dtEnterNamedUser(u,remember,resume=false){
+ if(!u)return;
+ dtCurrentUsername=u.username;
+ dtRememberUser(u.username,remember);
+ const link=resume&&!u.cloudManaged&&dtLinks(u).find(item=>item.dogId===dtAccess.activeId);
+ if(link&&dtDog())dtEnter(link.role,u.name,link.dogId);
+ else dtDogPicker();
+}
 function dtUnlockUser(username,pin,remember){const u=dtFindUser(username);if(!u||dtPinHash(pin,u.salt)!==u.pinHash)throw Error('Username or PIN not recognized. You can also use your invitation code.');dtEnterNamedUser(u,remember)}
 function dtDownloadBackup(){
  if(window.dtRole!=='adult'){alert('Only an Adult Owner can back up all private family records.');return}
@@ -984,7 +992,7 @@ function dtSignInGate(note=''){
   };return;
  }
  const remembered=dtSafeStorage.getItem(DT_REMEMBER_KEY),u=remembered?dtFindUser(remembered):null;
- if(u){dtEnterNamedUser(u,true);return}
+ if(u){dtEnterNamedUser(u,true,true);return}
  dtGateHtml(`<h2>Welcome to Daily Tail</h2><p class="dt-helper">Sign into your saved profile, join a dog you were invited to, or start a new dog profile.</p><form id="dtQuickLoginForm"><label>Username<input id="dtQuickUsername" maxlength="24" autocomplete="username" required placeholder="Your username"></label><label>PIN<input id="dtQuickPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" required placeholder="4–6 digits"></label><label class="dt-remember-row"><input id="dtQuickRemember" type="checkbox" checked> Remember me on this device</label><button class="primary" type="submit">Open My Daily Tail</button></form><div class="dt-entry-separator">More ways to enter</div><div class="dt-action-panel"><h3>Join an existing dog</h3><p>Don't have a dog of your own? Follow a family member's dog using their invitation.</p><button id="dtInvitationOpen" type="button" class="secondary">Join an existing dog's profile</button></div><div class="dt-action-panel"><h3>Restore a backup</h3><p>Use a backup file to reconnect with a Daily Tail profile you already saved.</p><button id="dtRecoverExisting" type="button" class="secondary">Restore a previous backup</button></div><input id="dtRecoverExistingFile" type="file" accept=".json,application/json" hidden><div class="dt-other-options"><button id="dtNewDog" type="button">Create my own dog profile</button></div><p class="dt-error" id="dtGateError">${safe(note)}</p>`);
  $('dtRecoverExisting').onclick=()=>$('dtRecoverExistingFile').click();$('dtRecoverExistingFile').onchange=e=>dtRestoreBackup(e.target.files?.[0]);
  $('dtQuickLoginForm').onsubmit=e=>{e.preventDefault();try{dtUnlockUser($('dtQuickUsername').value,$('dtQuickPin').value,$('dtQuickRemember').checked)}catch(err){$('dtGateError').textContent=err.message}};
@@ -1220,17 +1228,16 @@ window.DailyTalesLocalDogs={
     }
     if(changed)dtStore();
     dtSafeStorage.setItem(linkKey,uid);
-    if(window.dtRole==='locked'||dtCurrentUsername!==account.username){
+    if(dtCurrentUsername!==account.username||(window.dtRole==='locked'&&!dtManualDogPicker)){
       if(window.dtRole==='adult')dtSnapshotActive();
       dtCurrentUsername=account.username;
       dtRememberUser(account.username,true);
-      dtDogPicker();
       const pending=sessionStorage.getItem('dtCloudPendingDog');
-      if(pending&&dtLinks(account).some(link=>link.dogId===pending)){
-        sessionStorage.removeItem('dtCloudPendingDog');
-        const role=dtLinks(account).find(link=>link.dogId===pending)?.role||'friend';
-        dtEnter(role,account.name,pending);
-      }
+      const selected=cloudDogs.find(d=>d.id===pending)||cloudDogs.find(d=>d.id===dtAccess.activeId);
+      sessionStorage.removeItem('dtCloudPendingDog');
+      if(selected&&dtAccess.dogs.some(d=>d.id===selected.id)){
+        dtEnter(selected.role||'adult',account.name,selected.id);
+      }else dtDogPicker();
     }
     return true;
   },
@@ -1240,7 +1247,7 @@ window.DailyTalesLocalDogs={
     const remembered=dtSafeStorage.getItem(DT_REMEMBER_KEY);
     const user=(remembered&&dtFindUser(remembered))||(dtAccess.users||[]).find(u=>dtLinks(u).some(x=>x.role==='adult'));
     if(!user)return false;
-    dtEnterNamedUser(user,true);
+    if(!dtManualDogPicker)dtEnterNamedUser(user,true,true);
     return true;
   },
   list(){
@@ -1301,10 +1308,10 @@ save=function(){if(window.dtRole==='child'){
  dtOriginalSave();if(window.dtRole==='adult')dtSnapshotActive();
 };
 saveMeta=function(){dtOriginalSaveMeta();if(window.dtRole==='adult')dtSnapshotActive()};
-function dtEnter(role,person,dogId){dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?(dtFindUser(dtCurrentUsername)?.cloudManaged?'Share & approvals':'Codes & approvals'):'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
-function dtSignOut(){if(window.DailyTalesCloudSignOut)window.DailyTalesCloudSignOut();dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
+function dtEnter(role,person,dogId){dtManualDogPicker=false;dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?(dtFindUser(dtCurrentUsername)?.cloudManaged?'Share & approvals':'Codes & approvals'):'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
+function dtSignOut(){dtManualDogPicker=false;if(window.DailyTalesCloudSignOut)window.DailyTalesCloudSignOut();dtSafeStorage.removeItem(DT_REMEMBER_KEY);if(window.dtRole==='adult')dtSnapshotActive();dtCurrentUsername='';window.dtRole='locked';window.dtPerson='';document.body.classList.add('dt-locked');$('dtRoleStrip').hidden=true;$('dtGate').hidden=false;dtSignInGate();window.scrollTo(0,0)}
 $('dtRoleSignOut').onclick=dtSignOut;
-$('dtSwitchDogs').onclick=()=>dtDogPicker();
+$('dtSwitchDogs').onclick=()=>{dtManualDogPicker=true;dtDogPicker();};
 $('dtBackupBtn').onclick=dtDownloadBackup;
 $('dtRestoreGateBtn').onclick=()=>$('dtRestoreFile').click();
 $('dtRestoreFile').onchange=e=>dtRestoreBackup(e.target.files?.[0]);
