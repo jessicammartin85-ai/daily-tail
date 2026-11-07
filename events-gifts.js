@@ -62,7 +62,14 @@ const sharedRoot=document.getElementById('dtSharedEventsGifts');
 if(sharedRoot){startShared(sharedRoot);return;}
 const store=()=>window.DailyTalesEventsGiftsStore;
 const content=()=>document.getElementById('content');
-function screen(title,body){store().show(title,'<div class="dt-events-gifts">'+body+'</div>');}
+function screen(title,body){
+ store().show(title,'<div class="dt-events-gifts">'+body+'</div>');
+ const darkActions=content().querySelectorAll('.dt-events-gifts button[type=submit],#dtCreateEvent,#dtCopyEventShare,.dt-eg-open-list');
+ for(const action of darkActions){
+  action.style.setProperty('color','#fff','important');
+  action.style.setProperty('-webkit-text-fill-color','#fff','important');
+ }
+}
 function share(item,back){
  const url=new URL('./events-gifts-share.html',location.href);
  const {image,...sharedItem}=item;
@@ -240,7 +247,7 @@ function init(){
  .dt-events-gifts button{min-height:40px;padding:8px 12px;margin:4px 0;border:1px solid #91afc2;border-radius:10px;background:#e1edf3;color:#25475d;font-weight:700;cursor:pointer}
  .dt-events-gifts form button:not([type=button]),#dtCreateEvent,#dtShareGifts,#dtCopyEventShare{background:#335c74;color:#fff;border-color:#335c74}
  body #overlay .sheet .dt-events-gifts button[type=submit],
- body #overlay .sheet .dt-events-gifts :is(#dtCreateEvent,#dtShareGifts,#dtCopyEventShare){color:#fff!important;-webkit-text-fill-color:#fff!important}
+ body #overlay .sheet .dt-events-gifts :is(#dtCreateEvent,#dtCopyEventShare){color:#fff!important;-webkit-text-fill-color:#fff!important}
  .dt-event-image{display:block;max-width:100%;max-height:230px;object-fit:contain;border-radius:10px;margin:10px 0}
  .dt-events-gifts .dt-event-image-remove input{display:inline;width:auto;margin-right:6px}
  .dt-event-entry h3{margin:0 0 6px;color:#6b4935;font-family:Georgia,serif}
