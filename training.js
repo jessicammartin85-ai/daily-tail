@@ -104,14 +104,75 @@ function programOverview(){
  const edit=$('dtEditProgram');if(edit)edit.onclick=programSetup;
  const previous=$('dtPreviousPlan');if(previous)previous.onclick=overview;
 }
+const programExplanations = {
+ star: [
+  'Review the owner checklist with your instructor and prepare for class.',
+  'Give your puppy space to observe people and dogs comfortably. Let your instructor guide introductions.',
+  'Pair brief, comfortable wear with rewards. Build duration gradually.',
+  'Practice brief, gentle touches and release before your puppy wants to pull away.',
+  'Offer a trade and let your puppy release voluntarily. Ask your trainer for help if they guard items.',
+  'Have a helper offer brief petting when your puppy willingly approaches.',
+  'Build from a brief touch to a short check of ears and paws.',
+  'Start with a few steps beside you and build toward the program’s 15-step check.',
+  'Practice passing a helper with enough room for your puppy to stay comfortable.',
+  'Reward a comfortable sit and follow your instructor’s cue.',
+  'Reward a comfortable down on a nonslip surface.',
+  'Practice short returns in a secure space before trying the five-foot check.',
+  'Introduce a mild distraction from a comfortable distance.',
+  'Have a trusted helper hold the leash while you take a few steps away and return.'
+ ],
+ cgc: [
+  'Practice staying with you while a friendly person approaches and greets you.',
+  'Build a comfortable sit while a helper pets briefly.',
+  'Pair short grooming touches and ear and paw checks with rewards.',
+  'Practice turns and stops while keeping the leash slack.',
+  'Start with a few helpers spaced apart and practice walking through calmly.',
+  'Build sit and down on cue, then practice a stay and return using the test instructions.',
+  'Practice returning on cue on a long line in a safe space.',
+  'Practice passing a neutral dog at a distance where both dogs can stay calm.',
+  'Introduce mild sights or sounds gradually. Give your dog room to recover.',
+  'Start with brief departures while a trusted helper holds the leash and build gradually.'
+ ],
+ kpa: [
+  'Use the course to learn how a marker identifies the behavior that earns a reward.',
+  'Pick one observable behavior and break practice into small, achievable steps.',
+  'Use the course exercises to practice capturing, shaping, and targeting.',
+  'Observe how your dog’s posture and movement change as the setting changes.',
+  'Follow the course exercises for adding a cue and building a behavior in small steps.',
+  'Identify everyday rewards your dog enjoys, such as a chance to sniff or play.',
+  'Review your course exercises and record a specific skill you want to improve next.'
+ ]
+};
+const supplementalSkills = {
+ 'Sit':'sit','Sit, down, and stay':'sit',
+ 'Walk 15 steps on leash':'leash','Walk on a loose leash':'leash',
+ 'Come when called from five feet':'recall','Come when called':'recall',
+ 'Use cues, shaping, and targeting':'touch'
+};
+function programLessonResources(program, lesson){
+ const entry=Object.entries(programPresets).find(([,preset])=>preset.url===program.url||preset.name===program.name);
+ if(!entry)return '';
+ const [id,preset]=entry;
+ const index=preset.lessons.indexOf(lesson.title);
+ if(index<0)return '';
+ const example=skills.find(skill=>skill.id===supplementalSkills[lesson.title]);
+ return `<div class="dt-training-resources"><h4>What to practice</h4>
+ <p>${esc(programExplanations[id][index])}</p>
+ ${link(preset.url,id==='cgc'?'AKC test instructions and demonstration':id==='kpa'?'Course outline and course access':'AKC puppy program checklist')}
+ ${example?'<p>'+link(example.video||example.videoPage||example.source,'▶ Supplemental demonstration: '+(example.videoCredit||example.credit))+'</p>':''}
+ </div>`;
+}
 function programLesson(index){
  const data=read(), lesson=data.program.lessons[index];
  if(!lesson)return;
  frame(`<button id="dtProgramBack">‹ Program lessons</button>
  <h3>${esc(lesson.title)}</h3>
+ ${programLessonResources(data.program,lesson)}
+ ${lesson.video?link(lesson.video,'▶ Your trainer’s video'):''}
  <form id="dtProgramLesson">
  <label>Trainer’s directions<textarea name="directions" maxlength="3000">${esc(lesson.directions||'')}</textarea></label>
  <label>When the trainer says to advance<textarea name="criteria" maxlength="1500">${esc(lesson.criteria||'')}</textarea></label>
+ <label>Trainer’s video link (optional)<input type="url" name="video" value="${esc(lesson.video||'')}"></label>
  <label>Practice notes<textarea name="notes" maxlength="3000">${esc(lesson.notes||'')}</textarea></label>
  ${adult()?'<button class="primary">Save lesson notes</button>':''}
  </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`);
@@ -119,9 +180,10 @@ function programLesson(index){
  const form=$('dtProgramLesson');
  function captureNotes(){
   const fields=new FormData(form);
+  lesson.video=safeURL(fields.get('video').trim());
   for(const key of ['directions','criteria','notes'])lesson[key]=fields.get(key).trim();
  }
- form.onsubmit=e=>{e.preventDefault();run(()=>{captureNotes();write(data);$('dtTrainingStatus').textContent='Lesson notes saved.';});};
+ form.onsubmit=e=>{e.preventDefault();run(()=>{captureNotes();write(data);programLesson(index);$('dtTrainingStatus').textContent='Lesson notes saved.';});};
  const done=$('dtProgramDone');
  if(done)done.onclick=()=>run(()=>{
   captureNotes();
