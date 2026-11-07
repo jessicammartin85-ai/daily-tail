@@ -61,11 +61,18 @@ function build(extras={}){
  return result;
 }
 const badgeCategories=[
- ["social","🐾",["Comfort around people and puppies","Petting by another person","Handle mild distractions","Brief handoff to another person","Greet a friendly stranger","Sit politely for petting","Pass another dog politely","Respond calmly to distractions","Supervised separation"]],
- ["handling","✋",["Comfort wearing a collar or harness","Gentle handling and holding","Ear and paw handling","Accept a grooming and handling check"]],
- ["walking","➜",["Walk 15 steps on leash","Pass people on leash","Walk on a loose leash","Walk through a crowd"]],
- ["cues","★",["Giving up a toy or treat","Sit","Lie down","Come when called from five feet","Sit, down, and stay","Come when called","Build foundation behaviors"]]
+ ["social",["Comfort around people and puppies","Petting by another person","Handle mild distractions","Brief handoff to another person","Greet a friendly stranger","Sit politely for petting","Pass another dog politely","Respond calmly to distractions","Supervised separation"]],
+ ["handling",["Comfort wearing a collar or harness","Gentle handling and holding","Ear and paw handling","Accept a grooming and handling check"]],
+ ["walking",["Walk 15 steps on leash","Pass people on leash","Walk on a loose leash","Walk through a crowd"]],
+ ["cues",["Giving up a toy or treat","Sit","Lie down","Come when called from five feet","Sit, down, and stay","Come when called","Build foundation behaviors"]]
 ];
+const badgeIcons={
+ "social": "<ellipse cx=\"5\" cy=\"10\" rx=\"2\" ry=\"2.7\"/><ellipse cx=\"9.5\" cy=\"6.5\" rx=\"2\" ry=\"2.7\"/><ellipse cx=\"14.5\" cy=\"6.5\" rx=\"2\" ry=\"2.7\"/><ellipse cx=\"19\" cy=\"10\" rx=\"2\" ry=\"2.7\"/><path d=\"M12 11c-2.4 0-3.1 2.1-5 3.6-3.4 2.7-.9 6.7 2.8 5.2 1.7-.7 2.7-.7 4.4 0 3.7 1.5 6.2-2.5 2.8-5.2-1.9-1.5-2.6-3.6-5-3.6Z\"/>",
+ "handling": "<path d=\"M6 12V6a1.25 1.25 0 0 1 2.5 0v5h1V4a1.25 1.25 0 0 1 2.5 0v7h1V5a1.25 1.25 0 0 1 2.5 0v6h1V7a1.25 1.25 0 0 1 2.5 0v7a7 7 0 0 1-13 3.6l-2.4-3.5A1.4 1.4 0 0 1 6 12Z\"/>",
+ "walking": "<path d=\"M13 4l8 8-8 8-2-2 4.6-4.5H3v-3h12.6L11 6z\"/>",
+ "cues": "<path d=\"m12 2 3.1 6.3 7 .9-5 4.9 1.2 7-6.3-3.3-6.3 3.3 1.2-7-5-4.9 7-.9z\"/>",
+ "general": "<path d=\"m12 3 3 6 6 3-6 3-3 6-3-6-6-3 6-3z\"/>"
+};
 const badgeLevels=new Map([
  ['Learning with help','blue'],
  ['Can do it in a quiet setting','yellow'],
@@ -104,8 +111,9 @@ function render(details,requestDetails){
    const items=element(section,'ul','');items.className='dt-shared-skill-badges';
    for(const badge of badges){
     const item=element(items,'li','');
-    const [category,symbol]=badgeCategories.find(([, , titles])=>titles.includes(badge.skill))||['general','◆'];
-    const medal=element(item,'span',symbol);
+    const [category]=badgeCategories.find(([, titles])=>titles.includes(badge.skill))||['general'];
+    const medal=element(item,'span','');
+    medal.innerHTML=`<svg viewBox="0 0 24 24" focusable="false">${badgeIcons[category]}</svg>`;
     medal.className='dt-skill-medal '+category+' '+(badgeLevels.get(badge.level)||'blue');
     medal.setAttribute('aria-hidden','true');
     element(item,'strong',badge.skill);
