@@ -309,6 +309,18 @@ function weeks(){let dob=getDOB();if(!dob)return 15;return Math.max(0,Math.floor
 function save(){try{dtSafeStorage.setItem(KEY,JSON.stringify(state));window.dispatchEvent(new Event('daily-tail-schedule-change'))}catch{alert('Could not save checklist on this browser.')}}
 function event(time,title,desc,kind){return{time,title,desc,kind}}
 function plan(w){
+ const customized=Array.isArray(state.customPlan),counts={};
+ const symbols={potty:'🚽',meal:'🥣',train:'🎓',sleep:'🌙',social:'🌎',play:'🎾',walk:'🐕',meds:'💊',health:'🩺'};
+ return basePlan(w).map(([group,entries])=>[group,entries.map(entry=>{
+  const seed=String(entry.time||'').replace(/[^a-z0-9]/gi,'').toLowerCase()+'_'+(entry.kind||'other');
+  counts[seed]=(counts[seed]||0)+1;
+  const eventId=entry.eventId||'event_'+seed+'_'+counts[seed];
+  const title=String(entry.title||'');
+  const emoji=symbols[entry.kind]||'🐾';
+  return {...entry,eventId,title:customized||/^\p{Extended_Pictographic}/u.test(title)?title:emoji+' '+title};
+ })]);
+}
+function basePlan(w){
 if(Array.isArray(state.customPlan))return state.customPlan;
 const young=w<26;const p=[
 ['Morning',[
@@ -414,11 +426,12 @@ function editSchedule(){
   const card=document.createElement('div');
   card.className='dt-schedule-edit-row';
   card.dataset.originalIndex=entry.originalIndex==null?'-1':String(entry.originalIndex);
+  card.dataset.eventId=entry.eventId||'custom_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);
   card.innerHTML='<div class="dt-schedule-edit-rowhead"><strong>Activity</strong><button type="button" class="dt-edit-remove" aria-label="Remove activity">Remove</button></div>'+
    '<label>Time<input class="dt-edit-time" type="time" required value="'+escapeAttr(timeToInput(entry.time))+'"></label>'+
    '<label>Part of day<select class="dt-edit-group">'+headings.map(h=>'<option value="'+h+'" '+(h===entry.group?'selected':'')+'>'+h+'</option>').join('')+'</select></label>'+
-   '<label>Activity name<input class="dt-edit-title" maxlength="90" required value="'+escapeAttr(entry.title)+'"></label>'+
-   '<label>Notes<textarea class="dt-edit-desc" maxlength="1000" rows="2"></textarea></label>';
+   '<label>Activity name (emojis welcome)<input class="dt-edit-title" maxlength="90" required value="'+escapeAttr(entry.title)+'"></label>'+
+   '<label>Activity details<textarea class="dt-edit-desc" maxlength="1000" rows="2"></textarea></label>';
   card.querySelector('.dt-edit-desc').value=entry.desc||'';
   card.querySelector('.dt-edit-remove').onclick=()=>card.remove();
   container.append(card);
@@ -440,7 +453,7 @@ function editSchedule(){
    const group=card.querySelector('.dt-edit-group').value;
    if(!title||!time){$('dtScheduleEditStatus').textContent='Every activity needs a name and time.';card.querySelector(!title?'.dt-edit-title':'.dt-edit-time').focus();return;}
    const oldIndex=Number(card.dataset.originalIndex);
-   changed.push({entry:{time:inputToTime(time),title,desc,kind:oldIndex>=0?rows[oldIndex]?.kind||'other':'other'},group,originalIndex:oldIndex});
+   changed.push({entry:{eventId:card.dataset.eventId,time:inputToTime(time),title,desc,kind:oldIndex>=0?rows[oldIndex]?.kind||'other':'other'},group,originalIndex:oldIndex});
   }
   const arranged=headings.flatMap(group=>changed.filter(row=>row.group===group).sort((a,b)=>activityMinutes(a.entry.time)-activityMinutes(b.entry.time)));
   const grouped=headings.map(group=>[group,arranged.filter(row=>row.group===group).map(row=>row.entry)]);
@@ -469,13 +482,18 @@ $('scheduleCustomize').onclick=editSchedule;
 $('scheduleClear').onclick=()=>{ids.forEach(id=>delete state.done[id]);save();updateUpNext();render()};
 document.querySelectorAll('[data-schedule-id]').forEach(ch=>{ch.onchange=()=>{const id=ids[Number(ch.dataset.scheduleId)];if(ch.checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();const sc=$('content').scrollTop;render();$('content').scrollTop=sc}})
 }
-if($('scheduleArt')) $('scheduleArt').onclick=render; if($('upNextActivity')) $('upNextActivity').onclick=render;
+if($('scheduleArt')) $('scheduleArt').onclick=render; if($('upNextActivity')) $('upNextActivity').onclick=()=>window.DailyTailSchedule.openEvent(window.DailyTailSchedule.getCurrentIndex());
 if($('upNextCheck')) $('upNextCheck').onchange=e=>{
  const id=e.currentTarget.dataset.activityId;
  if(!id)return;
  if(e.currentTarget.checked)state.done[id]=true;else delete state.done[id];
  save();updateUpNext();
-}; window.DailyTailSchedule={getEntries:()=>plan(weeks()).flatMap(g=>g[1]),getDone:()=>state.done,setDone:(index,checked)=>{const events=plan(weeks()).flatMap(g=>g[1]);if(!Number.isInteger(index)||index<0||index>=events.length)return false;const id=day()+'|'+index;if(checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();return true;}};updateUpNext();window.addEventListener('focus',updateUpNext);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateUpNext()});window.setInterval(updateUpNext,60000);window.addEventListener('storage',e=>{if(e.key===KEY){try{state={done:{},...JSON.parse(e.newValue||'{}')}}catch{state={done:{}}}updateUpNext()}});
+}; window.DailyTailSchedule={
+ getCurrentIndex:()=>{const id=$('upNextCheck')?.dataset.activityId;return id?Number(id.split('|').pop()):-1;},
+ openEvent:(index)=>{render();requestAnimationFrame(()=>{const checkbox=document.querySelector('[data-schedule-id="'+index+'"]'),row=checkbox?.closest('.schedule-event');if(row){row.classList.add('dt-event-highlight');row.scrollIntoView({behavior:'smooth',block:'center'});checkbox.focus({preventScroll:true});setTimeout(()=>row.classList.remove('dt-event-highlight'),3000);}});},
+ getEventNotes:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tail_event_notes_v1')||'{}')}catch{return {}}},
+ saveEventNotes:notes=>{if(window.dtRole!=='adult')throw Error('Only Adult Owners can save event notes.');dtSafeStorage.setItem('daily_tail_event_notes_v1',JSON.stringify(notes));dtSnapshotActive();window.dispatchEvent(new Event('daily-tales-event-notes-changed'));},
+ getEntries:()=>plan(weeks()).flatMap(g=>g[1]),getDone:()=>state.done,setDone:(index,checked)=>{const events=plan(weeks()).flatMap(g=>g[1]);if(!Number.isInteger(index)||index<0||index>=events.length)return false;const id=day()+'|'+index;if(checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();return true;}};updateUpNext();window.addEventListener('focus',updateUpNext);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateUpNext()});window.setInterval(updateUpNext,60000);window.addEventListener('storage',e=>{if(e.key===KEY){try{state={done:{},...JSON.parse(e.newValue||'{}')}}catch{state={done:{}}}updateUpNext()}});
 })();
 
 /* Daily journal and snapshot. All entries are local to this browser. */
@@ -1086,7 +1104,7 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
  $('dtCodeManageNow').onclick=()=>dtManageCodes();
 }
 
-const DT_PER_DOG_KEYS=['loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
+const DT_PER_DOG_KEYS=['daily_tail_event_notes_v1','loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
 function dtExtrasForActive(){
  const extras={};
  for(const k of DT_PER_DOG_KEYS){const v=dtSafeStorage.getItem(k);if(v!==null)extras[k]=v}
