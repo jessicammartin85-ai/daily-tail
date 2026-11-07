@@ -63,7 +63,7 @@ window.addEventListener('resize',renderTagName);function howToUse(){show('How to
    const submit=document.createElement('button');
    submit.type='submit';submit.className='primary dt-post-save';
    submit.setAttribute('form','postForm');
-   submit.textContent='Post this memory ♡';
+   submit.textContent=inlineSubmit?.textContent||'Post this memory ♡';
    action.append(submit);
    sheet.append(action);
  }
@@ -75,7 +75,7 @@ window.addEventListener('resize',renderTagName);function howToUse(){show('How to
   window.DailyTalesVisiblePosts=type==='feed'?state.posts:selectedPublicPosts();
   queueMicrotask(()=>window.DailyTalesEnhancePostFeed?.(window.DailyTalesVisiblePosts));
  }
-}function close(){panel='';$('overlay').classList.remove('open')}function readPhoto(file,callback){if(!file)return;const fr=new FileReader;fr.onload=()=>{const im=new Image;im.onload=()=>{const c=document.createElement('canvas');const scale=Math.min(1,1100/im.width,1100/im.height);c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);callback(c.toDataURL('image/jpeg',.88),{width:c.width,height:c.height})};im.src=fr.result};fr.readAsDataURL(file)}
+}function close(){panel='';$('overlay').classList.remove('open')}function readPhoto(file,callback,onError){if(!file)return;const fr=new FileReader;fr.onerror=()=>onError?.();fr.onload=()=>{const im=new Image;im.onerror=()=>onError?.();im.onload=()=>{const c=document.createElement('canvas');const scale=Math.min(1,1100/im.width,1100/im.height);c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);callback(c.toDataURL('image/jpeg',.88),{width:c.width,height:c.height})};im.src=fr.result};fr.readAsDataURL(file)}
 let profileDraft=null;
 function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
 function openProfileEditor(dataUrl){
@@ -223,8 +223,74 @@ syncFriendView({keepModal:true});
 $('profileStatus').textContent=window.__dtPersistentStorage===false?'Changes are visible for this session, but browser storage is blocked. Save a backup before closing.':'✓ Profile saved! Friend View now uses the selected dog’s breed, birthday and fun fact.';
 };
 }
-function add(){show('Share a memory',`<p class="intro">A photo, a funny moment, or a little update about Lou Bear.</p><form id="postForm"><label class="field">Title<input name="title" maxlength="100" placeholder="Today's adventure" required></label><label class="field">Your update<textarea name="story" maxlength="2000" placeholder="What happened today?"></textarea></label><label class="field upload">Add a photo (optional)<input name="photo" type="file" accept="image/*"></label><img id="draftPhoto" class="preview-img" style="display:none" alt="Photo preview"><button class="primary" type="submit">Post this memory ♡</button></form>`,'add');let photo='';$('postForm').elements.photo.onchange=e=>readPhoto(e.target.files[0],url=>{photo=url;$('draftPhoto').src=url;$('draftPhoto').style.display='block'});$('postForm').onsubmit=e=>{e.preventDefault();const f=e.currentTarget;if(!f.elements.title.value.trim())return;const newMemory={id:Date.now().toString()+Math.random().toString(36).slice(2),title:f.elements.title.value.trim(),story:f.elements.story.value.trim(),photo,date:new Date().toISOString(),likes:0,comments:[]};if(window.dtRole==='child'){dtQueue({kind:'post',post:newMemory,by:window.dtPerson||'Child'});show('Waiting for approval','<p>Your memory was sent to the adult owner for approval. It will appear after approval.</p>','queued')}else{state.posts.unshift(newMemory);save();refresh();feed()}}}
-function feed(){show('Recent memories',`<p class="muted">A shared little scrapbook for photos, updates, hearts, and comments. <button class="small" id="newPost">＋ Add a memory</button></p><div class="feed">${state.posts.length?state.posts.map(post=>`<article class="post" data-id="${safe(post.id)}">${post.photo?`<img src="${post.photo}" alt="Photo shared with this memory">`:''}<div class="post-body"><time>${new Date(post.date).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</time><h3>${safe(post.title)}</h3>${post.story?`<p>${safe(post.story)}</p>`:''}<div class="post-actions"><button class="small like" data-id="${safe(post.id)}" aria-label="Love this memory">♡ ${post.likes||0}</button><button class="small delete" data-id="${safe(post.id)}">Delete</button></div><div class="comments">${(post.comments||[]).map(c=>`<div class="comment">💬 ${safe(c)}</div>`).join('')}<form class="comment-entry" data-id="${safe(post.id)}"><input aria-label="Write a comment" placeholder="Leave a little note..." maxlength="280" required><button class="small" type="submit">Send</button></form></div></div></article>`).join(''):'<div class="empty"><strong>No memories posted yet.</strong><p>Your first photo or little update will appear here.</p></div>'}</div>`,'feed');$('newPost').onclick=add;document.querySelectorAll('.like').forEach(el=>el.onclick=()=>{let p=state.posts.find(x=>x.id===el.dataset.id);p.likes=(p.likes||0)+1;save();feed()});document.querySelectorAll('.delete').forEach(el=>el.onclick=()=>{if(confirm('Remove this memory?')){state.posts=state.posts.filter(x=>x.id!==el.dataset.id);save();refresh();feed()}});document.querySelectorAll('.comment-entry').forEach(el=>el.onsubmit=e=>{e.preventDefault();let input=el.querySelector('input'),p=state.posts.find(x=>x.id===el.dataset.id);if(input.value.trim()){p.comments.push(input.value.trim());save();feed()}})}
+function memoryDay(date=new Date()){
+ return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+}
+function add(postId){
+ const editing=typeof postId==='string';
+ const previous=editing?state.posts.find(post=>post.id===postId):null;
+ if(editing&&(!previous||window.dtRole!=='adult'))return;
+ if(window.dtRole!=='adult'&&window.dtRole!=='child')return;
+ const dogId=dtAccess.activeId;
+ const today=memoryDay(), originalDate=previous&&new Date(previous.date);
+ const originalDay=originalDate&&!isNaN(originalDate)?memoryDay(originalDate):today;
+ let photo=previous?.photo||'';
+ show(editing?'Edit memory':'Share a memory',`
+ <button type="button" class="small" id="dtBackToMemories">‹ Back to memories</button>
+ <form id="postForm">
+ <label class="field">Title<input name="title" maxlength="100" value="${safe(previous?.title||'')}" required></label>
+ <label class="field">Memory date<input name="memoryDate" type="date" value="${originalDay}" max="${today}" required></label>
+ <label class="field">Your update<textarea name="story" maxlength="2000" placeholder="What happened?">${safe(previous?.story||previous?.text||'')}</textarea></label>
+ <label class="field upload">${photo?'Replace photo':'Add a photo (optional)'}<input name="photo" type="file" accept="image/*"></label>
+ <img id="draftPhoto" class="preview-img" ${photo?`src="${safe(photo)}"`:'style="display:none"'} alt="Photo preview">
+ <button class="primary" type="submit">${editing?'Save changes':'Post this memory ♡'}</button>
+ </form>`,'add');
+ $('dtBackToMemories').onclick=feed;
+ const form=$('postForm'), submit=document.querySelector('.dt-post-save');
+ let photoSelection=0;
+ form.elements.photo.onchange=event=>{
+  const selection=++photoSelection, file=event.target.files[0];
+  if(!file){if(submit)submit.disabled=false;return;}
+  if(submit)submit.disabled=true;
+  readPhoto(file,url=>{
+   if(!form.isConnected||selection!==photoSelection)return;
+   photo=url;
+   $('draftPhoto').src=url;
+   $('draftPhoto').style.display='block';
+   if(submit)submit.disabled=false;
+  },()=>{
+   if(!form.isConnected||selection!==photoSelection)return;
+   if(submit)submit.disabled=false;
+   alert('Could not open that photo. Choose another image.');
+  });
+ };
+ form.onsubmit=event=>{
+  event.preventDefault();
+  const role=window.dtRole;
+  if(dtAccess.activeId!==dogId||(editing?role!=='adult':role!=='adult'&&role!=='child'))return;
+  const title=form.elements.title.value.trim(), day=form.elements.memoryDate.value;
+  if(!title||!day||day>memoryDay())return;
+  const date=previous?.date&&day===originalDay&&!isNaN(originalDate)?previous.date:
+   day===memoryDay()?new Date().toISOString():new Date(day+'T12:00:00').toISOString();
+  const changes={title,story:form.elements.story.value.trim(),photo,date};
+  if(editing){
+   const post=state.posts.find(item=>item.id===postId);
+   if(!post)return;
+   Object.assign(post,changes);
+  }else{
+   const post={id:Date.now().toString()+Math.random().toString(36).slice(2),...changes,likes:0,comments:[]};
+   if(role==='child'){
+    dtQueue({kind:'post',post,by:window.dtPerson||'Child'});
+    show('Waiting for approval','<p>Your memory was sent to the adult owner for approval. It will appear after approval.</p>','queued');
+    return;
+   }
+   state.posts.unshift(post);
+  }
+  state.posts.sort((first,second)=>(Date.parse(second.date)||0)-(Date.parse(first.date)||0));
+  save();refresh();feed();
+ };
+}
+function feed(){show('Recent memories',`<p class="muted">A shared little scrapbook for photos, updates, hearts, and comments. <button class="small" id="newPost">＋ Add a memory</button></p><div class="feed">${state.posts.length?state.posts.map(post=>`<article class="post" data-id="${safe(post.id)}">${post.photo?`<img src="${post.photo}" alt="Photo shared with this memory">`:''}<div class="post-body"><time>${new Date(post.date).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</time><h3>${safe(post.title)}</h3>${post.story?`<p>${safe(post.story)}</p>`:''}<div class="post-actions"><button class="small like" data-id="${safe(post.id)}" aria-label="Love this memory">♡ ${post.likes||0}</button>${window.dtRole==='adult'?`<button type="button" class="small dt-edit-memory" data-id="${safe(post.id)}">Edit</button><button type="button" class="small delete" data-id="${safe(post.id)}">Delete</button>`:''}</div><div class="comments">${(post.comments||[]).map(c=>`<div class="comment">💬 ${safe(c)}</div>`).join('')}<form class="comment-entry" data-id="${safe(post.id)}"><input aria-label="Write a comment" placeholder="Leave a little note..." maxlength="280" required><button class="small" type="submit">Send</button></form></div></div></article>`).join(''):'<div class="empty"><strong>No memories posted yet.</strong><p>Your first photo or little update will appear here.</p></div>'}</div>`,'feed');$('newPost').onclick=()=>add();document.querySelectorAll('.dt-edit-memory').forEach(button=>button.onclick=()=>add(button.dataset.id));document.querySelectorAll('.like').forEach(el=>el.onclick=()=>{let p=state.posts.find(x=>x.id===el.dataset.id);p.likes=(p.likes||0)+1;save();feed()});document.querySelectorAll('.delete').forEach(el=>el.onclick=()=>{if(window.dtRole==='adult'&&confirm('Remove this memory?')){state.posts=state.posts.filter(x=>x.id!==el.dataset.id);save();refresh();feed()}});document.querySelectorAll('.comment-entry').forEach(el=>el.onsubmit=e=>{e.preventDefault();let input=el.querySelector('input'),p=state.posts.find(x=>x.id===el.dataset.id);if(input.value.trim()){p.comments.push(input.value.trim());save();feed()}})}
 
 /* Emergency information stays on this device, separate from Recents. */
 const EMERGENCY_KEY='loubear_emergency_info_v1';
