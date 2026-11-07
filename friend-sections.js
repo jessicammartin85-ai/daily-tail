@@ -47,21 +47,29 @@ function render(details,requestDetails){
  function element(parent,tag,value){
   const el=document.createElement(tag);el.textContent=value;parent.append(el);return el;
  }
- function link(parent,label,value){
+ function link(parent,label,value,className=''){
   const href=url(value);
   if(!href){element(parent,'span',label);return;}
-  const el=element(parent,'a',label);el.href=href;el.target='_blank';el.rel='noopener noreferrer';
+  const el=element(parent,'a',label);el.className=className;el.href=href;el.target='_blank';el.rel='noopener noreferrer';
+ }
+ function card(title){
+  const section=element(panel,'section','');section.className='dt-shared-detail-card';
+  element(section,'h2',title);return section;
  }
  if(details.training){
-  const t=details.training;
-  element(panel,'h2','Training progress');
-  element(panel,'p',t.mastered?t.mastered+' skills mastered':t.name+' · '+t.done+' of '+t.total+' lessons complete');
+  const t=details.training, section=card('🎓 Training progress');
+  if(t.name)element(section,'p',t.name);
+  element(section,'strong',t.mastered?t.mastered+' skills mastered':t.done+' of '+t.total+' lessons complete');
+  if(Number.isFinite(t.total)&&t.total>0){
+   const progress=element(section,'progress','');progress.max=t.total;progress.value=Math.min(t.total,Math.max(0,Number(t.done)||0));
+   progress.setAttribute('aria-label','Training lessons completed');
+  }
  }
  for(const [key,label] of fields.filter(([key])=>key==='hosting'||key==='attending')){
   const events=list(details[key]).filter(event=>Date.parse(event.date)>=Date.now());
   if(!events.length)continue;
-  element(panel,'h2',label);
-  const items=element(panel,'ul','');
+  const section=card('📅 '+label);
+  const items=element(section,'ul','');
   for(const event of events){
    const row=element(items,'li',event.title+' · '+new Date(event.date).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}));
    if(key==='hosting'&&event.id&&requestDetails){
@@ -71,11 +79,11 @@ function render(details,requestDetails){
  }
  if(details.gifts){
   const gift=details.gifts;
-  element(panel,'h2','Gift list');
-  if(gift.title)element(panel,'p',gift.title);
-  if(url(gift.externalUrl))link(panel,'Open gift list ↗',gift.externalUrl);
+  const section=card('🎁 Gift List');
+  if(gift.title&&!/^gift list$/i.test(gift.title.trim()))element(section,'p',gift.title);
+  if(url(gift.externalUrl))link(section,'Open gift list ↗',gift.externalUrl,'dt-shared-gift-action');
   if(list(gift.items).length){
-   const items=element(panel,'ul','');
+   const items=element(section,'ul','');
    for(const item of gift.items)link(element(items,'li',''),item.name,item.url);
   }
  }
