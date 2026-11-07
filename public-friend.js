@@ -1,3 +1,4 @@
+import {approvedConnections,messageInbox} from './friend-messages.js?v=20261107';
 const el=x=>document.getElementById(x);
 
 document.body.classList.remove('dt-locked');document.body.classList.add('friend-view','visitor-entry');
@@ -39,13 +40,48 @@ el('close').onclick=close;
 el('overlay').onclick=e=>{if(e.target===el('overlay'))close()};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 
-import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {getFirestore,doc,onSnapshot,collection,getDoc,getDocs,query,where,limit,setDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const firebase=initializeApp({apiKey:'AIzaSyCdtV1qU_JxApJv3YwJqadUurjdAsCph98',authDomain:'daily-tail.firebaseapp.com',projectId:'daily-tail',messagingSenderId:'789609946634',appId:'1:789609946634:web:5c116c9bb8bd5051ad89f3'},'daily-tail-public-friend');
 const db=getFirestore(firebase),id=new URLSearchParams(location.search).get('share');
 const friendAuth=getAuth(firebase);
 let friendUser=null,publicDog=null;
+const messageApp=getApps().find(app=>app.name==='daily-tail-cloud')||initializeApp(firebase.options,'daily-tail-cloud');
+const messageDb=getFirestore(messageApp);
+const messageButton=document.createElement('button');
+messageButton.type='button';
+messageButton.className='dt-friend-btn';
+messageButton.textContent='Message';
+messageButton.hidden=true;
+el('dtFriendAction').append(messageButton);
+let messageUser=null,messageGeneration=0;
+async function refreshProfileMessage(){
+ const generation=++messageGeneration,account=messageUser,profile=publicDog;
+ messageButton.hidden=true;
+ messageButton.onclick=null;
+ if(!account||account.isAnonymous||!profile)return;
+ try{
+  const approved=await approvedConnections(messageDb,account.uid);
+  if(generation!==messageGeneration)return;
+  const connections=approved.filter(entry=>{
+   const data=entry.data();
+   return (data.targetOwnerUid===profile.ownerUid&&data.dogId===profile.dogId)
+    || (data.targetOwnerUid===account.uid&&data.requesterUid===profile.ownerUid);
+  });
+  if(!connections.length)return;
+  messageButton.hidden=false;
+  messageButton.onclick=()=>messageInbox(messageDb,account,connections,connections[0].id,profile.name||'Dog friend');
+ }catch{}
+}
+onAuthStateChanged(getAuth(messageApp),account=>{
+ if(messageUser?.uid!==account?.uid){
+  const dialog=el('dtMessages');
+  if(dialog?.open)dialog.close();
+ }
+ messageUser=account;
+ refreshProfileMessage();
+});
 const requestStatus=t=>el('friendRequestStatus').textContent=t;
 let requestedEvent=null;
 const hasAccount=()=>friendUser&&!friendUser.isAnonymous;
@@ -121,8 +157,9 @@ el('publicFriends').onclick=()=>document.querySelector('.dog-friends-section').s
 const design=document.createElement('script');design.src='./friend-design.js?v=public-connected-20261106';document.body.append(design);
 if(!id||!/^[a-zA-Z0-9]{16,40}$/.test(id)){notice.textContent='This sharing link is incomplete.';}
 else onSnapshot(doc(db,'publicProfiles',id),snap=>{
- if(!snap.exists()||!snap.data().active){notice.hidden=false;notice.textContent='This Friend link is no longer available.';window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close();return;}
+ if(!snap.exists()||!snap.data().active){notice.hidden=false;notice.textContent='This Friend link is no longer available.';publicDog=null;refreshProfileMessage();if(el('dtMessages')?.open)el('dtMessages').close();window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close();return;}
  publicDog=snap.data();const d=publicDog;
+ refreshProfileMessage();
  window.DailyTailsFriendSections?.render(d.sharedSections,requestEventDetails);
  window.DailyTalesSocialContext={ownerUid:d.ownerUid,dogId:d.dogId,public:true};notice.hidden=true;
  el('dtFactsDogName').textContent=d.name||'My Dog';el('publicDogName').textContent=d.name||'My Dog';
@@ -133,4 +170,4 @@ else onSnapshot(doc(db,'publicProfiles',id),snap=>{
  const latest=d.posts?.[0];el('recentPostTitle').textContent=latest?.title||'Memories coming soon';el('recentPostSummary').textContent=latest?.story||latest?.text||'See our shared moments';
  const thumb=el('recentPostThumb');if(latest?.photo){thumb.src=latest.photo;thumb.hidden=false}else{thumb.hidden=true;thumb.removeAttribute('src')}
  if(panel==='friend-feed')openMemories();
-},()=>{notice.hidden=false;notice.textContent='Unable to load the shared profile. Please try again.';window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close()});
+},()=>{notice.hidden=false;notice.textContent='Unable to load the shared profile. Please try again.';publicDog=null;refreshProfileMessage();if(el('dtMessages')?.open)el('dtMessages').close();window.DailyTailsFriendSections?.render(null);document.getElementById('dtFriendDesignHome')?.setAttribute('hidden','');document.querySelector('.dog-friends-section').hidden=true;close()});
