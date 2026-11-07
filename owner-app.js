@@ -231,6 +231,7 @@ const EMERGENCY_KEY='loubear_emergency_info_v1';
 function getEmergency(){try{const v=JSON.parse(dtSafeStorage.getItem(EMERGENCY_KEY));return v&&typeof v==='object'?v:{}}catch{return {}}}
 function phoneLink(number){const digits=String(number||'').replace(/[^0-9+]/g,'');return digits.length>=7&&digits.length<=16?'tel:'+digits:''}
 function emergencyInfo(message=''){
+ if(typeof message!=='string')message='';
  const d=getEmergency();
  const fld=(id,label,placeholder='')=>`<label class="field">${label}<input id="em_${id}" value="${safe(d[id]||'')}" placeholder="${safe(placeholder)}" autocomplete="off"></label>`;
  const txt=(id,label,placeholder='')=>`<label class="field">${label}<textarea id="em_${id}" placeholder="${safe(placeholder)}">${safe(d[id]||'')}</textarea></label>`;
@@ -242,7 +243,7 @@ function emergencyInfo(message=''){
  $('emergencyForm').onsubmit=e=>{e.preventDefault();const values={};['vetName','vetPhone','erName','erPhone','erAddress','contactName','contactPhone','microchip','medications','allergies','notes'].forEach(k=>values[k]=$('em_'+k).value.trim());try{dtSafeStorage.setItem(EMERGENCY_KEY,JSON.stringify(values));if(dtSafeStorage.getItem(EMERGENCY_KEY)!==JSON.stringify(values))throw Error('not saved');emergencyInfo('Saved.')}catch{$('emergencyStatus').textContent='Could not save. Please try again.'}};
 }
 function about(){howToUse()}
-$('recent').onclick=feed; if($('emergencyArt')) $('emergencyArt').onclick=emergencyInfo; $('portraitBtn').onclick=()=>profile();$('tag').onclick=editTagName; if($('appTitleBtn')) $('appTitleBtn').onclick=howToUse; $('close').onclick=close;$('overlay').onclick=e=>{if(e.target===$('overlay'))close()};window.addEventListener('keydown',e=>{if(e.key==='Escape')close()});refresh();renderTagName();
+$('recent').onclick=feed; if($('emergencyArt')) $('emergencyArt').onclick=()=>emergencyInfo(); $('portraitBtn').onclick=()=>profile();$('tag').onclick=editTagName; if($('appTitleBtn')) $('appTitleBtn').onclick=howToUse; $('close').onclick=close;$('overlay').onclick=e=>{if(e.target===$('overlay'))close()};window.addEventListener('keydown',e=>{if(e.key==='Escape')close()});refresh();renderTagName();
 
 /* Age- and breed-aware training planner. Local-only, no remote account required. */
 (()=>{
