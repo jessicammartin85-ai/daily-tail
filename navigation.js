@@ -211,7 +211,7 @@
   '@media(max-width:390px){.dt-concept-profile{gap:11px;padding:14px}.dt-concept-profile-photo{width:100px;height:100px;flex-basis:100px}.dt-concept-profile-copy p{font-size:12px;margin-top:88px}.dt-concept-tag{right:13%;width:112px}.dt-concept-tag-label{right:calc(13% + 11px);width:90px}}'
   ].join('\n');document.head.appendChild(css);
   const home=document.createElement('section');home.id='dtConceptHome';home.setAttribute('aria-label','Daily Tail home dashboard');
-  home.innerHTML='<div class="dt-concept-profile"><img id="dtConceptPhoto" class="dt-concept-profile-photo" alt="Lou profile photo"><div class="dt-concept-profile-copy"><h2 id="dtConceptName">Lou</h2><p>My profile · Recent memories</p><button type="button" id="dtConceptProfile" class="dt-concept-open">View profile ›</button></div><img id="dtConceptTag" class="dt-concept-tag" alt="" aria-hidden="true"><span id="dtConceptTagLabel" class="dt-concept-tag-label" aria-hidden="true">Lou</span></div><div class="dt-concept-next"><div class="dt-concept-head"><h3>Up Next</h3><span class="dt-concept-time" id="dtConceptTime">Loading plan…</span></div><div class="dt-concept-task"><input type="checkbox" id="dtConceptCheck" aria-label="Complete next care task"><button type="button" id="dtConceptTask">Check the daily plan</button><button type="button" class="dt-concept-chev" id="dtConceptArrow" aria-label="Open this event in the Daily Schedule">›</button></div></div><div class="dt-concept-actions"><button type="button" id="dtConceptCare"><span class="dt-icon" aria-hidden="true">🐾</span>Log Care</button><button type="button" id="dtConceptPlan"><span class="dt-icon" aria-hidden="true">▣</span>Daily Plan</button><button type="button" id="dtConceptMemory"><span class="dt-icon" aria-hidden="true">♡</span>Memory</button></div><div class="dt-concept-extras"><button type="button" id="dtConceptTraining">Training ›</button><button type="button" id="dtConceptEmergency">Emergency Info ›</button></div>';
+  home.innerHTML='<div class="dt-concept-profile"><img id="dtConceptPhoto" class="dt-concept-profile-photo" alt="Lou profile photo"><div class="dt-concept-profile-copy"><h2 id="dtConceptName">Lou</h2><p>My profile · Recent memories</p><button type="button" id="dtConceptProfile" class="dt-concept-open">View profile ›</button></div><img id="dtConceptTag" class="dt-concept-tag" alt="" aria-hidden="true"><span id="dtConceptTagLabel" class="dt-concept-tag-label" aria-hidden="true">Lou</span></div><div class="dt-concept-next"><div class="dt-concept-head"><h3>Up Next</h3><button type="button" id="dtOpenDailySchedule">📅 Daily Schedule ›</button><span class="dt-concept-time" id="dtConceptTime">Loading plan…</span></div><div class="dt-concept-task"><input type="checkbox" id="dtConceptCheck" aria-label="Complete next care task"><button type="button" id="dtConceptTask">Check the daily plan</button><button type="button" class="dt-concept-chev" id="dtConceptArrow" aria-label="Open this event in the Daily Schedule">›</button></div></div><div class="dt-concept-actions"><button type="button" id="dtConceptCare"><span class="dt-icon" aria-hidden="true">🐾</span>Log Care</button><button type="button" id="dtConceptPlan"><span class="dt-icon" aria-hidden="true">▣</span>Daily Plan</button><button type="button" id="dtConceptMemory"><span class="dt-icon" aria-hidden="true">♡</span>Memory</button></div><div class="dt-concept-extras"><button type="button" id="dtConceptTraining">Training ›</button><button type="button" id="dtConceptEmergency">Emergency Info ›</button></div>';
   art.before(home);
   const action=(source,id)=>$(source)?.addEventListener('click',()=>$(id)?.click());
   $('dtConceptProfile').addEventListener('click',()=>{if(document.body.classList.contains('friend-view'))$('recent')?.click();else $('portraitBtn')?.click();});
@@ -222,6 +222,7 @@
   action('dtConceptEmergency','emergencyArt');
   action('dtConceptTask','upNextActivity');
   action('dtConceptArrow','upNextActivity');
+  action('dtOpenDailySchedule','scheduleArt');
   $('dtConceptCheck').addEventListener('change',e=>{
     const original=$('upNextCheck');
     if(original&&original.checked!==e.target.checked)original.click();
@@ -446,14 +447,13 @@
    '#dtTimelineDashboard button:focus-visible{outline:3px solid #365f79;outline-offset:3px}'
   ].join('\n');document.head.appendChild(css);
   const section=document.createElement('section');section.id='dtTimelineDashboard';section.setAttribute('aria-label','Today progress and schedule');
-  section.innerHTML='<div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="false" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Show full day ⌄</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol><button type="button" class="dt-timeline-all" id="dtTimelineAll">Open full Daily Plan ›</button></div>';
+  section.innerHTML='<div class="dt-timeline-card"><button type="button" class="dt-timeline-toggle" id="dtTimelineToggle" aria-expanded="false" aria-controls="dtTimelineItems"><strong>▦ Today’s Schedule</strong><span id="dtTimelineToggleText">Show full day ⌄</span></button><ol class="dt-timeline-items" id="dtTimelineItems"></ol></div>';
   const friends=document.querySelector('.dog-friends-section');
   if(friends)friends.before(section);else extras.after(section);
   const items=$('dtTimelineItems');let expanded=false;
-  const toggle=$('dtTimelineToggle'),fullPlan=$('dtTimelineAll');
+  const toggle=$('dtTimelineToggle');
   const renderExpanded=()=>{
     items.hidden=false;
-    fullPlan.hidden=!expanded;
     section.querySelector('.dt-timeline-card')?.classList.toggle('dt-is-collapsed',!expanded);
     toggle.setAttribute('aria-expanded',String(expanded));
     $('dtTimelineToggleText').textContent=expanded?'Show next three ⌃':'Show full day ⌄';
@@ -464,7 +464,6 @@
     update();
   });
   renderExpanded();
-  $('dtTimelineAll').addEventListener('click',()=>$('scheduleArt')?.click());
   const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
   function update(){
    if(document.body.classList.contains('friend-view')||document.body.classList.contains('dt-locked'))return;
@@ -515,7 +514,6 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)update()});
   // The original plan UI fires custom updates; this also catches returning from the plan dialog.
   $('close')?.addEventListener('click',update);
-  $('dtTimelineAll').addEventListener('click',()=>setTimeout(update,300));
   // The source schedule can initialize after this dashboard. Keep the expanded
   // list honest and retry until the shared schedule API is actually ready.
   let initAttempts=0;
@@ -781,3 +779,12 @@
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 
+
+/* Keep the full schedule entry visible above the upcoming preview. */
+(function(){const style=document.createElement('style');style.textContent=`
+.dt-concept-next .dt-concept-head,#dtImageDesignedHome .dt-concept-head{display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:center!important;justify-content:space-between!important}
+#dtOpenDailySchedule{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;max-width:100%;padding:8px 12px!important;border:1px solid #9eb8c9!important;border-radius:22px!important;background:#e0ecf3!important;color:#294f68!important;font:700 14px/1.2 Arial,sans-serif!important;cursor:pointer}
+.dt-concept-head .dt-concept-time{flex-basis:100%!important;text-align:right!important}
+#dtOpenDailySchedule:focus-visible{outline:3px solid #294f68;outline-offset:3px}
+@media(max-width:380px){#dtOpenDailySchedule{font-size:12px!important;padding:8px!important}}
+`;document.head.append(style);})();
