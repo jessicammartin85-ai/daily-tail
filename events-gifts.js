@@ -25,7 +25,7 @@ function eventDetails(event){
  (event.place?'<p>'+esc(event.place)+'</p>':'')+(event.details?'<p style="white-space:pre-wrap">'+esc(event.details)+'</p>':'');
 }
 function giftItems(list){
- return '<ul>'+list.items.map(item=>'<li>'+(webLink(item.url)?'<a href="'+esc(webLink(item.url))+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a>':esc(item.name))+'</li>').join('')+'</ul>';
+ return '<ul class="dt-eg-gift-items">'+list.items.map(item=>'<li>'+(webLink(item.url)?'<a href="'+esc(webLink(item.url))+'" target="_blank" rel="noopener noreferrer">'+esc(item.name)+'</a>':esc(item.name))+'</li>').join('')+'</ul>';
 }
 function startShared(root){
  const shared=readShare(location.hash);
@@ -148,12 +148,37 @@ function init(){
  const anchor=document.querySelector('.dog-friends-section');
  if(!anchor||!store())return;
  const section=document.createElement('section');section.id='dtEventsGiftsHome';section.className='dog-friends-section';
- section.innerHTML='<h2>Events &amp; Gifts</h2><button type="button" class="dt-find-btn">Events</button> <button type="button" class="dt-find-btn">Gift List</button>';
+ section.innerHTML=`<h2>Events &amp; Gifts</h2>
+ <div class="dt-eg-tiles">
+  <button type="button" class="dt-eg-tile"><span class="dt-eg-icon" aria-hidden="true">📅</span><span><strong>Events</strong><small>Create or join an event</small></span><span aria-hidden="true">›</span></button>
+  <button type="button" class="dt-eg-tile"><span class="dt-eg-icon" aria-hidden="true">🎁</span><span><strong>Gift List</strong><small>Save and share gift ideas</small></span><span aria-hidden="true">›</span></button>
+ </div>`;
  anchor.after(section);
  const [events,gifts]=section.querySelectorAll('button');
  events.onclick=openEvents;gifts.onclick=openGifts;
  const style=document.createElement('style');
- style.textContent='body:not(.dt-role-adult) #dtEventsGiftsHome,body.friend-view #dtEventsGiftsHome,body.dt-locked #dtEventsGiftsHome{display:none}.dt-events-gifts form{margin:12px 0}.dt-events-gifts label{display:block;margin:8px 0}.dt-events-gifts input,.dt-events-gifts textarea{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:8px}.dt-events-gifts textarea{min-height:100px}.dt-events-gifts button{padding:8px 12px;margin:4px 0}.dt-event-entry{border-top:1px solid #a1b6c4;padding:10px 0}.dt-events-gifts p,.dt-events-gifts li{overflow-wrap:anywhere}';
+ style.textContent=`
+ body:not(.dt-role-adult) #dtEventsGiftsHome,body.friend-view #dtEventsGiftsHome,body.dt-locked #dtEventsGiftsHome{display:none}
+ #dtEventsGiftsHome h2{font:700 clamp(23px,5vw,29px)/1.2 Georgia,serif;color:#6b4935;margin:0 0 13px}
+ .dt-eg-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ #dtEventsGiftsHome .dt-eg-tile{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;padding:12px 10px;text-align:left;background:#fff9ef;color:#25475d;border:1px solid #aabecb;border-radius:14px;cursor:pointer}
+ .dt-eg-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e1edf3;font-size:18px}
+ .dt-eg-tile strong,.dt-eg-tile small{display:block}
+ .dt-eg-tile small{margin-top:3px;font:12px/1.3 Arial,sans-serif;color:#4d6474}
+ .dt-eg-tile:focus-visible,.dt-events-gifts button:focus-visible{outline:2px solid #265a7b;outline-offset:2px}
+ .dt-events-gifts form,.dt-event-entry{margin:12px 0;padding:14px;border:1px solid #b8cbd7;border-radius:15px;background:#fff9ef}
+ .dt-events-gifts label{display:block;margin:8px 0;color:#294c63;font-weight:700}
+ .dt-events-gifts input,.dt-events-gifts textarea{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1px solid #9bb5c7;border-radius:9px;background:#fffefa;color:#263b4a;font:16px Arial,sans-serif}
+ .dt-events-gifts textarea{min-height:100px;resize:vertical}
+ .dt-events-gifts button{min-height:40px;padding:8px 12px;margin:4px 0;border:1px solid #91afc2;border-radius:10px;background:#e1edf3;color:#25475d;font-weight:700;cursor:pointer}
+ .dt-events-gifts form button:not([type=button]),#dtCreateEvent,#dtShareGifts,#dtCopyEventShare{background:#335c74;color:#fff;border-color:#335c74}
+ .dt-event-entry h3{margin:0 0 6px;color:#6b4935;font-family:Georgia,serif}
+ .dt-event-entry p{margin:6px 0}
+ .dt-events-gifts p,.dt-events-gifts li{overflow-wrap:anywhere}
+ .dt-eg-gift-items{list-style:none;padding:0;display:grid;gap:8px}
+ .dt-eg-gift-items li{background:#fff9ef;border:1px solid #b8cbd7;border-radius:10px;padding:10px 12px}
+ @media(max-width:400px){.dt-eg-tiles{grid-template-columns:1fr}}
+ `;
  document.head.append(style);
  const resume=()=>{
   if(location.hash.startsWith('#dtJoinEvent=')&&window.dtRole==='adult'&&!document.body.classList.contains('friend-view')&&!document.body.classList.contains('dt-locked'))openEvents();
