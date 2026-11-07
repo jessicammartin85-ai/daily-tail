@@ -5,6 +5,8 @@ const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const schedule=()=>window.DailyTailSchedule;
 const currentDog=()=>{try{const data=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');return data.activeId||''}catch{return ''}};
+const maxFileBytes=512*1024,maxDogBytes=1024*1024;
+let attachments=[];
 let active=null,draft=[],returnFocus=null,viewedDate=today();
 const types=[['Potty','🚽'],['Accident','💦'],['Meal','🥣'],['Walk','🐕'],['Meds','💊'],['Training','🎓'],['Health','🩺']];
 function recordFor(entry,date=today()){return schedule()?.getEventNotes?.()[date+'|'+entry.eventId]||null;}
@@ -21,10 +23,65 @@ function renderStamps(){
   list.append(row);
  });
 }
+function filesFor(record){return Array.isArray(record?.attachments)?record.attachments:[];}
+function appendFiles(parent,files,editable=false){
+ files.forEach((file,index)=>{
+  const row=node('div',undefined,'dt-event-file-row');
+  const download=node('button','Download '+file.name);download.type='button';
+  download.onclick=()=>{
+   const bytes=Uint8Array.from(atob(file.base64),char=>char.charCodeAt(0));
+   const url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
+   const link=node('a');link.href=url;link.download=file.name;document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),30000);
+  };
+  row.append(download);
+  if(editable){
+   const remove=node('button','Remove');remove.type='button';remove.setAttribute('aria-label','Remove '+file.name);
+   remove.onclick=()=>{attachments.splice(index,1);renderFiles();};row.append(remove);
+  }
+  parent.append(row);
+ });
+}
+function canEditFiles(){
+ return active&&active.date===today()&&window.dtRole==='adult'&&currentDog()===active.dogId;
+}
+function renderFiles(){
+ const list=$('dtEventFiles');list.replaceChildren();
+ appendFiles(list,attachments,canEditFiles());
+}
+async function addFiles(event){
+ const input=event.currentTarget,selection=Array.from(input.files),note=active,status=$('dtEventNoteStatus');
+ input.value='';
+ if(!selection.length||!canEditFiles()||note.reading)return;
+ const key=note.date+'|'+note.entry.eventId;
+ const stored=Object.entries(schedule().getEventNotes()).filter(([id])=>id!==key).flatMap(([,record])=>filesFor(record));
+ const used=[...stored,...attachments].reduce((size,file)=>size+file.size,0);
+ if(selection.some(file=>!file.size||file.size>maxFileBytes)){
+  status.textContent='Choose nonempty files of 512 KB or less.';return;
+ }
+ if(used+selection.reduce((size,file)=>size+file.size,0)>maxDogBytes){
+  status.textContent='Event note attachments are limited to 1 MB total per dog.';return;
+ }
+ note.reading=true;input.disabled=true;$('dtEventNoteSave').disabled=true;
+ try{
+  const files=await Promise.all(selection.map(file=>new Promise((resolve,reject)=>{
+   const reader=new FileReader();
+   reader.onerror=reader.onabort=reject;
+   reader.onload=()=>resolve({name:file.name.slice(0,180),size:file.size,base64:String(reader.result).split(',')[1]});
+   reader.readAsDataURL(file);
+  })));
+  if(active!==note||!canEditFiles())return;
+  attachments.push(...files);renderFiles();status.textContent='';
+ }catch{if(active===note)status.textContent='Could not read the selected files. Try choosing them again.';}
+ finally{
+  if(active===note){note.reading=false;input.disabled=false;$('dtEventNoteSave').disabled=false;}
+ }
+}
 function openNote(index,trigger,date=today(),savedEntry=null){
  const entry=savedEntry||schedule()?.getEntries?.()[index];if(!entry)return;
  active={entry,index,date,dogId:currentDog()};returnFocus=trigger||document.activeElement;
  const record=recordFor(entry,active.date);
+ attachments=[...filesFor(record)];
  draft=Array.isArray(record?.stamps)?record.stamps.map(s=>({...s})):[];
  $('dtEventNoteTitle').textContent='Note for '+entry.title;
  $('dtEventNoteWhen').textContent=new Date(active.date+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' · '+entry.time;
@@ -32,16 +89,19 @@ function openNote(index,trigger,date=today(),savedEntry=null){
  const editable=window.dtRole==='adult'&&active.date===today();
  $('dtEventNoteText').readOnly=!editable;$('dtEventNoteSave').hidden=!editable;
  $('dtEventQuickAdds').hidden=!editable;
+ $('dtEventFilePicker').hidden=!editable;
+ $('dtEventFileInput').disabled=false;$('dtEventNoteSave').disabled=false;
+ renderFiles();
  $('dtEventNoteStatus').textContent=editable?'':active.date!==today()?'Past notes are read-only.':'Only Adult Owners can add or edit event notes.';
  renderStamps();$('dtEventNoteDialog').showModal();
  if(editable)$('dtEventNoteText').focus();
 }
 function closeNote(){$('dtEventNoteDialog').close();active=null;returnFocus?.focus?.({preventScroll:true});}
 function saveNote(){
- if(!active||active.date!==today()||window.dtRole!=='adult')return;
+ if(!active||active.reading||active.date!==today()||window.dtRole!=='adult')return;
  if(currentDog()!==active.dogId){$('dtEventNoteStatus').textContent='The selected dog changed. Close this note and reopen the event.';return;}
  const text=$('dtEventNoteText').value.trim(),notes={...schedule().getEventNotes()},key=active.date+'|'+active.entry.eventId;
- if(text||draft.length)notes[key]={eventId:active.entry.eventId,date:active.date,eventTitle:active.entry.title,eventTime:active.entry.time,text,stamps:draft.map(s=>({...s})),updatedAt:new Date().toISOString()};
+ if(text||draft.length||attachments.length)notes[key]={eventId:active.entry.eventId,date:active.date,eventTitle:active.entry.title,eventTime:active.entry.time,text,stamps:draft.map(s=>({...s})),attachments:[...attachments],updatedAt:new Date().toISOString()};
  else delete notes[key];
  try{schedule().saveEventNotes(notes);closeNote();syncUpNext();decorateSchedule();}
  catch(e){$('dtEventNoteStatus').textContent=e.message||'Could not save the event note. Please try again.';}
@@ -55,6 +115,7 @@ function appendRecord(parent,record){
  for(const stamp of record.stamps||[])stamps.append(node('span',stamp.emoji+' '+stamp.kind+' · '+stamp.time,'dt-event-stamp'));
  if(stamps.children.length)parent.append(stamps);
  if(record.text)parent.append(node('p',record.text,'dt-event-note-copy'));
+ appendFiles(parent,filesFor(record));
 }
 function decorateSchedule(){
  decorateHistory();
@@ -199,6 +260,7 @@ function start(){
  '.dt-event-stamp{display:inline-flex;align-items:center;gap:5px;border-radius:11px;border:1px solid #a9bfce;background:#fff9ef;padding:6px 9px;font:13px/1.5 Arial,sans-serif;color:#2e526a;overflow-wrap:anywhere;max-width:100%}',
  '#dtEventStamps .dt-event-stamp button{min-width:34px;min-height:34px;padding:0;border:0;background:transparent;font-size:21px}',
  '#dtEventNoteText{display:block;width:100%;box-sizing:border-box;min-height:120px;resize:vertical;padding:12px;margin-top:7px;border:1px solid #91acbd;border-radius:12px;background:#fffefa;color:#294b62;font:16px/1.5 Arial,sans-serif}',
+ '.dt-event-file-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;overflow-wrap:anywhere}.dt-event-file-row button{max-width:100%;white-space:normal;overflow-wrap:anywhere}#dtEventFilePicker{display:block;margin-top:12px}#dtEventFilePicker[hidden]{display:none}#dtEventFileInput{display:block;max-width:100%;margin:4px 0}',
  '.dt-event-note-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}',
  '#dtEventNoteSave{background:#365e76!important;color:white!important}',
  '#dtEventNoteStatus{font-size:13px;min-height:1em}',
@@ -209,11 +271,12 @@ function start(){
  '@media(max-width:420px){#dtEventNoteDialog{padding:13px 9px}#dtEventQuickAdds{gap:2px}#dtEventQuickAdds button{font-size:11px;letter-spacing:-.4px;padding:8px 0}.dt-up-next-note{font-size:15px!important;min-width:35px!important}}'
  ].join('\n');document.head.append(style);
  const dialog=node('dialog');dialog.id='dtEventNoteDialog';
- dialog.innerHTML='<div class="dt-event-heading"><div><h2 id="dtEventNoteTitle">Event note</h2><p id="dtEventNoteWhen"></p></div><button type="button" id="dtEventNoteClose" aria-label="Close event note">×</button></div><div id="dtEventQuickAdds" aria-label="Add a timestamp"></div><div class="dt-event-stamps" id="dtEventStamps" aria-label="Event timestamps"></div><label for="dtEventNoteText">What would you like to remember?</label><textarea id="dtEventNoteText" maxlength="3000" placeholder="Add a note for this event…"></textarea><div class="dt-event-note-actions"><button type="button" id="dtEventNoteCancel">Cancel</button><button type="button" id="dtEventNoteSave">Save event note</button></div><p id="dtEventNoteStatus" role="status" aria-live="polite"></p>';
+ dialog.innerHTML='<div class="dt-event-heading"><div><h2 id="dtEventNoteTitle">Event note</h2><p id="dtEventNoteWhen"></p></div><button type="button" id="dtEventNoteClose" aria-label="Close event note">×</button></div><div id="dtEventQuickAdds" aria-label="Add a timestamp"></div><div class="dt-event-stamps" id="dtEventStamps" aria-label="Event timestamps"></div><label for="dtEventNoteText">What would you like to remember?</label><textarea id="dtEventNoteText" maxlength="3000" placeholder="Add a note for this event…"></textarea><label id="dtEventFilePicker">Attach files<input type="file" id="dtEventFileInput" multiple><small>Up to 512 KB per file and 1 MB total per dog.</small></label><div id="dtEventFiles" aria-label="Attachments"></div><div class="dt-event-note-actions"><button type="button" id="dtEventNoteCancel">Cancel</button><button type="button" id="dtEventNoteSave">Save event note</button></div><p id="dtEventNoteStatus" role="status" aria-live="polite"></p>';
  document.body.append(dialog);
  for(const [kind,emoji] of types){const button=node('button');button.type='button';button.append(node('span',emoji,'dt-event-emoji'),node('span',kind));button.onclick=()=>addStamp(kind,emoji);$('dtEventQuickAdds').append(button);}
  $('dtEventNoteClose').onclick=$('dtEventNoteCancel').onclick=closeNote;
  $('dtEventNoteSave').onclick=saveNote;
+ $('dtEventFileInput').onchange=addFiles;
  dialog.addEventListener('cancel',()=>{active=null;});
  const content=$('content');if(content)new MutationObserver(()=>decorateSchedule()).observe(content,{childList:true});
  for(const id of ['upNextActivity','upNextTime'])if($(id))new MutationObserver(syncUpNext).observe($(id),{childList:true,characterData:true,subtree:true});
