@@ -300,7 +300,45 @@ service cloud.firestore {
 
     // Only a signed-in requester can ask to connect. Owners approve or
     // decline their own dog requests. Requests are not public.
+    function messagingAccount() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function adultMessagingDog(uid, ownerUid, dogId) {
+      return (uid == ownerUid
+          && exists(/databases/$(database)/documents/users/$(ownerUid)/dogsV2/$(dogId)))
+        || (uid != ownerUid
+          && get(/databases/$(database)/documents/users/$(ownerUid)/members/$(uid)/dogs/$(dogId)).data.role == 'adult');
+    }
+    function registeredForMessages(uid) {
+      let proof = get(/databases/$(database)/documents/messageAccounts/$(uid)).data;
+      return adultMessagingDog(uid, proof.ownerUid, proof.dogId);
+    }
+    match /messageAccounts/{uid} {
+      allow get: if messagingAccount() && request.auth.uid == uid;
+      allow create, update: if messagingAccount() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['ownerUid', 'dogId'])
+        && request.resource.data.ownerUid is string && request.resource.data.dogId is string
+        && adultMessagingDog(uid, request.resource.data.ownerUid, request.resource.data.dogId);
+    }
+
     match /friendRequests/{requestId} {
+      match /messages/{messageId} {
+        function canMessage() {
+          let connection = get(/databases/$(database)/documents/friendRequests/$(requestId)).data;
+          return messagingAccount() && connection.status == 'approved'
+            && request.auth.uid in [connection.requesterUid, connection.targetOwnerUid]
+            && registeredForMessages(connection.requesterUid)
+            && adultMessagingDog(connection.targetOwnerUid, connection.targetOwnerUid, connection.dogId);
+        }
+        allow get, list: if canMessage();
+        allow create: if canMessage()
+          && request.resource.data.keys().hasOnly(['senderUid', 'body', 'createdAt'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 2000
+          && request.resource.data.createdAt == request.time;
+      }
+
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly([
           'requesterUid','requesterName','targetOwnerUid','dogId','listingId',
