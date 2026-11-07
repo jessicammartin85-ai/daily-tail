@@ -809,7 +809,40 @@ const visitorEntry= new URLSearchParams(location.search).get('view')==='friend';
 function selectedPublicPosts(){return publicPrefs.memories?state.posts:[]}
 function selectedPublicFriends(){return publicPrefs.friends?getConnectedDogFriends():[]}
 function friendReadOnlyFeed(){window.DailyTalesSharedMemories(selectedPublicPosts(),appMeta.petName,show);}
+const friendSections=window.DailyTailsFriendSections;
+function syncSharedSectionSettings(){
+ if(!friendSections)return;
+ const extras={};
+ for(const key of [friendSections.preferenceKey,'daily_tales_training_plan_v1','daily_tails_events_gifts_v1'])extras[key]=dtSafeStorage.getItem(key);
+ const prefs=friendSections.parse(extras[friendSections.preferenceKey]);
+ for(const [key] of friendSections.fields){
+  const input=$('dtShareSection-'+key);
+  if(input)input.checked=prefs[key]===true;
+ }
+ friendSections.render(friendPreview&&window.dtRole==='adult'?friendSections.build(extras):null);
+}
+function refreshFriendSections(){
+ syncSharedSectionSettings();
+ if(window.dtRole!=='adult'||!dtAccess.activeId)return;
+ const dogId=dtAccess.activeId, status=$('shareStatus');
+ const publish=window.DailyTalesRefreshPublic;
+ if(!publish){status.textContent='Saved on this device. Sign in to update your Friend link.';return;}
+ publish(dogId).then(()=>{if(dtAccess.activeId===dogId)status.textContent='Sharing preferences saved.';})
+ .catch(()=>{if(dtAccess.activeId===dogId)status.textContent='Saved on this device. The Friend link could not be updated. Check that the latest sharing rules are published.';});
+}
+for(const [key] of friendSections?.fields||[]){
+ $('dtShareSection-'+key)?.addEventListener('change',event=>{
+  if(window.dtRole!=='adult'||!dtDog())return syncSharedSectionSettings();
+  const prefs=friendSections.parse(dtSafeStorage.getItem(friendSections.preferenceKey));
+  prefs[key]=event.currentTarget.checked;
+  dtSafeStorage.setItem(friendSections.preferenceKey,JSON.stringify(prefs));
+  dtSnapshotActive();
+  refreshFriendSections();
+ });
+}
+window.addEventListener('daily-tales-cloud-dogs-changed',syncSharedSectionSettings);
 function syncFriendView({keepModal=false}={}){
+ syncSharedSectionSettings();
  document.body.classList.toggle('friend-view',friendPreview);
  const roleLabel=document.getElementById('dtRoleLabel');
  if(roleLabel&&window.dtRole){const dogName=String(dtDog()?.name||appMeta.petName||'Dog');roleLabel.textContent=friendPreview?(dogName+' · Friend View preview'):(String(window.dtPerson||'Owner')+' · '+dogName+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[window.dtRole]||'Owner'));}
@@ -1194,7 +1227,7 @@ function dtShowNewCodes(){const d=dtDog();if(!d)return;
  $('dtCodeManageNow').onclick=()=>dtManageCodes();
 }
 
-const DT_PER_DOG_KEYS=['daily_tails_events_gifts_v1','daily_tales_training_plan_v1','daily_tail_event_notes_v1','loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
+const DT_PER_DOG_KEYS=['daily_tails_friend_sections_v1','daily_tails_events_gifts_v1','daily_tales_training_plan_v1','daily_tail_event_notes_v1','loubear_training_v1','loubear_schedule_v1','daily_tail_journal_v1','loubear_emergency_info_v1','loubear_birthday_v2','dailytail_appearance_v1','daily_tail_public_preferences_v1'];
 function dtExtrasForActive(){
  const extras={};
  for(const k of DT_PER_DOG_KEYS){const v=dtSafeStorage.getItem(k);if(v!==null)extras[k]=v}
@@ -1209,6 +1242,7 @@ window.DailyTalesEventsGiftsStore={
   dtSafeStorage.setItem('daily_tails_events_gifts_v1',value);
   if(dtSafeStorage.getItem('daily_tails_events_gifts_v1')!==value)throw Error('Could not save. Check browser storage and try again.');
   dtSnapshotActive();
+  if(Object.values(friendSections?.parse(dtSafeStorage.getItem(friendSections.preferenceKey))||{}).some(Boolean))refreshFriendSections();
  },
  show:(title,body)=>show(title,body,'events-gifts')
 };
@@ -1216,7 +1250,7 @@ window.DailyTalesTrainingStore={
  dogId:()=>dtAccess.activeId||'',
  profile:()=>getProfileDetails(),
  read:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tales_training_plan_v1')||'{}')}catch{return {}}},
- save:data=>{if(window.dtRole!=='adult'||!dtDog())throw Error('Only a connected Adult Owner can save training.');dtSafeStorage.setItem('daily_tales_training_plan_v1',JSON.stringify(data));dtSnapshotActive();window.dispatchEvent(new Event('daily-tales-training-changed'));},
+ save:data=>{if(window.dtRole!=='adult'||!dtDog())throw Error('Only a connected Adult Owner can save training.');dtSafeStorage.setItem('daily_tales_training_plan_v1',JSON.stringify(data));dtSnapshotActive();if(friendSections?.parse(dtSafeStorage.getItem(friendSections.preferenceKey)).training)refreshFriendSections();window.dispatchEvent(new Event('daily-tales-training-changed'));},
  show:body=>show('Training',body,'training')
 };
 function dtSnapshotActive(){
@@ -1369,6 +1403,11 @@ window.DailyTalesLocalDogs={
 function dtLoadDog(id){
  const d=dtAccess.dogs.find(x=>x.id===id);if(!d)return;
  if(dtAccess.activeId && dtAccess.activeId!==id && window.dtRole==='adult')dtSnapshotActive();
+ if(dtAccess.activeId!==id){
+  for(const key of ['daily_tails_friend_sections_v1','daily_tales_training_plan_v1','daily_tails_events_gifts_v1']){
+   if(d.extras?.[key]!=null)dtSafeStorage.setItem(key,d.extras[key]);else dtSafeStorage.removeItem(key);
+  }
+ }
  dtAccess.activeId=id;dtStore();
  // Each dog owns its own photo/posts/meta. Never inherit the previous dog's data.
  if(!d.profile)d.profile={profile:'',posts:[]};
