@@ -212,17 +212,21 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.active == true
+        && request.resource.data.get('sharedSections', {}) is map
+        && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts'])
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
-          'favorites','cuteFact','photo','posts','postIds','updatedAt'
+          'favorites','cuteFact','photo','posts','postIds','updatedAt','sharedSections'
         ]);
       allow update: if signedIn()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.dogId == resource.data.dogId
+        && request.resource.data.get('sharedSections', {}) is map
+        && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts'])
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
-          'favorites','cuteFact','photo','posts','postIds','updatedAt'
+          'favorites','cuteFact','photo','posts','postIds','updatedAt','sharedSections'
         ]);
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
     }
