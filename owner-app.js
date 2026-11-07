@@ -577,7 +577,16 @@ if($('upNextCheck')) $('upNextCheck').onchange=e=>{
  render:()=>render(),
  getJournalNotes:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tail_journal_v1')||'{}')}catch{return {}}},
  getEventNotes:()=>{try{return JSON.parse(dtSafeStorage.getItem('daily_tail_event_notes_v1')||'{}')}catch{return {}}},
- saveEventNotes:notes=>{if(window.dtRole!=='adult')throw Error('Only Adult Owners can save event notes.');dtSafeStorage.setItem('daily_tail_event_notes_v1',JSON.stringify(notes));dtSnapshotActive();window.dispatchEvent(new Event('daily-tales-event-notes-changed'));},
+ saveEventNotes:notes=>{if(window.dtRole!=='adult')throw Error('Only Adult Owners can save event notes.');const key='daily_tail_event_notes_v1',prior=dtSafeStorage.getItem(key),dog=dtDog(),priorExtras=dog?.extras;
+ try{
+  dtSafeStorage.setItem(key,JSON.stringify(notes));
+  try{dtSnapshotActive();}catch(error){
+   if(prior===null)dtSafeStorage.removeItem(key);else dtSafeStorage.setItem(key,prior);
+   if(dog)dog.extras=priorExtras;
+   throw error;
+  }
+ }catch(error){if(error.name==='QuotaExceededError')throw Error('Browser storage is full. Remove an attachment or choose a smaller file.');throw error;}
+ window.dispatchEvent(new Event('daily-tales-event-notes-changed'));},
  getEntries:()=>plan(weeks()).flatMap(g=>g[1]),getDone:()=>state.done,setDone:(index,checked)=>{const events=plan(weeks()).flatMap(g=>g[1]);if(!Number.isInteger(index)||index<0||index>=events.length)return false;const id=day()+'|'+index;if(checked)state.done[id]=true;else delete state.done[id];save();updateUpNext();return true;}};updateUpNext();window.addEventListener('focus',updateUpNext);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateUpNext()});window.setInterval(updateUpNext,60000);window.addEventListener('storage',e=>{if(e.key===KEY){try{state={done:{},...JSON.parse(e.newValue||'{}')}}catch{state={done:{}}}updateUpNext()}});
 })();
 
