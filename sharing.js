@@ -260,8 +260,40 @@ async function decideComment(record,approve){
   await refresh();status(approve?'Comment approved and published.':'Comment declined.');
  }catch(e){status('Could not review comment: '+error(e),true)}
 }
+async function refreshEventDetails(){
+ const root=$('shareEventDetails'),selected=dog(),ownerUid=profileOwner();
+ if(!root||!selected||!isAdult())return;
+ root.textContent='Checking event requests…';
+ try{
+  const records=await getDocs(query(collection(db,'users',ownerUid,'eventDetailRequests',selected.id,'requests'),where('status','==','pending')));
+  if(dog()?.id!==selected.id)return;
+  root.replaceChildren();
+  if(records.empty){root.textContent='No pending event detail requests.';return;}
+  for(const record of records.docs){
+   const request=record.data(),item=document.createElement('div');
+   item.className='share-request';
+   item.innerHTML='<strong>'+safe(request.requesterName)+' requested details</strong><p>'+safe(request.eventTitle)+'</p>'+
+    '<label>Private reply<textarea maxlength="1200" placeholder="Enter only the details you want this account to see"></textarea></label>'+
+    '<button type="button">Share details</button> <button type="button">Decline</button><p role="status"></p>';
+   const [share,decline]=item.querySelectorAll('button'),message=item.querySelector('[role=status]');
+   async function decideEvent(approved){
+    if(!isAdult()||dog()?.id!==selected.id)return;
+    const response=item.querySelector('textarea').value.trim();
+    if(approved&&!response){message.textContent='Enter the details you want to share.';return;}
+    share.disabled=decline.disabled=true;
+    try{
+     await updateDoc(record.ref,{status:approved?'shared':'declined',response:approved?response:'',reviewedAt:serverTimestamp(),reviewedBy:user.uid});
+     await refreshEventDetails();
+    }catch(error){message.textContent='Could not save your decision. '+(error.code||'');share.disabled=decline.disabled=false;}
+   }
+   share.onclick=()=>decideEvent(true);decline.onclick=()=>decideEvent(false);
+   root.append(item);
+  }
+ }catch(error){if(dog()?.id===selected.id)root.textContent='Could not load event requests. Check that the latest Firestore rules are published.';}
+}
 async function refresh(){
  if(!user||!dog()||!isAdult())return status('Sign in and open the Adult Owner view.',true);
+ void refreshEventDetails();
  try{
   const [joins,proposals,comments]=await Promise.all([
     getDocs(query(collection(db,'users',profileOwner(),'joinRequests'),where('dogId','==',dog().id))),
@@ -332,7 +364,7 @@ window.DailyTalesRefreshPublic=async dogId=>{
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
- shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in, then request access. A connected Adult Owner must approve.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Current access</h3><div id="shareAccessList" aria-live="polite">Loading connected accounts…</div><h3>Requests, updates, and comments</h3><button id="shareRefresh">Refresh requests</button><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p></section>';
+ shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in, then request access. A connected Adult Owner must approve.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Current access</h3><div id="shareAccessList" aria-live="polite">Loading connected accounts…</div><h3>Requests, updates, and comments</h3><button id="shareRefresh">Refresh requests</button><h3>Event detail requests</h3><div id="shareEventDetails" aria-live="polite"></div><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p></section>';
  document.body.append(shade);
  btn.onclick=openShare;$('shareClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
  $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;$('shareRevoke').onclick=revokeFriendLink;
