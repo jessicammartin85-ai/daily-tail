@@ -1,4 +1,12 @@
 (()=>{
+const cardOptions={cardShape:{"original":"Original","rounded":"Soft rounded","compact":"Rounded rectangle","ticket":"Ticket","folder":"Folder tab","asymmetric":"Asymmetric corners","clipped":"Clipped corners"},cardBorder:{"original":"Original","classic":"Classic outline","stitched":"Stitched","double":"Double frame","accent":"Accent edge","shadow":"Shadow only","top":"Top accent","weighted":"Weighted bottom edge","beveled":"Beveled rim","cream":"Cream outline","stacked":"Stacked paper","brackets":"Corner brackets","rails":"Side rails","bands":"Cream side bands","piping":"Collar piping","perforated":"Perforated edges","rivets":"Corner rivets"}};
+function cardStyles(value){
+ const styles={};
+ for(const [key,options] of Object.entries(cardOptions)){
+  if(value?.[key]&&value[key]!=='original'&&Object.hasOwn(options,value[key]))styles[key]=value[key];
+ }
+ return styles;
+}
 const preferenceKey='daily_tails_friend_sections_v1';
 const fields=[
  ['training','Training progress'],
@@ -25,6 +33,8 @@ function isDogSkill(title){
 }
 function build(extras={}){
  const prefs=parse(extras[preferenceKey]), result={};
+ const appearance=cardStyles(parse(extras.dailytail_appearance_v1));
+ if(Object.keys(appearance).length)result.appearance=appearance;
  if(prefs.training===true){
   const training=parse(extras.daily_tales_training_plan_v1), program=training.program;
   const lessons=list(program?.lessons);
@@ -80,6 +90,9 @@ const badgeLevels=new Map([
  ['Completed','green']
 ]);
 function render(details,requestDetails){
+ const appearance=cardStyles(details?.appearance);
+ document.body.dataset.friendCardShape=appearance.cardShape||'original';
+ document.body.dataset.friendCardBorder=appearance.cardBorder||'original';
  const previous=document.getElementById('dtSharedExtras');
  const trainingOpen=previous?.querySelector('.dt-shared-training')?.open||false;
  previous?.remove();
@@ -167,5 +180,5 @@ function render(details,requestDetails){
  }
  if(panel.children.length)anchor.after(panel);
 }
-window.DailyTailsFriendSections={preferenceKey,fields,parse,build,render};
+window.DailyTailsFriendSections={preferenceKey,fields,parse,build,render,cardOptions};
 })();
