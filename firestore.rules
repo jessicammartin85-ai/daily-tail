@@ -60,6 +60,42 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // Event detail replies are visible only to the requesting account and Adult Owners.
+      match /eventDetailRequests/{dogId}/requests/{requestId} {
+        function signedInAccount() {
+          return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+        }
+        function canRequestEvent(event) {
+          let profile = get(/databases/$(database)/documents/publicProfiles/$(event.shareId)).data;
+          return profile.ownerUid == ownerUid && profile.dogId == dogId && profile.active == true
+            && profile.get('sharedSections', {}).get('hostingIds', []).hasAny([event.eventId]);
+        }
+        allow get: if isDogAdmin(ownerUid, dogId)
+          || (signedInAccount() && (resource == null || resource.data.requesterUid == request.auth.uid));
+        allow list: if isDogAdmin(ownerUid, dogId);
+        allow create: if signedInAccount()
+          && request.resource.data.keys().hasOnly(['requesterUid','requesterName','eventId','eventTitle','shareId','status','createdAt'])
+          && request.resource.data.requesterUid == request.auth.uid
+          && request.resource.data.requesterName is string
+          && request.resource.data.requesterName.size() > 0 && request.resource.data.requesterName.size() <= 100
+          && request.resource.data.eventId is string
+          && request.resource.data.eventId.matches('[A-Za-z0-9_-]{1,100}')
+          && requestId == request.auth.uid + '_' + request.resource.data.eventId
+          && request.resource.data.eventTitle is string && request.resource.data.eventTitle.size() <= 100
+          && request.resource.data.shareId is string
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdAt == request.time
+          && canRequestEvent(request.resource.data);
+        allow update: if isDogAdmin(ownerUid, dogId)
+          && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','response','reviewedAt','reviewedBy'])
+          && request.resource.data.response is string && request.resource.data.response.size() <= 1200
+          && ((request.resource.data.status == 'shared' && request.resource.data.response.size() > 0)
+            || (request.resource.data.status == 'declined' && request.resource.data.response == ''))
+          && request.resource.data.reviewedBy == request.auth.uid
+          && request.resource.data.reviewedAt == request.time;
+      }
+
       // Child and Friend comments stay private until an Adult Owner approves.
       match /commentRequests/{commentId} {
         allow get, list: if isOwner(ownerUid) || isDogAdmin(ownerUid, resource.data.dogId)
@@ -213,7 +249,7 @@ service cloud.firestore {
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.active == true
         && request.resource.data.get('sharedSections', {}) is map
-        && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts'])
+        && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts','hostingIds'])
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
           'favorites','cuteFact','photo','posts','postIds','updatedAt','sharedSections'
@@ -223,7 +259,7 @@ service cloud.firestore {
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.dogId == resource.data.dogId
         && request.resource.data.get('sharedSections', {}) is map
-        && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts'])
+        && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts','hostingIds'])
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
           'favorites','cuteFact','photo','posts','postIds','updatedAt','sharedSections'
