@@ -81,7 +81,6 @@ const badgeLevels=new Map([
 ]);
 function render(details,requestDetails){
  const previous=document.getElementById('dtSharedExtras');
- const giftsOpen=previous?.querySelector('.dt-shared-gift-button')?.getAttribute('aria-expanded')==='true';
  const trainingOpen=previous?.querySelector('.dt-shared-training')?.open||false;
  previous?.remove();
  const anchor=document.querySelector('.dog-friends-section');
@@ -120,33 +119,37 @@ function render(details,requestDetails){
   else element(section,'p','No skill badges shared yet.');
  }
  const hasEvents=['hosting','attending'].some(key=>list(details[key]).some(event=>Date.parse(event.date)>=Date.now()));
- if(hasEvents||details.gifts){
+ const gift=details.gifts;
+ const giftUrl=url(gift?.externalUrl);
+ const giftItems=list(gift?.items);
+ if(hasEvents||giftUrl||giftItems.length){
   const section=element(panel,'section','');
   section.className='dt-shared-detail-card';
   const header=element(section,'div','');
   header.className='dt-shared-events-header';
   element(header,'h2','Events');
-  if(details.gifts){
-   const gift=details.gifts;
+  if(giftItems.length){
    const button=element(header,'button','🎁 Gift List');
    button.type='button';
    button.className='dt-shared-gift-button';
-   const giftPanel=element(section,'div','');
-   giftPanel.id='dtSharedGiftList';
-   giftPanel.className='dt-shared-gift-list';
-   button.setAttribute('aria-controls',giftPanel.id);
-   function showGifts(open){
-    giftPanel.hidden=!open;
-    button.setAttribute('aria-expanded',String(open));
-   }
-   showGifts(giftsOpen);
-   button.onclick=()=>showGifts(giftPanel.hidden);
-   if(gift.title&&!/^gift list$/i.test(gift.title.trim()))element(giftPanel,'p',gift.title);
-   if(url(gift.externalUrl))link(giftPanel,'Open gift list ↗',gift.externalUrl,'dt-shared-gift-action');
-   if(list(gift.items).length){
-    const items=element(giftPanel,'ul','');
-    for(const item of gift.items)link(element(items,'li',''),item.name,item.url);
-   }
+   button.setAttribute('aria-haspopup','dialog');
+
+   const dialog=element(section,'dialog','');
+   dialog.className='dt-shared-gift-dialog';
+   dialog.setAttribute('aria-labelledby','dtSharedGiftTitle');
+   const title=element(dialog,'h2',text(gift.title,100)||'Gift List');
+   title.id='dtSharedGiftTitle';
+   const close=element(dialog,'button','Close');
+   close.type='button';
+   close.className='dt-shared-gift-button';
+   close.onclick=()=>dialog.close();
+   button.onclick=()=>dialog.showModal();
+
+   if(giftUrl)link(dialog,'Open external gift list ↗',giftUrl,'dt-shared-gift-action');
+   const items=element(dialog,'ul','');
+   for(const item of giftItems)link(element(items,'li',''),item.name,item.url);
+  }else if(giftUrl){
+   link(header,'🎁 Gift List ↗',giftUrl,'dt-shared-gift-button');
   }
   for(const [key,label] of fields.filter(([key])=>key==='hosting'||key==='attending')){
    const events=list(details[key]).filter(event=>Date.parse(event.date)>=Date.now());
