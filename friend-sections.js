@@ -48,7 +48,9 @@ function build(extras={}){
  return result;
 }
 function render(details,requestDetails){
- document.getElementById('dtSharedExtras')?.remove();
+ const previous=document.getElementById('dtSharedExtras');
+ const trainingOpen=previous?.querySelector('.dt-shared-training')?.open||false;
+ previous?.remove();
  const anchor=document.querySelector('.dog-friends-section');
  if(!anchor||!details||!Object.keys(details).length)return;
  const panel=document.createElement('section');panel.id='dtSharedExtras';panel.className='dog-friends-section';
@@ -65,9 +67,14 @@ function render(details,requestDetails){
   element(section,'h2',title);return section;
  }
  if(details.training){
-  const t=details.training, section=card('🎓 Training progress');
+  const t=details.training, badges=list(t.badges);
+  const section=element(panel,'details','');
+  section.className='dt-shared-detail-card dt-shared-training';
+  section.open=trainingOpen;
+  const summary=element(section,'summary','');
+  element(summary,'strong','🎓 Training');
+  if(badges.length)element(summary,'small',badges.length+' '+(badges.length===1?'skill':'skills'));
   if(t.name)element(section,'p',t.name);
-  const badges=list(t.badges);
   if(badges.length){
    const items=element(section,'ul','');items.className='dt-shared-skill-badges';
    for(const badge of badges){
