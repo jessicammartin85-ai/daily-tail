@@ -133,7 +133,7 @@ function programOverview(){
    programOverview();
    throw Error('The program changed. Please try again.');
   }
-  lesson.completedAt=check.checked?(lesson.completedAt||new Date().toISOString()):null;
+  setActivityChecked(lesson,check.checked);
   try{write(latest);}catch(error){check.checked=!check.checked;throw error;}
   programOverview();
   document.querySelector('[data-program-check="'+index+'"]')?.focus({preventScroll:true});
@@ -195,13 +195,37 @@ function programLessonDetails(program, lesson){
  const example=skills.find(skill=>skill.id===supplementalSkills[lesson.title]);
  return {id,preset,description:programExplanations[id][index],example};
 }
+function practiceDate(){
+ const now=new Date();
+ return [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+}
+function oneTimeLesson(lesson){
+ return ['Owner responsibilities and class preparation','Review progress and next steps'].includes(lesson.title);
+}
+function activityChecked(lesson){
+ return oneTimeLesson(lesson)?Boolean(lesson.completedAt):Boolean(lesson.practiceDays?.includes(practiceDate()));
+}
+function setActivityChecked(lesson,checked){
+ if(oneTimeLesson(lesson)){
+  lesson.completedAt=checked?(lesson.completedAt||new Date().toISOString()):null;
+  return;
+ }
+ const day=practiceDate();
+ const days=new Set(lesson.practiceDays||[]);
+ if(checked)days.add(day);else days.delete(day);
+ lesson.practiceDays=[...days].sort();
+}
+function activityCheckbox(lesson,attribute){
+ const label=oneTimeLesson(lesson)?'Done':'Practiced today';
+ return `<label style="font-size:.8rem;flex-shrink:0"><input type="checkbox" ${attribute} aria-label="${label}: ${esc(lesson.title)}" ${activityChecked(lesson)?'checked':''} ${adult()?'':'disabled'}> ${label}</label>`;
+}
 function programLessonRow(program,lesson,index){
  const details=programLessonDetails(program,lesson);
  const preview=lesson.directions||details?.description||'Open lesson for practice notes.';
  const video=lesson.video||details?.id==='cgc'||details?.example;
  return `<li value="${index+1}"><div style="display:flex;align-items:center;gap:10px">
- <input type="checkbox" data-program-check="${index}" aria-label="Complete ${esc(lesson.title)}" ${lesson.completedAt?'checked':''} ${adult()?'':'disabled'}>
- <button class="dt-training-tile" style="flex:1;min-width:0" data-program-lesson="${index}"><strong>${esc(lesson.title)}</strong><small>${esc(preview.length>150?preview.slice(0,147)+'…':preview)}</small>${video?'<small>▶ Video</small>':''}</button>
+ ${activityCheckbox(lesson,'data-program-check="'+index+'"')}
+ <button class="dt-training-tile" style="flex:1;min-width:0" data-program-lesson="${index}"><strong>${lesson.completedAt?'✓ ':''}${esc(lesson.title)}</strong>${lesson.skillLevel?'<small>'+esc(lesson.skillLevel)+'</small>':''}<small>${esc(preview.length>150?preview.slice(0,147)+'…':preview)}</small>${video?'<small>▶ Video</small>':''}</button>
  </div></li>`;
 }
 function programLessonResources(program,lesson){
@@ -221,6 +245,7 @@ function programLesson(index){
  frame(`<h3>${esc(lesson.title)}</h3>
  ${programLessonResources(data.program,lesson)}
  ${lesson.video?link(lesson.video,'▶ Your trainer’s video'):''}
+ <details><summary>Practice history (${lesson.practiceDays?.length||0} days)</summary>${lesson.practiceDays?.length?'<ul>'+[...lesson.practiceDays].reverse().map(day=>'<li>'+esc(day)+'</li>').join('')+'</ul>':'<p>No practice days recorded yet.</p>'}</details>
  <form id="dtProgramLesson">
  <label>How is your dog doing?<select name="skillLevel" ${adult()?'':'disabled'}>${lessonSkillLevels.map(level=>`<option ${level===(lesson.skillLevel||lessonSkillLevels[0])?'selected':''}>${level}</option>`).join('')}</select></label>
  <label>Trainer’s directions<textarea name="directions" maxlength="3000">${esc(lesson.directions||'')}</textarea></label>
@@ -228,7 +253,7 @@ function programLesson(index){
  <label>Trainer’s video link (optional)<input type="url" name="video" value="${esc(lesson.video||'')}"></label>
  <label>Practice notes<textarea name="notes" maxlength="3000">${esc(lesson.notes||'')}</textarea></label>
  ${adult()?'<button class="primary">Save lesson progress</button>':''}
- </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`,'Back to program lessons',programOverview);
+ </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':oneTimeLesson(lesson)?'Mark done':'Ready to move on')+'</button>':''}`,'Back to program lessons',programOverview);
  const form=$('dtProgramLesson');
  const dogId=api().dogId(), status=$('dtTrainingStatus');
  const changed=new Set();
@@ -299,7 +324,7 @@ function updateCard(){
  const program=read().program;
  const next=program?.lessons.find(lesson=>!lesson.completedAt);
  const dogId=api().dogId();
- card.innerHTML='<div><h3>🎓 Training</h3><p>'+esc(program?.name||'Add your training program')+'</p>'+(program?'<small>'+(next?'<label><input type="checkbox" data-home-training-check '+(adult()?'':'disabled')+'> '+esc(next.title)+'</label>':'All lessons completed')+'</small>':'')+'</div><button type="button">'+(program?'Continue ›':'Set up program ›')+'</button>';
+ card.innerHTML='<div><h3>🎓 Training</h3><p>'+esc(program?.name||'Add your training program')+'</p>'+(program?'<small>'+(next?esc(next.title)+'<br>'+activityCheckbox(next,'data-home-training-check'):'All lessons completed')+'</small>':'')+'</div><button type="button">'+(program?'Continue ›':'Set up program ›')+'</button>';
  card.querySelector('button').onclick=open;
  const check=card.querySelector('[data-home-training-check]');
  if(check)check.onchange=()=>{
@@ -307,11 +332,11 @@ function updateCard(){
   const lesson=data.program?.lessons.find(item=>!item.completedAt);
   if(!adult()||dogId!==api().dogId()||data.program?.name!==program.name||lesson?.title!==next.title){updateCard();return;}
   try{
-   lesson.completedAt=new Date().toISOString();
+   setActivityChecked(lesson,check.checked);
    api().save(data);
    updateCard();
    card.querySelector('[data-home-training-check],button')?.focus({preventScroll:true});
-  }catch(error){check.checked=false;alert(error.message);}
+  }catch(error){check.checked=!check.checked;alert(error.message);}
  };
 }
 function init(){if(!api())return;const trigger=$('trainingArt');if(trigger){legacyOpen=trigger.onclick;trigger.onclick=open;}
