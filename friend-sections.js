@@ -60,6 +60,18 @@ function build(extras={}){
  if(result.hosting)result.hostingIds=result.hosting.map(event=>event.id).filter(Boolean);
  return result;
 }
+const badgeCategories=[
+ ["social","🐾",["Comfort around people and puppies","Petting by another person","Handle mild distractions","Brief handoff to another person","Greet a friendly stranger","Sit politely for petting","Pass another dog politely","Respond calmly to distractions","Supervised separation"]],
+ ["handling","✋",["Comfort wearing a collar or harness","Gentle handling and holding","Ear and paw handling","Accept a grooming and handling check"]],
+ ["walking","➜",["Walk 15 steps on leash","Pass people on leash","Walk on a loose leash","Walk through a crowd"]],
+ ["cues","★",["Giving up a toy or treat","Sit","Lie down","Come when called from five feet","Sit, down, and stay","Come when called","Build foundation behaviors"]]
+];
+const badgeLevels=new Map([
+ ['Learning with help','blue'],
+ ['Can do it in a quiet setting','yellow'],
+ ['Reliable in different settings','green'],
+ ['Completed','green']
+]);
 function render(details,requestDetails){
  const previous=document.getElementById('dtSharedExtras');
  const trainingOpen=previous?.querySelector('.dt-shared-training')?.open||false;
@@ -89,18 +101,12 @@ function render(details,requestDetails){
   if(badges.length)element(summary,'small',badges.length+' '+(badges.length===1?'skill':'skills'));
   if(t.name)element(section,'p',t.name);
   if(badges.length){
-   const medalStyles={
-    'Learning with help':['learning','🐾'],
-    'Can do it in a quiet setting':['quiet','⌂'],
-    'Reliable in different settings':['reliable','★'],
-    'Completed':['complete','✓']
-   };
    const items=element(section,'ul','');items.className='dt-shared-skill-badges';
    for(const badge of badges){
     const item=element(items,'li','');
-    const [style,symbol]=Object.hasOwn(medalStyles,badge.level)?medalStyles[badge.level]:['practice','↻'];
+    const [category,symbol]=badgeCategories.find(([, , titles])=>titles.includes(badge.skill))||['general','◆'];
     const medal=element(item,'span',symbol);
-    medal.className='dt-skill-medal '+style;
+    medal.className='dt-skill-medal '+category+' '+(badgeLevels.get(badge.level)||'blue');
     medal.setAttribute('aria-hidden','true');
     element(item,'strong',badge.skill);
     element(item,'span',badge.level);
