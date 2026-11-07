@@ -64,7 +64,8 @@ async function makePublic(d){
  const shareId=existing.exists()&&existing.data().shareId?existing.data().shareId:doc(collection(db,'publicProfiles')).id;
  const prefs=(()=>{try{return JSON.parse(localStorage.getItem('daily_tail_public_preferences_v1')||'{}')}catch{return {}}})();
  const meta=d.meta||{},p=d.profile||{};
- const publicData={ownerUid:current.uid,dogId:d.id,active:true,name:String(d.name||'Dog').slice(0,70),
+ const sections=window.DailyTalesFriendSections?.build(d.extras)||{};
+ const publicData={...(Object.keys(sections).length?{sharedSections:sections}:{}),ownerUid:current.uid,dogId:d.id,active:true,name:String(d.name||'Dog').slice(0,70),
  breed:String(meta.breed||''),dob:String(meta.dob||''),personality:String(meta.personality||''),
  favorites:String(meta.favorites||''),cuteFact:String(meta.cuteFact||''),
  photo:p.profile?.length<140000?p.profile||'':'',
