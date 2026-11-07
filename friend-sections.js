@@ -76,9 +76,18 @@ function render(details,requestDetails){
   if(badges.length)element(summary,'small',badges.length+' '+(badges.length===1?'skill':'skills'));
   if(t.name)element(section,'p',t.name);
   if(badges.length){
+   const medalColors={
+    'Learning with help':'bronze',
+    'Can do it in a quiet setting':'silver',
+    'Reliable in different settings':'gold',
+    'Completed':'gold'
+   };
    const items=element(section,'ul','');items.className='dt-shared-skill-badges';
    for(const badge of badges){
     const item=element(items,'li','');
+    const medal=element(item,'span','★');
+    medal.className='dt-skill-medal '+(Object.hasOwn(medalColors,badge.level)?medalColors[badge.level]:'blue');
+    medal.setAttribute('aria-hidden','true');
     element(item,'strong',badge.skill);
     element(item,'span',badge.level);
    }
