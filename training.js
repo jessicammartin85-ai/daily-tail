@@ -230,20 +230,47 @@ function programLesson(index){
  ${adult()?'<button class="primary">Save lesson progress</button>':''}
  </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':'Mark lesson complete')+'</button>':''}`,'Back to program lessons',programOverview);
  const form=$('dtProgramLesson');
- function captureNotes(){
-  const fields=new FormData(form);
-  lesson.video=safeURL(fields.get('video').trim());
-  const level=fields.get('skillLevel');
-  if(lessonSkillLevels.includes(level))lesson.skillLevel=level;
-  for(const key of ['directions','criteria','notes'])lesson[key]=fields.get(key).trim();
+ const dogId=api().dogId(), status=$('dtTrainingStatus');
+ const changed=new Set();
+ let timer;
+ function saveProgress(toggleCompletion=false){
+  clearTimeout(timer);
+  if(!changed.size&&!toggleCompletion)return true;
+  try{
+   if(dogId!==api().dogId())throw Error('The selected dog changed. Reopen Training.');
+   const latest=read(), current=latest.program?.lessons[index];
+   if(latest.program?.name!==data.program.name||current?.title!==lesson.title)throw Error('The program changed. Reopen the lesson.');
+   const fields=new FormData(form);
+   for(const name of changed){
+    const value=fields.get(name).trim();
+    current[name]=name==='video'?safeURL(value):value;
+   }
+   if(toggleCompletion)current.completedAt=current.completedAt?null:new Date().toISOString();
+   write(latest);
+   changed.clear();
+   status.textContent='Lesson progress saved.';
+   return true;
+  }catch(error){
+   status.textContent='Could not save: '+error.message;
+   return false;
+  }
  }
- form.onsubmit=e=>{e.preventDefault();run(()=>{captureNotes();write(data);programLesson(index);$('dtTrainingStatus').textContent='Lesson progress saved.';});};
- const done=$('dtProgramDone');
- if(done)done.onclick=()=>run(()=>{
-  captureNotes();
-  lesson.completedAt=lesson.completedAt?null:new Date().toISOString();
-  write(data);programOverview();
- });
+ form.onsubmit=event=>{event.preventDefault();saveProgress();};
+ if(adult()){
+  form.oninput=event=>{
+   const name=event.target.name;
+   if(!['directions','criteria','notes','video','skillLevel'].includes(name))return;
+   changed.add(name);
+   status.textContent='Saving…';
+   clearTimeout(timer);
+   timer=setTimeout(saveProgress,500);
+  };
+  form.onchange=()=>saveProgress();
+  $('content').querySelectorAll('[data-training-back]').forEach(control=>{
+   control.onclick=()=>{if(saveProgress())programOverview();};
+  });
+  $('dtProgramDone').onclick=()=>{if(saveProgress(true))programOverview();};
+ }
 }
 
 function setup(){const data=read(),settings=data.settings||{},profile=info();frame('<h3>Set up your training plan</h3><p>Choose a shared approach for this dog. You can change it later without losing progress.</p><form id="dtTrainingSetup"><label>Training preference<select name="method">'+Object.entries(options).map(([id,v])=>'<option value="'+id+'" '+(settings.method===id?'selected':'')+'>'+v[0]+'</option>').join('')+'</select></label><p id="dtMethodDescription"></p><label>Marker<select name="marker"><option value="Yes!">Say “Yes!”</option><option value="Click">Clicker</option></select></label><label>Birthday (optional)<input name="dob" type="date" value="'+esc(settings.dob||profile.dob||'')+'" max="'+new Date().toLocaleDateString('en-CA')+'"></label><label>Comfort or mobility considerations<textarea name="limitations" maxlength="1000">'+esc(settings.limitations||'')+'</textarea></label><label>Practice time<select name="minutes"><option value="1">About 1 minute</option><option value="3">Up to 3 minutes</option><option value="5">Up to 5 minutes, with breaks</option></select></label>'+(!data.settings?'<h4>Where are you starting?</h4><p>These set a starting step, not a mastery badge.</p>'+skills.map(s=>'<label>'+s.title+'<select name="base_'+s.id+'"><option value="0">Not started</option><option value="1">Learning the basics</option><option value="3">Reliable in familiar places</option></select></label>').join(''):'')+'<button type="submit" class="primary" '+(!adult()?'disabled':'')+'>Save training plan</button></form><button id="dtOldTraining">Earlier training references ›</button>');
