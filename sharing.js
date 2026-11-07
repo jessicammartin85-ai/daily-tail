@@ -101,7 +101,7 @@ async function publish(d){
  return d;
 }
 function sharedSectionFields(dog,previous){
- const saved=window.DailyTalesFriendSections?.build(dog?.extras)||{};
+ const saved=window.DailyTailsFriendSections?.build(dog?.extras)||{};
  return Object.keys(saved).length||previous?.sharedSections?{sharedSections:saved}:{};
 }
 async function createInvitation(){
