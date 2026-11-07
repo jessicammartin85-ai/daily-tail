@@ -211,7 +211,7 @@
   '@media(max-width:390px){.dt-concept-profile{gap:11px;padding:14px}.dt-concept-profile-photo{width:100px;height:100px;flex-basis:100px}.dt-concept-profile-copy p{font-size:12px;margin-top:88px}.dt-concept-tag{right:13%;width:112px}.dt-concept-tag-label{right:calc(13% + 11px);width:90px}}'
   ].join('\n');document.head.appendChild(css);
   const home=document.createElement('section');home.id='dtConceptHome';home.setAttribute('aria-label','Daily Tail home dashboard');
-  home.innerHTML='<div class="dt-concept-profile"><img id="dtConceptPhoto" class="dt-concept-profile-photo" alt="Lou profile photo"><div class="dt-concept-profile-copy"><h2 id="dtConceptName">Lou</h2><p>My profile · Recent memories</p><button type="button" id="dtConceptProfile" class="dt-concept-open">View profile ›</button></div><img id="dtConceptTag" class="dt-concept-tag" alt="" aria-hidden="true"><span id="dtConceptTagLabel" class="dt-concept-tag-label" aria-hidden="true">Lou</span></div><div class="dt-concept-next"><div class="dt-concept-head"><h3>Up Next</h3><span class="dt-concept-time" id="dtConceptTime">Loading plan…</span></div><div class="dt-concept-task"><input type="checkbox" id="dtConceptCheck" aria-label="Complete next care task"><button type="button" id="dtConceptTask">Check the daily plan</button><span class="dt-concept-chev" aria-hidden="true">›</span></div></div><div class="dt-concept-actions"><button type="button" id="dtConceptCare"><span class="dt-icon" aria-hidden="true">🐾</span>Log Care</button><button type="button" id="dtConceptPlan"><span class="dt-icon" aria-hidden="true">▣</span>Daily Plan</button><button type="button" id="dtConceptMemory"><span class="dt-icon" aria-hidden="true">♡</span>Memory</button></div><div class="dt-concept-extras"><button type="button" id="dtConceptTraining">Training ›</button><button type="button" id="dtConceptEmergency">Emergency Info ›</button></div>';
+  home.innerHTML='<div class="dt-concept-profile"><img id="dtConceptPhoto" class="dt-concept-profile-photo" alt="Lou profile photo"><div class="dt-concept-profile-copy"><h2 id="dtConceptName">Lou</h2><p>My profile · Recent memories</p><button type="button" id="dtConceptProfile" class="dt-concept-open">View profile ›</button></div><img id="dtConceptTag" class="dt-concept-tag" alt="" aria-hidden="true"><span id="dtConceptTagLabel" class="dt-concept-tag-label" aria-hidden="true">Lou</span></div><div class="dt-concept-next"><div class="dt-concept-head"><h3>Up Next</h3><span class="dt-concept-time" id="dtConceptTime">Loading plan…</span></div><div class="dt-concept-task"><input type="checkbox" id="dtConceptCheck" aria-label="Complete next care task"><button type="button" id="dtConceptTask">Check the daily plan</button><button type="button" class="dt-concept-chev" id="dtConceptArrow" aria-label="Open this event in the Daily Schedule">›</button></div></div><div class="dt-concept-actions"><button type="button" id="dtConceptCare"><span class="dt-icon" aria-hidden="true">🐾</span>Log Care</button><button type="button" id="dtConceptPlan"><span class="dt-icon" aria-hidden="true">▣</span>Daily Plan</button><button type="button" id="dtConceptMemory"><span class="dt-icon" aria-hidden="true">♡</span>Memory</button></div><div class="dt-concept-extras"><button type="button" id="dtConceptTraining">Training ›</button><button type="button" id="dtConceptEmergency">Emergency Info ›</button></div>';
   art.before(home);
   const action=(source,id)=>$(source)?.addEventListener('click',()=>$(id)?.click());
   $('dtConceptProfile').addEventListener('click',()=>{if(document.body.classList.contains('friend-view'))$('recent')?.click();else $('portraitBtn')?.click();});
@@ -221,6 +221,7 @@
   action('dtConceptTraining','trainingArt');
   action('dtConceptEmergency','emergencyArt');
   action('dtConceptTask','upNextActivity');
+  action('dtConceptArrow','upNextActivity');
   $('dtConceptCheck').addEventListener('change',e=>{
     const original=$('upNextCheck');
     if(original&&original.checked!==e.target.checked)original.click();
@@ -504,7 +505,7 @@
     const info=document.createElement('div');info.className='dt-timeline-entry';
     const time=document.createElement('time');time.textContent=e.time||'';
     const label=document.createElement('strong');label.textContent=e.title||'Care activity';info.append(time,label);
-    const open=document.createElement('button');open.type='button';open.className='dt-timeline-open';open.textContent='›';open.setAttribute('aria-label','Open Daily Plan for '+(e.title||'care activity'));open.onclick=()=>$('scheduleArt')?.click();
+    const open=document.createElement('button');open.type='button';open.className='dt-timeline-open';open.textContent='›';open.setAttribute('aria-label','Open Daily Plan for '+(e.title||'care activity'));open.onclick=()=>window.DailyTailSchedule?.openEvent?window.DailyTailSchedule.openEvent(e.i):$('scheduleArt')?.click();
     li.append(check,info,open);items.append(li);
    });
    if(!selected.length){const li=document.createElement('li');li.textContent=entries.length?'Everything is complete for today!':'Nothing scheduled yet.';items.append(li);}
