@@ -626,7 +626,8 @@ openDate(today());updateSnapshot();
 /* Appearance settings: palette, recolored original illustration, and uploaded stripe replacement. */
 (()=>{
  const KEY='dailytail_appearance_v1';
- const original={panel:'#b37344',feature:'#cbd5de',text:'#1b1b1b',page:'#f6efe5',accent:'#9bb8cf',title:'#dbe5ed',stripeBlue:'#a0aeb9',stripeCream:'#f6efe5',portraitBorder:'#cbd5de',recentBorder:'#8ea2b3',recentFill:'#d7e2ea',recentInside:'#f8f3ea',recentBadge:'#8da9bc',recentText:'#241c18',navFill:'#cbd5de',navText:'#1b1b1b',upNextText:'#1b1b1b',snapshotFill:'#cbd5de',snapshotText:'#1b1b1b',tagText:'#29313b',buttonText:'#1b1b1b',mode:'stripes',photo:''};
+ const cardOptions={cardShape:{"original":"Original","rounded":"Soft rounded","compact":"Rounded rectangle","ticket":"Ticket","folder":"Folder tab","asymmetric":"Asymmetric corners","clipped":"Clipped corners"},cardBorder:{"original":"Original","classic":"Classic outline","stitched":"Stitched","double":"Double frame","accent":"Accent edge","shadow":"Shadow only","top":"Top accent","weighted":"Weighted bottom edge","beveled":"Beveled rim","cream":"Cream outline","stacked":"Stacked paper","brackets":"Corner brackets","rails":"Side rails","bands":"Cream side bands","piping":"Collar piping","perforated":"Perforated edges","rivets":"Corner rivets"}};
+ const original={cardShape:'original',cardBorder:'original',panel:'#b37344',feature:'#cbd5de',text:'#1b1b1b',page:'#f6efe5',accent:'#9bb8cf',title:'#dbe5ed',stripeBlue:'#a0aeb9',stripeCream:'#f6efe5',portraitBorder:'#cbd5de',recentBorder:'#8ea2b3',recentFill:'#d7e2ea',recentInside:'#f8f3ea',recentBadge:'#8da9bc',recentText:'#241c18',navFill:'#cbd5de',navText:'#1b1b1b',upNextText:'#1b1b1b',snapshotFill:'#cbd5de',snapshotText:'#1b1b1b',tagText:'#29313b',buttonText:'#1b1b1b',mode:'stripes',photo:''};
  let theme={...original};try{const saved=JSON.parse(dtSafeStorage.getItem(KEY));if(saved&&typeof saved==='object')theme={...theme,...saved}}catch{}
  // Undo history remains available while the app stays open, even if Settings closes.
  const themeUndoHistory=[];
@@ -642,6 +643,9 @@ openDate(today());updateSnapshot();
  function styleVars(){
   const root=document.documentElement;root.style.setProperty('--panel-color',fmt(theme.panel));root.style.setProperty('--feature-color',fmt(theme.feature));root.style.setProperty('--text-color',fmt(theme.text));root.style.setProperty('--page-color',fmt(theme.page));root.style.setProperty('--accent-color',fmt(theme.accent));root.style.setProperty('--title-color',fmt(theme.title));
   for(const [key,variable] of Object.entries({portraitBorder:'--portrait-border',recentBorder:'--recent-border',recentFill:'--recent-fill',recentInside:'--recent-inside',recentBadge:'--recent-badge',recentText:'--recent-text',navFill:'--nav-fill',navText:'--nav-text',upNextText:'--up-next-text',snapshotFill:'--snapshot-fill',snapshotText:'--snapshot-text',tagText:'--tag-text',buttonText:'--button-text'})){root.style.setProperty(variable,fmt(theme[key]));}
+  for(const [key,options] of Object.entries(cardOptions)){
+   document.body.dataset[key]=Object.hasOwn(options,theme[key])?theme[key]:'original';
+  }
   document.body.classList.add('theme-on');
   const shell=document.querySelector('.shell');if(theme.mode==='photo'&&theme.photo){shell.style.backgroundImage=`url("${theme.photo}")`;shell.style.backgroundSize='cover';shell.style.backgroundRepeat='repeat-y';shell.style.backgroundPosition='center top'}
   else if(theme.mode==='solid'){shell.style.backgroundImage='none';shell.style.backgroundColor=theme.page}
@@ -685,6 +689,7 @@ openDate(today());updateSnapshot();
  panel:'Main Brown Panel',stripeBlue:'Blue Background Stripes',stripeCream:'Cream Background Stripes',page:'Solid Outer Background',title:'Daily Tail Heading',tagText:'Name Engraved on Dog Tag',portraitBorder:'Profile Photo Circle Border',recentFill:'Recent Post Outer Box',recentInside:'Recent Post Inner Box',recentBorder:'Recent Post Border',recentBadge:'Recent Post Heading Tab',recentText:'Recent Post Title & Preview Text',upNextText:'Up Next Heading & Schedule Text',navFill:'Home Navigation Button Background',navText:'Home Navigation Button Text',snapshotFill:'Today’s Snapshot Card Background',snapshotText:'Today’s Snapshot Text',feature:'Other Cards & Panels',text:'General App Text',buttonText:'Other Button Text',accent:'Progress Bars & Highlights'};
  const themeDescriptions={};
  function settings(msg=''){
+  const cardSelect=(key,label)=>`<label class="field">${label}<select name="${key}">${Object.entries(cardOptions[key]).map(([value,name])=>`<option value="${value}" ${document.body.dataset[key]===value?'selected':''}>${name}</option>`).join('')}</select></label>`;
   const pickers=Object.entries(icons).map(([key,label])=>`<button type="button" class="theme-target" data-theme-target="${key}" aria-pressed="${key==='panel'}"><span class="theme-target-dot" data-theme-dot="${key}" style="background:${theme[key]}"></span><span class="theme-target-label">${label}</span><span class="theme-target-hex" data-theme-hex="${key}">${theme[key].toUpperCase()}</span><span class="theme-target-open" aria-hidden="true">›</span></button>`).join('');
   const hues=[0,15,30,45,60,90,120,150,180,195,210,225,240,260,285,310,335];
   const levels=[94,82,68,52,36,22];
@@ -692,7 +697,7 @@ openDate(today());updateSnapshot();
   palette.unshift('#ffffff','#f7f3eb','#e8ded0','#aaa9a7','#57575a','#242424','#000000');
   const swatches=palette.map((color,i)=>`<button type="button" class="theme-palette-swatch" data-palette-index="${i}" style="background:${color}" aria-label="Choose color shade ${i+1}" title="Choose this shade"></button>`).join('');
   const paletteHtml=`<div id="themeColorPopup" class="theme-color-popup" hidden><div class="theme-color-dialog" role="dialog" aria-modal="true" aria-labelledby="themePopupTitle"><div class="theme-color-dialog-header"><div><div class="theme-color-dialog-kicker">EDIT COLOR</div><h3 id="themePopupTitle">Main Brown Panel</h3></div><button type="button" id="themePopupClose" class="theme-color-close" aria-label="Close color picker">✕</button></div><div class="theme-palette-tools"><div class="theme-current"><span id="themeCurrentDot" class="theme-current-dot" style="background:${theme.panel}"></span><strong id="themeCurrentLabel">Current color</strong></div><label class="theme-custom">Custom color <input id="themeCustomColor" type="color" value="${theme.panel}" aria-label="Choose any custom color"></label></div><p class="theme-help">Tap a shade to apply it. The colors range from light to dark.</p><div class="theme-palette-grid" role="group" aria-label="Color wheel shades">${swatches}</div><div class="theme-color-dialog-footer"><button id="themePopupUndo" type="button" ${themeUndoHistory.length?'':'disabled'}>↶ Undo</button><button id="themePopupDone" type="button" class="primary">Done</button></div></div></div>`;
-  show('Settings',`<div id="dtShareSettingsSlot"></div><h3>Appearance</h3><p class="muted">Choose your colors and background.</p><h3>Tap any section to choose its color</h3><div class="theme-target-grid">${pickers}</div>${paletteHtml}<h3>Background style</h3><div class="theme-choice"><label><input type="radio" name="themeMode" value="stripes" ${theme.mode==='stripes'?'checked':''}>Original stripes</label><label><input type="radio" name="themeMode" value="solid" ${theme.mode==='solid'?'checked':''}>Solid color</label><label><input type="radio" name="themeMode" value="photo" ${theme.mode==='photo'?'checked':''}>Uploaded image</label></div><label class="field upload">Upload a background photo or pattern<input id="themeUpload" type="file" accept="image/*"></label><div class="theme-preview" id="themePhotoPreview">${theme.photo?'<span class="muted">Custom background image saved</span>':''}</div><p class="theme-help">Choose a background image or use the striped background.</p><div class="theme-actions"><button type="button" id="themeUndo" ${themeUndoHistory.length?'':'disabled'} aria-label="Undo last appearance change">↶ Undo last change</button><button type="button" id="themeRemovePhoto">Remove uploaded image</button><button type="button" id="themeReset">Restore original look</button></div><p id="themeStatus" role="status" class="muted">${safe(msg)}</p>`,'theme');
+  show('Settings',`<div id="dtShareSettingsSlot"></div><h3>Appearance</h3><details class="dt-card-appearance"><summary>Card styles</summary><p class="muted">Applies to Training, Dog Friends, and Events in Owner View.</p>${cardSelect('cardShape','Card shape')}${cardSelect('cardBorder','Card border')}<div class="dt-card-style-preview" aria-label="Card style preview"><strong>🎓 Training</strong><br>Practice name recognition</div></details><p class="muted">Choose your colors and background.</p><h3>Tap any section to choose its color</h3><div class="theme-target-grid">${pickers}</div>${paletteHtml}<h3>Background style</h3><div class="theme-choice"><label><input type="radio" name="themeMode" value="stripes" ${theme.mode==='stripes'?'checked':''}>Original stripes</label><label><input type="radio" name="themeMode" value="solid" ${theme.mode==='solid'?'checked':''}>Solid color</label><label><input type="radio" name="themeMode" value="photo" ${theme.mode==='photo'?'checked':''}>Uploaded image</label></div><label class="field upload">Upload a background photo or pattern<input id="themeUpload" type="file" accept="image/*"></label><div class="theme-preview" id="themePhotoPreview">${theme.photo?'<span class="muted">Custom background image saved</span>':''}</div><p class="theme-help">Choose a background image or use the striped background.</p><div class="theme-actions"><button type="button" id="themeUndo" ${themeUndoHistory.length?'':'disabled'} aria-label="Undo last appearance change">↶ Undo last change</button><button type="button" id="themeRemovePhoto">Remove uploaded image</button><button type="button" id="themeReset">Restore original look</button></div><p id="themeStatus" role="status" class="muted">${safe(msg)}</p>`,'theme');
   $('dtShareSettingsSlot').append($('dtShareSettingsHome').firstElementChild);
   let activeTarget='panel';
   function hexFromRgb(rgb){
@@ -740,6 +745,26 @@ openDate(today());updateSnapshot();
   document.querySelectorAll('[data-palette-index]').forEach(btn=>btn.addEventListener('click',()=>setTargetColor(palette[Number(btn.dataset.paletteIndex)])));
   document.getElementById('themeCustomColor').addEventListener('change',e=>setTargetColor(e.target.value));
   updateSelectedTarget();
+  for(const key of Object.keys(cardOptions)){
+   const select=document.querySelector(`#content select[name="${key}"]`);
+   select.onchange=()=>{
+    if(!Object.hasOwn(cardOptions[key],select.value)||theme[key]===select.value)return;
+    const prior=theme[key];
+    theme[key]=select.value;
+    if(!saveTheme()){
+     theme[key]=prior;
+     select.value=document.body.dataset[key];
+     $('themeStatus').textContent='Could not save the card style.';
+     return;
+    }
+    themeUndoHistory.push({...theme,[key]:prior});
+    if(themeUndoHistory.length>30)themeUndoHistory.shift();
+    styleVars();
+    $('themeUndo').disabled=false;
+    $('themePopupUndo').disabled=false;
+    $('themeStatus').textContent='Card style saved.';
+   };
+  }
   document.querySelectorAll('[name=themeMode]').forEach(input=>input.addEventListener('change',()=>{if(input.checked&&theme.mode!==input.value){rememberTheme();theme.mode=input.value;saveTheme();recolorArtwork();document.getElementById('themeUndo').disabled=false}}));
   document.getElementById('themeUpload').addEventListener('change',async e=>{
     const file=e.target.files[0];if(!file)return;
