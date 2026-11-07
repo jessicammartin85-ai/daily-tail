@@ -98,6 +98,7 @@ function saveAndReturn(dogId,update,back){
   const latest=store().read();
   update(latest);
   store().save(dogId,latest);
+  renderUpcomingEvents();
   back();
  }catch(error){const status=content().querySelector('#dtEventMessage');if(status)status.textContent=error.message;}
 }
@@ -144,6 +145,16 @@ function openGifts(){
   saveAndReturn(dogId,latest=>{latest.gifts={type:'gifts',title,items};},openGifts);
  };
 }
+function upcomingEvents(events,now=Date.now()){
+ return (events||[]).filter(event=>Date.parse(event.date)>=now)
+  .sort((first,second)=>Date.parse(first.date)-Date.parse(second.date));
+}
+function renderUpcomingEvents(){
+ const list=document.getElementById('dtUpcomingEvents');
+ if(!list||window.dtRole!=='adult')return;
+ const events=upcomingEvents(store().read().events);
+ list.innerHTML=events.length?`<ul>${events.map(event=>`<li><strong>${esc(event.title)}</strong><small>${esc(new Date(event.date).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}))}</small></li>`).join('')}</ul>`:'<p>No upcoming events</p>';
+}
 function init(){
  const anchor=document.querySelector('.dog-friends-section');
  if(!anchor||!store())return;
@@ -151,13 +162,17 @@ function init(){
  section.innerHTML=`<div class="dt-eg-header">
   <div class="dt-eg-title"><h2>Events</h2><button type="button" class="dt-eg-events-link">+ Events</button></div>
   <button type="button" class="dt-eg-gift-button"><span aria-hidden="true">🎁</span> Gift List</button>
- </div>`;
+ </div><div id="dtUpcomingEvents"></div>`;
  anchor.after(section);
  const [events,gifts]=section.querySelectorAll('button');
  events.onclick=openEvents;gifts.onclick=openGifts;
  const style=document.createElement('style');
  style.textContent=`
  body:not(.dt-role-adult) #dtEventsGiftsHome,body.friend-view #dtEventsGiftsHome,body.dt-locked #dtEventsGiftsHome{display:none}
+ #dtUpcomingEvents ul{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:6px}
+ #dtUpcomingEvents li{padding:8px 10px;background:#fff9ef;border-radius:9px;overflow-wrap:anywhere}
+ #dtUpcomingEvents small{display:block;margin-top:3px;color:#4d6474}
+ #dtUpcomingEvents p{margin:8px 0 0;color:#4d6474;font-size:13px}
  .dt-eg-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
  #dtEventsGiftsHome h2{font:700 clamp(23px,5vw,29px)/1.2 Georgia,serif;color:#6b4935;margin:0}
  #dtEventsGiftsHome button{cursor:pointer;font:700 13px Arial,sans-serif;color:#25475d;min-height:36px}
@@ -179,10 +194,14 @@ function init(){
  `;
  document.head.append(style);
  const resume=()=>{
+  renderUpcomingEvents();
   if(location.hash.startsWith('#dtJoinEvent=')&&window.dtRole==='adult'&&!document.body.classList.contains('friend-view')&&!document.body.classList.contains('dt-locked'))openEvents();
  };
  new MutationObserver(resume).observe(document.body,{attributes:true,attributeFilter:['class']});
  window.addEventListener('hashchange',resume);
+ window.addEventListener('daily-tales-cloud-dogs-changed',renderUpcomingEvents);
+ window.addEventListener('focus',renderUpcomingEvents);
+ setInterval(renderUpcomingEvents,60000);
  resume();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
