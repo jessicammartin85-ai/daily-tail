@@ -20,8 +20,29 @@ function readShare(hash){
  }catch{}
  return null;
 }
+function eventImage(image){
+ return typeof image==='string'&&image.length<=120000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(image)
+  ? '<img class="dt-event-image" src="'+image+'" alt="Event image">':'';
+}
+async function prepareEventImage(file){
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024)throw Error('Choose a JPG, PNG, or WebP image under 15 MB.');
+ const source=URL.createObjectURL(file);
+ try{
+  const image=new Image();image.src=source;
+  await image.decode();
+  const canvas=document.createElement('canvas');
+  const scale=Math.min(1,600/Math.max(image.naturalWidth,image.naturalHeight));
+  canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+  canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(image,0,0,canvas.width,canvas.height);
+  const encoded=canvas.toDataURL('image/jpeg',.65);
+  if(!eventImage(encoded))throw Error('Choose a smaller image.');
+  return encoded;
+ }finally{URL.revokeObjectURL(source);}
+}
 function eventDetails(event){
- return '<p><strong>'+esc(new Date(event.date).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</strong></p>'+
+ return eventImage(event.image)+'<p><strong>'+esc(new Date(event.date).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</strong></p>'+
  (event.place?'<p>'+esc(event.place)+'</p>':'')+(event.details?'<p style="white-space:pre-wrap">'+esc(event.details)+'</p>':'');
 }
 function giftItems(list){
@@ -44,7 +65,8 @@ const content=()=>document.getElementById('content');
 function screen(title,body){store().show(title,'<div class="dt-events-gifts">'+body+'</div>');}
 function share(item,back){
  const url=new URL('./events-gifts-share.html',location.href);
- url.hash=encodeURIComponent(encode(item));
+ const {image,...sharedItem}=item;
+ url.hash=encodeURIComponent(encode(sharedItem));
  screen('Share '+(item.type==='event'?'event':'gift list'),
   '<p>Anyone with this link can view these details. Share a new link after making changes.</p>'+
   '<label>Sharing link<input id="dtEventShareLink" readonly value="'+esc(url.href)+'"></label>'+
@@ -65,7 +87,7 @@ function openEvents(){
  if(location.hash.startsWith('#dtJoinEvent=')){try{invitation=decodeURIComponent(location.hash.slice(13));}catch{}}
  screen('Events',
   '<p>Create an event or paste an invitation to add it to this dog’s events.</p>'+
-  '<form id="dtJoinEventForm"><label>Event link<input name="link" required value="'+esc(invitation?'#'+invitation:'')+'"></label><button>Review invitation</button></form>'+
+  '<form id="dtJoinEventForm"><label>Event link<input name="link" required value="'+esc(invitation?'#'+invitation:'')+'"></label><button type="submit">Review invitation</button></form>'+
   '<button type="button" id="dtCreateEvent">Create event</button><p id="dtEventMessage" role="status"></p>'+
   (events.length?events.map((event,index)=>'<article class="dt-event-entry"><h3>'+esc(event.title)+'</h3>'+eventDetails(event)+
    (event.joined?'<small>Joined</small>':'<button type="button" data-edit-event="'+index+'">Edit</button> <button type="button" data-share-event="'+index+'">Share invitation</button>')+
@@ -112,19 +134,33 @@ function editEvent(event){
   '<label>Date and time<input name="date" required type="datetime-local" value="'+esc(event?localDate(event.date):'')+'"></label>'+
   '<label>Location<input name="place" maxlength="200" value="'+esc(event?.place)+'"></label>'+
   '<label>Details<textarea name="details" maxlength="800">'+esc(event?.details)+'</textarea></label>'+
-  '<button>Save event</button> <button type="button" id="dtEventCancel">Back</button></form><p id="dtEventMessage" role="status"></p>');
+  '<label>Event image (optional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>'+
+  '<small>Only visible in your dog’s Events.</small>'+
+  (eventImage(event?.image)?eventImage(event.image)+'<label class="dt-event-image-remove"><input name="removeImage" type="checkbox"> Remove current image</label>':'')+
+  '<div><button type="submit">Save event</button> <button type="button" id="dtEventCancel">Back</button></div></form><p id="dtEventMessage" role="status"></p>');
  content().querySelector('#dtEventCancel').onclick=openEvents;
- content().querySelector('#dtEventEditor').onsubmit=submit=>{
+ content().querySelector('#dtEventEditor').onsubmit=async submit=>{
   submit.preventDefault();
   const values=new FormData(submit.currentTarget);
   const title=values.get('title').trim(), date=new Date(values.get('date'));
   if(!title||!Number.isFinite(date.getTime())){content().querySelector('#dtEventMessage').textContent='Enter an event name, date, and time.';return;}
-  const saved={type:'event',id:event?.id||crypto.randomUUID(),title,date:date.toISOString(),place:values.get('place').trim(),details:values.get('details').trim()};
-  saveAndReturn(dogId,latest=>{
-   latest.events=latest.events||[];
-   const index=latest.events.findIndex(item=>item.id===saved.id);
-   if(index<0)latest.events.push(saved);else latest.events[index]=saved;
-  },openEvents);
+  const form=submit.currentTarget, button=form.querySelector('[type=submit]');
+  const status=content().querySelector('#dtEventMessage');
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+   const file=values.get('image');
+   const image=file?.size?await prepareEventImage(file):values.has('removeImage')?'':event?.image;
+   if(!form.isConnected||!document.getElementById('overlay')?.classList.contains('open'))return;
+   const saved={type:'event',id:event?.id||crypto.randomUUID(),title,date:date.toISOString(),place:values.get('place').trim(),details:values.get('details').trim()};
+   if(image)saved.image=image;
+   saveAndReturn(dogId,latest=>{
+    latest.events=latest.events||[];
+    const index=latest.events.findIndex(item=>item.id===saved.id);
+    if(index<0)latest.events.push(saved);else latest.events[index]=saved;
+   },openEvents);
+  }catch(error){status.textContent=error.message||'Could not load the image.';}
+  finally{button.disabled=false;}
  };
 }
 function openGifts(){
@@ -142,7 +178,7 @@ function openGifts(){
   '<details class="dt-eg-ideas"'+(list?.items.length?' open':'')+'><summary>Individual gift ideas (optional with a link)</summary>'+
   '<label>One idea per line<textarea name="items" maxlength="4000">'+esc(list?.items.map(item=>item.name+(item.url?' | '+item.url:'')).join('\n')||'')+'</textarea></label>'+
   '<small>For a shopping link, use: Item name | https://…</small></details>'+
-  '<button>Save gift list</button></form>';
+  '<button type="submit">Save gift list</button></form>';
  screen('Gift List',preview+(list?'<details class="dt-eg-edit-list"><summary>Edit gift list</summary>'+form+'</details>':form)+
   '<p id="dtEventMessage" role="status"></p>');
  const shareButton=content().querySelector('#dtShareGifts');
@@ -203,6 +239,10 @@ function init(){
  .dt-events-gifts textarea{min-height:100px;resize:vertical}
  .dt-events-gifts button{min-height:40px;padding:8px 12px;margin:4px 0;border:1px solid #91afc2;border-radius:10px;background:#e1edf3;color:#25475d;font-weight:700;cursor:pointer}
  .dt-events-gifts form button:not([type=button]),#dtCreateEvent,#dtShareGifts,#dtCopyEventShare{background:#335c74;color:#fff;border-color:#335c74}
+ body #overlay .sheet .dt-events-gifts button[type=submit],
+ body #overlay .sheet .dt-events-gifts :is(#dtCreateEvent,#dtShareGifts,#dtCopyEventShare){color:#fff!important;-webkit-text-fill-color:#fff!important}
+ .dt-event-image{display:block;max-width:100%;max-height:230px;object-fit:contain;border-radius:10px;margin:10px 0}
+ .dt-events-gifts .dt-event-image-remove input{display:inline;width:auto;margin-right:6px}
  .dt-event-entry h3{margin:0 0 6px;color:#6b4935;font-family:Georgia,serif}
  .dt-event-entry p{margin:6px 0}
  .dt-events-gifts p,.dt-events-gifts li{overflow-wrap:anywhere}
