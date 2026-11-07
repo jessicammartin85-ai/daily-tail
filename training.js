@@ -239,7 +239,7 @@ function programLessonResources(program,lesson){
  </div>`;
 }
 const lessonSkillLevels=['Not started','Learning with help','Can do it in a quiet setting','Reliable in different settings'];
-function programLesson(index){
+function programLesson(index,back=programOverview,backLabel='Back to program lessons'){
  const data=read(), lesson=data.program.lessons[index];
  if(!lesson)return;
  frame(`<h3>${esc(lesson.title)}</h3>
@@ -253,7 +253,7 @@ function programLesson(index){
  <label>Trainer’s video link (optional)<input type="url" name="video" value="${esc(lesson.video||'')}"></label>
  <label>Practice notes<textarea name="notes" maxlength="3000">${esc(lesson.notes||'')}</textarea></label>
  ${adult()?'<button class="primary">Save lesson progress</button>':''}
- </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':oneTimeLesson(lesson)?'Mark done':'Ready to move on')+'</button>':''}`,'Back to program lessons',programOverview);
+ </form>${adult()?'<button id="dtProgramDone">'+(lesson.completedAt?'Reopen lesson':oneTimeLesson(lesson)?'Mark done':'Ready to move on')+'</button>':''}`,backLabel,back);
  const form=$('dtProgramLesson');
  const dogId=api().dogId(), status=$('dtTrainingStatus');
  const changed=new Set();
@@ -292,9 +292,9 @@ function programLesson(index){
   };
   form.onchange=()=>saveProgress();
   $('content').querySelectorAll('[data-training-back]').forEach(control=>{
-   control.onclick=()=>{if(saveProgress())programOverview();};
+   control.onclick=()=>{if(saveProgress())back();};
   });
-  $('dtProgramDone').onclick=()=>{if(saveProgress(true))programOverview();};
+  $('dtProgramDone').onclick=()=>{if(saveProgress(true))back();};
  }
 }
 
@@ -343,5 +343,34 @@ function init(){if(!api())return;const trigger=$('trainingArt');if(trigger){lega
  const style=document.createElement('style');style.textContent=`#dtTrainingHome{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#d4e2ec;border:2px solid #9eb5c5;border-radius:22px;box-sizing:border-box;padding:12px 14px;margin:14px 12px;color:#294d65;font:15px/1.4 Arial,sans-serif}#dtTrainingHome h3{font:700 22px Georgia,serif;margin:0 0 3px}#dtTrainingHome p{margin:0}#dtTrainingHome button{flex-shrink:0;background:#fff9ef;border:1px solid #a6bac9;border-radius:17px;padding:12px;color:#294d65;font-weight:bold;min-height:44px}body.friend-view #dtTrainingHome,body.dt-locked #dtTrainingHome{display:none!important}.dt-training{color:#294d65;font:16px/1.5 Arial,sans-serif}.dt-training h3{font:700 28px Georgia,serif;color:#6b462e}.dt-training h4{font:700 22px Georgia,serif;margin:12px 0}.dt-training label{display:block;margin:12px 0}.dt-training input:not([type=checkbox]),.dt-training select,.dt-training textarea{display:block;box-sizing:border-box;width:100%;padding:11px;border:1px solid #9db2c1;border-radius:10px;background:#fffefa;font:16px Arial;color:#294d65}.dt-training textarea{min-height:90px}.dt-training button{min-height:44px;cursor:pointer;margin:5px 0;padding:10px 13px;border:1px solid #9eb5c5;border-radius:12px;background:#e0ebf2;color:#294d65;font-weight:bold}.dt-training button:disabled{opacity:.5;cursor:default}.dt-training button.primary{background:#345b73;color:white}.dt-training details,.dt-training-quick,.dt-training-resources{padding:14px;margin:12px 0;border:1px solid #b6c8d4;border-radius:14px;background:#fff9ef}.dt-training-quick{background:#d6e5ef}.dt-training summary{cursor:pointer;font-weight:bold;min-height:30px}.dt-training-tile{display:flex;width:100%;flex-direction:column;align-items:start;text-align:left;gap:5px}.dt-training-tile strong{font:700 22px Georgia}.dt-training-tile span{font-weight:normal}.dt-training-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.dt-training-check{display:flex!important;align-items:start;gap:9px}.dt-training-check input{margin-top:5px;flex-shrink:0}.dt-training a{color:#245b7b;overflow-wrap:anywhere}.dt-training-history{border-bottom:1px solid #d2dde5;padding:10px 0}.dt-training-history p{margin:4px 0}.dt-training-note{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:400px){#dtTrainingHome{padding:10px 12px;gap:8px;font-size:13px}#dtTrainingHome h3{font-size:20px}#dtTrainingHome button{font-size:12px;padding:7px 10px;max-width:110px}}`;document.head.append(style);
  updateCard();window.addEventListener('daily-tales-cloud-dogs-changed',updateCard);window.addEventListener('focus',updateCard);new MutationObserver(updateCard).observe(document.body,{attributes:true,attributeFilter:['class']});
 }
-window.DailyTalesTraining={open};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+function scheduleTrainingTopics(event){
+ const title=event.title||'';
+ const topics=[];
+ if(event.kind==='social'||/sociali[sz]|greet|exposure/i.test(title))topics.push('social');
+ if(/groom|brush|handling|paw care|ear care/i.test(title))topics.push('groom');
+ if(event.kind==='walk'||/leash|harness|walk/i.test(title))topics.push('walk');
+ if(event.kind==='train'||/training|recall|\bsit\b|settle/i.test(title))topics.push('train');
+ return topics;
+}
+function openScheduleResource(event,back){
+ if(!['adult','child'].includes(window.dtRole)||document.body.classList.contains('friend-view'))return;
+ screenDog=api().dogId();
+ const topics=scheduleTrainingTopics(event), program=read().program;
+ const patterns={social:/social|people|puppies|greet|crowd|distraction|another dog/i,groom:/groom|handling|petting|ear|paw|holding/i,walk:/leash|walk|harness/i,train:/cue|sit|down|recall|called|target|settle|foundation/i};
+ const lessons=(program?.lessons||[]).map((lesson,index)=>({lesson,index})).filter(({lesson})=>topics.some(topic=>patterns[topic].test(lesson.title)));
+ const reference=()=>{
+  frame(`<h3>${esc(event.title)}</h3><p>${esc(event.desc||'')}</p>
+  ${lessons.length?`<h4>Your program lessons</h4>${lessons.map(({lesson,index})=>`<button type="button" class="dt-training-tile" data-resource-lesson="${index}">${esc(lesson.title)} ›</button>`).join('')}`:''}
+  <h4>Practice references</h4>
+  ${topics.includes('social')?'<p>Start at a distance where your dog stays comfortable. Reward calm observation and let your dog move away.</p>'+link('https://avsab.org/resources/position-statements/','AVSAB puppy socialization guidance'):''}
+  ${topics.includes('groom')?'<p>Reward a brief touch or brush stroke. Pause between repetitions and stop if your dog pulls away.</p>'+link('https://www.youtube.com/watch?v=AoM9tis3t2c','▶ Kikopup: gentle grooming and cooperative handling'):''}
+  ${skills.filter(skill=>(topics.includes('walk')&&skill.id==='leash')||(topics.includes('train')&&['sit','recall','settle','touch'].includes(skill.id))).map(skill=>`<details><summary>${esc(skill.title)}</summary><p>${esc(skill.guide)}</p>${link(skill.video||skill.videoPage||skill.source,'Open reference · '+skill.credit)}</details>`).join('')}`,
+  'Back to daily schedule',back);
+  $('content').querySelectorAll('[data-resource-lesson]').forEach(button=>{
+   button.onclick=()=>programLesson(Number(button.dataset.resourceLesson),reference,'Back to activity resources');
+  });
+ };
+ reference();
+}
+window.DailyTalesTraining={open,openScheduleResource,hasScheduleResource:event=>scheduleTrainingTopics(event).length>0};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
