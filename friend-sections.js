@@ -26,7 +26,7 @@ function build(extras={}){
   const events=list(data.events).filter(event=>event?.title&&Date.parse(event.date)>=Date.now()).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
   for(const [key,joined] of [['hosting',false],['attending',true]]){
    if(prefs[key]!==true)continue;
-   const entries=events.filter(event=>Boolean(event.joined)===joined).slice(0,20).map(event=>({title:text(event.title,100),date:new Date(event.date).toISOString()}));
+   const entries=events.filter(event=>Boolean(event.joined)===joined).slice(0,20).map(event=>({id:text(event.id,100),title:text(event.title,100),date:new Date(event.date).toISOString()}));
    if(entries.length)result[key]=entries;
   }
   if(prefs.gifts===true&&data.gifts){
@@ -36,9 +36,10 @@ function build(extras={}){
    if(externalUrl||items.length)result.gifts={title:text(gift.title,100),externalUrl,items};
   }
  }
+ if(result.hosting)result.hostingIds=result.hosting.map(event=>event.id).filter(Boolean);
  return result;
 }
-function render(details){
+function render(details,requestDetails){
  document.getElementById('dtSharedExtras')?.remove();
  const anchor=document.querySelector('.dog-friends-section');
  if(!anchor||!details||!Object.keys(details).length)return;
@@ -61,7 +62,12 @@ function render(details){
   if(!events.length)continue;
   element(panel,'h2',label);
   const items=element(panel,'ul','');
-  for(const event of events)element(items,'li',event.title+' · '+new Date(event.date).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}));
+  for(const event of events){
+   const row=element(items,'li',event.title+' · '+new Date(event.date).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}));
+   if(key==='hosting'&&event.id&&requestDetails){
+    const button=element(row,'button','Request Details');button.type='button';button.className='small';button.style.marginInlineStart='8px';button.onclick=()=>requestDetails(event);
+   }
+  }
  }
  if(details.gifts){
   const gift=details.gifts;
