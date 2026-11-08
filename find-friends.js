@@ -1,5 +1,5 @@
 import {registerMessaging,approvedConnections,messageInbox} from './friend-messages.js?v=20261107';
-import {publicMemoryPosts} from './public-memory-posts.js?v=memory-bylines-20261107';
+import {publicMemoryPosts} from './public-memory-posts.js?v=memory-video-20261107';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
