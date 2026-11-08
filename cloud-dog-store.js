@@ -193,8 +193,8 @@ export function watchJoinedDogs(onChange,onError){
 export async function submitChildProposal(ownerUid,item){
  const uid=assertAccount();
  if(!validId(ownerUid)||!validId(item.dogId))throw Error('Invalid owner or dog.');
- const kind=item.kind==='posts'?'post':item.kind==='photo'?'photo':'profile';
- const payload=kind==='photo'?{image:item.image}:kind==='post'?{posts:item.posts}:{
+ const kind=(item.kind==='posts'||item.kind==='post')?'post':item.kind==='photo'?'photo':'profile';
+ const payload=kind==='photo'?{image:item.image}:kind==='post'?(item.kind==='post'?{post:item.post}:{posts:item.posts}):{
    changes:item.changes||{}
  };
  if(JSON.stringify(payload).length>700000)throw Error('The proposed image or post is too large. Try a smaller photo.');

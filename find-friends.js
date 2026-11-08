@@ -1,5 +1,5 @@
 import {registerMessaging,approvedConnections,messageInbox} from './friend-messages.js?v=20261107';
-import {publicMemoryPosts} from './public-memory-posts.js?v=memory-video-20261107';
+import {publicMemoryPosts,sharedVideoIds} from './public-memory-posts.js?v=video-uploads-20261107';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -72,6 +72,7 @@ async function makePublic(d){
  photo:p.profile?.length<140000?p.profile||'':'',
  posts:prefs.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
  publicData.postIds=publicData.posts.map(post=>post.id).filter(Boolean);
+ if(publicData.posts.some(post=>post.videoUpload))publicData.videoIds=sharedVideoIds(publicData.posts,current.uid,d.id);
  if(JSON.stringify({...publicData,updatedAt:null}).length>800000)throw Error('Public profile is too large. Try a smaller photo.');
  await setDoc(doc(db,'publicProfiles',shareId),publicData);
  await setDoc(publicSettings,{shareId,createdAt:serverTimestamp()});
@@ -245,7 +246,10 @@ function initFriendsFeed(){
     const link=document.createElement('a');link.href=friendUrl(shareId);link.textContent='View shared profile ›';
     card.append(heading,title);
     if(post.authorName){const byline=document.createElement('small');byline.className='dt-memory-byline';byline.textContent='By '+post.authorName;card.append(byline);}
-    card.append(summary,link);panel.append(card);
+    card.append(summary);
+    const video=window.DailyTalesRenderMemoryVideo(post.video,post.videoUpload);
+    if(video)card.insertAdjacentHTML('beforeend',video);
+    card.append(link);panel.append(card);
    }
   }catch(error){
    if(request===generation&&current?.uid===uid)panel.textContent='Couldn’t load the friends feed. Try refreshing.';
