@@ -27,7 +27,7 @@
    button.onclick=async()=>{
     button.disabled=true;status.hidden=false;status.textContent='Loading video…';
     try{
-     const {readVideo}=await import('./memory-video-upload.js?v=1');
+     const {readVideo}=await import('./memory-video-upload.js?v=2');
      const blob=await readVideo(this.dataset);
      if(!this.isConnected||!this.contains(button))return;
      this.url=URL.createObjectURL(blob);

@@ -243,7 +243,7 @@ function add(postId){
  <label class="field">Title<input name="title" maxlength="100" value="${safe(previous?.title||'')}" required></label>
  <label class="field">Memory date<input name="memoryDate" type="date" value="${originalDay}" max="${today}" required></label>
  <label class="field">Your update<textarea name="story" maxlength="2000" placeholder="What happened?">${safe(previous?.story||previous?.text||'')}</textarea></label>
- <label class="field upload">Upload a video (optional)<input name="videoFile" type="file" accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm"><small>MP4, M4V, MOV, or WebM, up to 5 MB.</small></label>
+ <label class="field upload">Upload a video (optional)<input name="videoFile" type="file" accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm"><small>MP4, M4V, MOV, or WebM. Daily Tales compresses large clips up to 60 seconds on your device.</small></label>
  <p id="dtVideoStatus" class="muted" role="status">${videoUpload?'A video is attached.':''}</p>
  <button id="dtRemoveVideo" type="button" class="small" ${videoUpload?'':'hidden'}>Remove uploaded video</button>
  <label class="field">Video link (optional)<input name="video" type="url" maxlength="2048" placeholder="https://…" value="${safe(previous?.video||'')}"><small>Paste an HTTPS MP4, WebM, M4V, or YouTube link.</small></label>
@@ -300,10 +300,10 @@ function add(postId){
    uploading=true;submit.disabled=true;fileInput.disabled=true;remove.disabled=true;
    form.elements.photo.disabled=true;status.textContent='Uploading video…';
    try{
-    const media=await import('./memory-video-upload.js?v=1');
+    const media=await import('./memory-video-upload.js?v=2');
     const dog=dtDog();
     if(!dog||dog.id!==dogId)throw Error('Reopen the dog profile and try again.');
-    videoUpload=await media.uploadVideo(file,dog.ownerUid,dogId);
+    videoUpload=await media.uploadVideo(file,dog.ownerUid,dogId,message=>{status.textContent=message;});
     uploadedFile=file;
     status.textContent='Video attached.';
    }catch(error){status.textContent=error.message;return;}

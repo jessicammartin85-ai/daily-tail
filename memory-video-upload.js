@@ -1,3 +1,4 @@
+import {compressMemoryVideo} from './compress-memory-video.js?v=1';
 import {dailyTalesAuth as auth} from './cloud-dog-store.js';
 import {
  Bytes, doc, getDocFromServer, getFirestore, writeBatch
@@ -12,17 +13,23 @@ const videoRef=(ownerUid,dogId,id)=>doc(db,'users',ownerUid,'dogVideos',dogId,'u
 const partRef=(ref,index)=>doc(ref,'parts',String(index));
 
 export function validateVideo(file){
- const type=formats[file.name.split('.').pop().toLowerCase()];
+ const extension=file.name.split('.').pop().toLowerCase();
+ const type=Object.hasOwn(formats,extension)?formats[extension]:'';
  if(!type||!file.size)throw Error('Choose an MP4, M4V, MOV, or WebM video.');
- if(file.size>maxSize)throw Error('Choose a video up to 5 MB. You can trim the clip or use a video link.');
  return type;
 }
 
-export async function uploadVideo(file,ownerUid,dogId){
- const type=validateVideo(file);
+export async function uploadVideo(file,ownerUid,dogId,onStatus){
+ let type=validateVideo(file);
  await auth.authStateReady();
  const uploader=auth.currentUser?.uid;
  if(!uploader||!validId(ownerUid)||!validId(dogId))throw Error('Sign in and open your synced dog profile to upload a video.');
+ if(file.size>maxSize){
+  onStatus?.('Compressing video… Keep Daily Tales open.');
+  file=await compressMemoryVideo(file,maxSize);
+  type=file.type;
+ }
+ onStatus?.('Uploading video…');
  const id=crypto.randomUUID(),ref=videoRef(ownerUid,dogId,id),batch=writeBatch(db);
  const count=Math.ceil(file.size/partSize);
  batch.set(ref,{uploader,type,count,size:file.size});
