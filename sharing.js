@@ -340,8 +340,12 @@ function openShare(){
  $('shareTitle').textContent=inviteId?'Join a Dog Profile':'Share a Dog Profile';
  if(inviteId){if(!user){window.DailyTalesOpenAccount?.();$('shareShade').hidden=true;return}loadInvitation()}
  else {
+  $('shareCaregiver').hidden=true;
   status(!user?'Sign into your Daily Tales account first.':!isAdult()?'Open your Adult Owner profile first.':'Checking for pending invitations and child approvals…');
   if(user&&isAdult()){
+   const caregiver=$('shareCaregiver');
+   caregiver.hidden=false;
+   caregiver.onclick=()=>{$('shareShade').hidden=true;window.DailyTalesOpenCaregiver?.();};
    $('shareRequests').textContent='Checking for pending requests…';
    refresh();
    window.DailyTalesRefreshPublic?.(dog().id).catch(e=>status('Could not update shared profile: '+error(e),true));
@@ -372,7 +376,7 @@ window.DailyTalesRefreshPublic=async dogId=>{
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);
  const shade=document.createElement('div');shade.id='shareShade';shade.hidden=true;
- shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><p>Friends open a read-only link without signing in. Adults and children sign in, then request access. A connected Adult Owner must approve.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Current access</h3><div id="shareAccessList" aria-live="polite">Loading connected accounts…</div><h3>Requests, updates, and comments</h3><button id="shareRefresh">Refresh requests</button><h3>Event detail requests</h3><div id="shareEventDetails" aria-live="polite"></div><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p></section>';
+ shade.innerHTML='<section class="share-box" role="dialog" aria-modal="true"><button type="button" id="shareClose">×</button><h2 id="shareTitle">Share a Dog Profile</h2><div id="shareOwner"><button id="shareCaregiver" type="button" hidden>Temporary caregiver access</button><p>Friends open a read-only link without signing in. Adults and children sign in, then request access. A connected Adult Owner must approve.</p><label>Access level<select id="shareRole"><option value="friend">Friend · View only, no login</option><option value="child">Child · Limited access</option><option value="adult">Adult Owner · Editing</option></select></label><button id="shareCreate">Create invitation link</button><div class="share-row"><input id="shareLink" readonly aria-label="Invitation link"><button id="shareCopy" hidden>Copy link</button></div><button id="shareRevoke" hidden type="button">Turn off Friend link</button><h3>Current access</h3><div id="shareAccessList" aria-live="polite">Loading connected accounts…</div><h3>Requests, updates, and comments</h3><button id="shareRefresh">Refresh requests</button><h3>Event detail requests</h3><div id="shareEventDetails" aria-live="polite"></div><div id="shareRequests"></div></div><div id="shareInvite" hidden></div><p id="shareStatus" role="status"></p></section>';
  document.body.append(shade);
  btn.onclick=openShare;$('shareClose').onclick=()=>shade.hidden=true;shade.onclick=e=>{if(e.target===shade)shade.hidden=true};
  $('shareCreate').onclick=createInvitation;$('shareRefresh').onclick=refresh;$('shareRevoke').onclick=revokeFriendLink;

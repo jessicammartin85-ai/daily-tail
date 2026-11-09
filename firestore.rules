@@ -425,6 +425,76 @@ service cloud.firestore {
     }
 
     // Links allow requests only. An existing Adult Owner must grant membership.
+    // Caregiver access is independent of family membership.
+    match /users/{ownerUid}/caregiverDogs/{dogId}/visits/{visitId} {
+      function admin() {
+        return isDogAdmin(ownerUid, dogId);
+      }
+      function account() {
+        return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      }
+      function visit() {
+        return get(/databases/$(database)/documents/users/$(ownerUid)/caregiverDogs/$(dogId)/visits/$(visitId)).data;
+      }
+      function activeCaregiver() {
+        let v = visit();
+        return account() && v.approvedUid == request.auth.uid && v.revoked == false
+          && request.time >= v.startsAt && request.time < v.endsAt;
+      }
+      allow get: if admin() || account();
+      allow list: if admin();
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['startsAt','endsAt','approvedUid','revoked'])
+        && request.resource.data.startsAt is timestamp && request.resource.data.endsAt is timestamp
+        && request.resource.data.endsAt > request.time
+        && request.resource.data.endsAt > request.resource.data.startsAt
+        && request.resource.data.endsAt <= request.resource.data.startsAt + duration.value(30,'d')
+        && request.resource.data.approvedUid == '' && request.resource.data.revoked == false;
+      allow update: if admin() && resource.data.revoked == false && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked'])
+          && request.resource.data.revoked == true)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedUid'])
+          && resource.data.approvedUid == '' && request.time < resource.data.endsAt
+          && request.resource.data.approvedUid is string
+          && exists(/databases/$(database)/documents/users/$(ownerUid)/caregiverDogs/$(dogId)/visits/$(visitId)/requests/$(request.resource.data.approvedUid)))
+      );
+
+      match /requests/{uid} {
+        allow get: if admin() || (account() && request.auth.uid == uid);
+        allow list: if admin();
+        allow create: if account() && request.auth.uid == uid
+          && visit().revoked == false && visit().approvedUid == '' && request.time < visit().endsAt
+          && request.resource.data.keys().hasOnly(['email','createdAt'])
+          && request.resource.data.email is string && request.resource.data.email.size() <= 254
+          && request.resource.data.email == request.auth.token.get('email','')
+          && request.resource.data.createdAt == request.time;
+      }
+      match /care/{sheet} {
+        allow get: if admin() || activeCaregiver();
+        allow create, update: if admin() && sheet == 'details'
+          && request.resource.data.keys().hasOnly(['name','plan','emergency'])
+          && request.resource.data.name is string && request.resource.data.name.size() <= 80
+          && request.resource.data.plan is list && request.resource.data.plan.size() <= 100
+          && request.resource.data.emergency is map
+          && request.resource.data.emergency.keys().hasOnly(['vetName','vetPhone','erName','erPhone','erAddress',
+            'contactName','contactPhone','microchip','medications','allergies','notes']);
+      }
+      match /activity/{entry} {
+        allow read: if admin() || activeCaregiver();
+        allow create: if activeCaregiver()
+          && request.resource.data.createdAt == request.time && (
+            (request.resource.data.keys().hasOnly(['kind','text','createdAt'])
+              && request.resource.data.kind == 'note' && request.resource.data.text is string
+              && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000)
+            || (request.resource.data.keys().hasOnly(['kind','day','index','done','createdAt'])
+              && request.resource.data.kind == 'check' && request.resource.data.done is bool
+              && request.resource.data.index is int && request.resource.data.index >= 0
+              && request.resource.data.index < get(/databases/$(database)/documents/users/$(ownerUid)/caregiverDogs/$(dogId)/visits/$(visitId)/care/details).data.plan.size()
+              && request.resource.data.day is string && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'))
+          );
+      }
+    }
+
     match /invites/{inviteId} {
       allow get: if signedIn();
       allow list: if isDogAdmin(resource.data.ownerUid, resource.data.dogId);
