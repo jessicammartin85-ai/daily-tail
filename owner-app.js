@@ -16,6 +16,11 @@ const dtSafeStorage=(()=>{
    window.__dtPersistentStorage=true;
    return store;
  }catch(error){
+   // A full store is still readable and can be recovered by removing duplicate data.
+   if(error?.name==='QuotaExceededError'){
+     window.__dtPersistentStorage=true;
+     return window.localStorage;
+   }
    window.__dtPersistentStorage=false;
    console.warn('Daily Tail: browser storage unavailable; data is temporary. Use backup and open in Chrome from a stable site.');
    return fallback;
@@ -73,7 +78,18 @@ function renderTagName(){
  fit();requestAnimationFrame(fit);
  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
 }
-window.addEventListener('resize',renderTagName);function howToUse(){show('How to Use Daily Tail',`<p class="intro">Use this home screen as a quick snapshot of your pet’s day.</p><ul><li><strong>Up Next:</strong> Check off the next activity right from the home screen or tap the activity name to open the full Daily Plan.</li><li><strong>Daily Plan:</strong> View the full schedule for food, potty breaks, naps, training, play, and socialization.</li><li><strong>Training:</strong> See age-appropriate skills, cue guides, and tutorial videos.</li><li><strong>Emergency Info:</strong> Keep veterinary and emergency contact details in one place.</li><li><strong>Recents:</strong> Open the memory feed from the Recents box.</li><li><strong>Profile:</strong> Tap the Profile box to manage the photo, birthday, and breed.</li><li><strong>Tag:</strong> Tap the silver bone tag to change the engraved pet name.</li></ul>`,`howto`)}function editTagName(message=''){show('Edit Tag Name',`<p class="muted">Choose the name engraved on the silver tag.</p><form id="tagNameForm"><label class="field">Pet name<input id="petTagInput" type="text" maxlength="24" value="${safe(appMeta.petName||'Lou Bear')}" placeholder="Lou Bear" autocomplete="off"></label><button class="primary" type="submit">Save name</button><p class="muted" id="tagStatus" role="status" aria-live="polite">${safe(message)}</p></form>`,`tagedit`);$('petTagInput').focus();$('petTagInput').select();$('tagNameForm').onsubmit=e=>{e.preventDefault();const val=($('petTagInput').value||'').trim()||'Lou Bear';appMeta.petName=val;if(typeof dtAccess!=='undefined'&&dtDog()){dtDog().name=val;dtStore()}saveMeta();renderTagName();editTagName('Tag name saved.')}}renderTagName();function save(){try{dtSafeStorage.setItem(KEY,JSON.stringify(state));return true}catch{alert('Your browser storage is full. Try smaller photos or export the memories for safekeeping.');return false}}function safe(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function refresh(){const p=$('profileThumb'),placeholder=$('portraitPlaceholder');if(state.profile){p.src=state.profile;p.style.display='block';placeholder.style.display='none'}else{p.removeAttribute('src');p.style.display='none';placeholder.style.display='flex'}const latest=state.posts[0];const heading=$('recentPostTitle'),summary=$('recentPostSummary'),thumb=$('recentPostThumb');if(latest){heading.textContent=latest.title||'Recent memory';const raw=String(latest.story||'').trim();summary.textContent=raw?raw.slice(0,90):'Tap to view this memory and past posts';if(latest.photo){thumb.src=latest.photo;thumb.hidden=false;}else{thumb.hidden=true;thumb.removeAttribute('src');}}else{heading.textContent='Your first memory';summary.textContent='Tap to share or explore memories';thumb.hidden=true;thumb.removeAttribute('src');}}function show(title,body,type){
+window.addEventListener('resize',renderTagName);function howToUse(){show('How to Use Daily Tail',`<p class="intro">Use this home screen as a quick snapshot of your pet’s day.</p><ul><li><strong>Up Next:</strong> Check off the next activity right from the home screen or tap the activity name to open the full Daily Plan.</li><li><strong>Daily Plan:</strong> View the full schedule for food, potty breaks, naps, training, play, and socialization.</li><li><strong>Training:</strong> See age-appropriate skills, cue guides, and tutorial videos.</li><li><strong>Emergency Info:</strong> Keep veterinary and emergency contact details in one place.</li><li><strong>Recents:</strong> Open the memory feed from the Recents box.</li><li><strong>Profile:</strong> Tap the Profile box to manage the photo, birthday, and breed.</li><li><strong>Tag:</strong> Tap the silver bone tag to change the engraved pet name.</li></ul>`,`howto`)}function editTagName(message=''){show('Edit Tag Name',`<p class="muted">Choose the name engraved on the silver tag.</p><form id="tagNameForm"><label class="field">Pet name<input id="petTagInput" type="text" maxlength="24" value="${safe(appMeta.petName||'Lou Bear')}" placeholder="Lou Bear" autocomplete="off"></label><button class="primary" type="submit">Save name</button><p class="muted" id="tagStatus" role="status" aria-live="polite">${safe(message)}</p></form>`,`tagedit`);$('petTagInput').focus();$('petTagInput').select();$('tagNameForm').onsubmit=e=>{e.preventDefault();const val=($('petTagInput').value||'').trim()||'Lou Bear';appMeta.petName=val;if(typeof dtAccess!=='undefined'&&dtDog()){dtDog().name=val;dtStore()}saveMeta();renderTagName();editTagName('Tag name saved.')}}renderTagName();function memoryStorageError(){
+ alert('Your browser storage is full. Try smaller photos or export the memories for safekeeping.');
+}
+function save({quiet=false}={}){
+ try{
+   dtSafeStorage.setItem(KEY,JSON.stringify(state));
+   return true;
+ }catch{
+   if(!quiet)memoryStorageError();
+   return false;
+ }
+}function safe(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function refresh(){const p=$('profileThumb'),placeholder=$('portraitPlaceholder');if(state.profile){p.src=state.profile;p.style.display='block';placeholder.style.display='none'}else{p.removeAttribute('src');p.style.display='none';placeholder.style.display='flex'}const latest=state.posts[0];const heading=$('recentPostTitle'),summary=$('recentPostSummary'),thumb=$('recentPostThumb');if(latest){heading.textContent=latest.title||'Recent memory';const raw=String(latest.story||'').trim();summary.textContent=raw?raw.slice(0,90):'Tap to view this memory and past posts';if(latest.photo){thumb.src=latest.photo;thumb.hidden=false;}else{thumb.hidden=true;thumb.removeAttribute('src');}}else{heading.textContent='Your first memory';summary.textContent='Tap to share or explore memories';thumb.hidden=true;thumb.removeAttribute('src');}}function show(title,body,type){
  panel=type;
  $('sheetTitle').textContent=title;
  const content=$('content'),sheet=content.closest('.sheet');
@@ -343,12 +359,10 @@ function add(postId){
   }
   if(!form.isConnected||panel!=='add'||dtAccess.activeId!==dogId||window.dtRole!==role)return;
   const changes={title,story,photo,date,video:video?.url||'',videoUpload};
-  let originalPost,newPost;
+  const previousPosts=state.posts;
   if(editing){
-   const post=state.posts.find(item=>item.id===postId);
-   if(!post)return;
-   originalPost={...post};
-   Object.assign(post,changes);
+   if(!previousPosts.some(item=>item.id===postId))return;
+   state.posts=previousPosts.map(item=>item.id===postId?{...item,...changes}:item);
   }else{
    const post={id:Date.now().toString()+Math.random().toString(36).slice(2),...changes,authorName:String(window.dtPerson||'').trim().slice(0,100),likes:0,comments:[]};
    if(role==='child'){
@@ -365,14 +379,12 @@ function add(postId){
     show('Waiting for approval','<p>Your memory was sent to the adult owner for approval. It will appear after approval.</p>','queued');
     return;
    }
-   newPost=post;
-   state.posts.unshift(post);
+   state.posts=[post,...previousPosts];
   }
   state.posts.sort((first,second)=>(Date.parse(second.date)||0)-(Date.parse(first.date)||0));
-  if(!save()){
-   if(editing)state.posts=state.posts.map(item=>item.id===postId?originalPost:item);
-   else state.posts=state.posts.filter(item=>item!==newPost);
-   status.textContent='Memory could not be saved. Your draft is still open.';
+  if(!save({quiet:true})){
+   state.posts=previousPosts;
+   status.textContent='Browser storage is full. Your draft is still open. Try a smaller photo or export a backup before freeing space.';
    return;
   }
   refresh();feed();
@@ -1400,10 +1412,23 @@ window.DailyTalesTrainingStore={
  save:data=>{if(window.dtRole!=='adult'||!dtDog())throw Error('Only a connected Adult Owner can save training.');dtSafeStorage.setItem('daily_tales_training_plan_v1',JSON.stringify(data));dtSnapshotActive();if(friendSections?.parse(dtSafeStorage.getItem(friendSections.preferenceKey)).training)refreshFriendSections();window.dispatchEvent(new Event('daily-tales-training-changed'));},
  show:body=>show('Training',body,'training')
 };
+function dtRemoveDuplicateMemoryBook(){
+ const legacyBook=dtSafeStorage.getItem(KEY);
+ if(legacyBook!==null&&dtAccess.dogs.some(d=>JSON.stringify(d.profile)===legacyBook)){
+   dtSafeStorage.removeItem(KEY);
+ }
+}
+dtRemoveDuplicateMemoryBook();
+
 function dtSnapshotActive(){
  const d=dtDog();if(!d)return;
+ const previous={profile:d.profile,meta:d.meta,extras:d.extras};
  d.profile=JSON.parse(JSON.stringify(state));d.meta=JSON.parse(JSON.stringify(appMeta));
- d.extras=dtExtrasForActive();dtStore()
+ d.extras=dtExtrasForActive();
+ try{dtStore()}catch(error){
+   Object.assign(d,previous);
+   throw error;
+ }
 }
 window.DailyTalesShowOriginalLogin=()=>{
  // A one-time manual PIN check for importing old browser data. No dog records deleted.
@@ -1566,14 +1591,21 @@ function dtLoadDog(id){
  dtStore();renderTagName();refresh();
 }
 const dtOriginalSave=save,dtOriginalSaveMeta=saveMeta;
-save=function(){if(window.dtRole==='child'){
+save=function(options={}){if(window.dtRole==='child'){
  const dog=dtDog();const baseline=dog?.profile||{posts:[],profile:''};
  if(state.profile!==baseline.profile){dtQueue({kind:'photo',image:state.profile,by:dtPerson});state.profile=baseline.profile;alert('Photo change submitted for adult approval.');}
  if(JSON.stringify(state.posts)!==JSON.stringify(baseline.posts)){dtQueue({kind:'posts',posts:JSON.parse(JSON.stringify(state.posts)),by:dtPerson});state.posts=JSON.parse(JSON.stringify(baseline.posts));alert('Post change submitted for adult approval.');}
  }
- if(!dtOriginalSave())return false;
- if(window.dtRole==='adult')dtSnapshotActive();
- return true;
+ if(window.dtRole==='adult'&&dtDog()){
+   try{
+     dtSnapshotActive();
+     return true;
+   }catch{
+     if(!options.quiet)memoryStorageError();
+     return false;
+   }
+ }
+ return dtOriginalSave(options);
 };
 saveMeta=function(){dtOriginalSaveMeta();if(window.dtRole==='adult')dtSnapshotActive()};
 function dtEnter(role,person,dogId){dtManualDogPicker=false;dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?(dtFindUser(dtCurrentUsername)?.cloudManaged?'Share & approvals':'Codes & approvals'):'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
