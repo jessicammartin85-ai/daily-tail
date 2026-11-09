@@ -67,23 +67,41 @@ service cloud.firestore {
         function uploadPath() {
           return /databases/$(database)/documents/users/$(ownerUid)/dogVideos/$(dogId)/uploads/$(videoId);
         }
-        allow get: if canReadVideo(ownerUid, dogId, videoId, resource.data.uploader);
-        allow create: if isDogAdmin(ownerUid, dogId) || (
-          hasDogRole(ownerUid, dogId, 'child')
+        function canUploadVideo() {
+          return isDogAdmin(ownerUid, dogId) || hasDogRole(ownerUid, dogId, 'child');
+        }
+        function ownsPendingVideo(upload) {
+          return canUploadVideo() && upload.uploader == request.auth.uid && upload.get('ready', true) == false;
+        }
+        allow get: if ownsPendingVideo(resource.data)
+          || (resource.data.get('ready', true) == true
+            && canReadVideo(ownerUid, dogId, videoId, resource.data.uploader));
+        allow create: if canUploadVideo()
           && request.resource.data.uploader == request.auth.uid
-          && request.resource.data.keys().hasOnly(['uploader','type','count','size'])
+          && request.resource.data.keys().hasOnly(['uploader','type','count','size','ready'])
+          && request.resource.data.ready == false
           && request.resource.data.type in ['video/mp4','video/webm','video/quicktime']
-          && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 8
-          && request.resource.data.size is int && request.resource.data.size >= 1 && request.resource.data.size <= 5242880
-        );
+          && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 147
+          && request.resource.data.size is int && request.resource.data.size >= 1 && request.resource.data.size <= 104857600
+          && request.resource.data.size <= request.resource.data.count * 716800
+          && request.resource.data.size > (request.resource.data.count - 1) * 716800;
+        allow update: if ownsPendingVideo(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ready'])
+          && request.resource.data.ready == true;
+        allow delete: if ownsPendingVideo(resource.data);
         match /parts/{part} {
-          allow get: if canReadVideo(ownerUid, dogId, videoId, get(uploadPath()).data.uploader);
-          allow create: if part.matches('[0-7]')
+          function upload() {
+            return get(uploadPath()).data;
+          }
+          allow get: if upload().get('ready', true) == true
+            && canReadVideo(ownerUid, dogId, videoId, upload().uploader);
+          allow create: if ownsPendingVideo(upload())
+            && part.matches('0|[1-9][0-9]{0,2}') && int(part) < upload().count
             && request.resource.data.keys().hasOnly(['data'])
             && request.resource.data.data is bytes
-            && request.resource.data.data.size() > 0 && request.resource.data.data.size() <= 716800
-            && (isDogAdmin(ownerUid, dogId) || (hasDogRole(ownerUid, dogId, 'child')
-              && !exists(uploadPath()) && getAfter(uploadPath()).data.uploader == request.auth.uid));
+            && request.resource.data.data.size() == (int(part) == upload().count - 1
+              ? upload().size - int(part) * 716800 : 716800);
+          allow delete: if ownsPendingVideo(upload());
         }
       }
 
