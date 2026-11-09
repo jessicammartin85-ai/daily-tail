@@ -383,6 +383,18 @@ function feed(){show('Recent memories',`<p class="muted">A shared little scrapbo
 
 /* Emergency information stays on this device, separate from Recents. */
 const EMERGENCY_KEY='loubear_emergency_info_v1';
+window.DailyTalesOpenCaregiver=async()=>{
+ const dog=dtDog();
+ if(window.dtRole!=='adult'||!dog)return;
+ show('Temporary caregiver access','<div id="dtCaregiverOwner" aria-live="polite">Loading…</div>','caregiver');
+ const root=$('dtCaregiverOwner');
+ try{
+  const {openCaregiverOwner}=await import('./caregiver.js?v=1');
+  if(root.isConnected)await openCaregiverOwner(root,dog.ownerUid,dog.id,()=>({
+   name:dog.name,plan:window.DailyTailSchedule?.caregiverPlan()||[],emergency:getEmergency()
+  }));
+ }catch(error){if(root.isConnected)root.textContent=error.message;}
+};
 function getEmergency(){try{const v=JSON.parse(dtSafeStorage.getItem(EMERGENCY_KEY));return v&&typeof v==='object'?v:{}}catch{return {}}}
 function phoneLink(number){const digits=String(number||'').replace(/[^0-9+]/g,'');return digits.length>=7&&digits.length<=16?'tel:'+digits:''}
 function emergencyInfo(message=''){
@@ -660,6 +672,7 @@ if($('upNextCheck')) $('upNextCheck').onchange=e=>{
  if(e.currentTarget.checked)state.done[id]=true;else delete state.done[id];
  save();updateUpNext();
 }; window.DailyTailSchedule={
+ caregiverPlan:()=>plan(weeks()).flatMap(([,entries])=>entries.map(({time,title})=>({time,title}))),
  getCurrentIndex:()=>{const id=$('upNextCheck')?.dataset.activityId;return id?Number(id.split('|').pop()):-1;},
  openEvent:(index)=>{window.dispatchEvent(new Event('daily-tales-schedule-today'));render();requestAnimationFrame(()=>{const checkbox=document.querySelector('[data-schedule-id="'+index+'"]'),row=checkbox?.closest('.schedule-event');if(row){row.classList.add('dt-event-highlight');row.scrollIntoView({behavior:'smooth',block:'center'});checkbox.focus({preventScroll:true});setTimeout(()=>row.classList.remove('dt-event-highlight'),3000);}});},
  render:()=>render(),
