@@ -108,7 +108,11 @@ function save({quiet=false}={}){
    submit.type='submit';submit.className='primary dt-post-save';
    submit.setAttribute('form','postForm');
    submit.textContent=inlineSubmit?.textContent||'Post this memory ♡';
-   action.append(submit);
+   const status=document.createElement('p');
+   status.id='dtMemorySaveStatus';status.className='muted';
+   status.setAttribute('role','status');
+   status.hidden=true;
+   action.append(status,submit);
    sheet.append(action);
  }
  $('overlay').classList.add('open');
@@ -119,7 +123,7 @@ function save({quiet=false}={}){
   window.DailyTalesVisiblePosts=type==='feed'?state.posts:selectedPublicPosts();
   queueMicrotask(()=>window.DailyTalesEnhancePostFeed?.(window.DailyTalesVisiblePosts));
  }
-}function close(){panel='';$('overlay').classList.remove('open');$('content').querySelectorAll('video').forEach(video=>video.pause())}function readPhoto(file,callback,onError){if(!file)return;const fr=new FileReader;fr.onerror=()=>onError?.();fr.onload=()=>{const im=new Image;im.onerror=()=>onError?.();im.onload=()=>{const c=document.createElement('canvas');const scale=Math.min(1,1100/im.width,1100/im.height);c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);callback(c.toDataURL('image/jpeg',.88),{width:c.width,height:c.height})};im.src=fr.result};fr.readAsDataURL(file)}
+}function close(){panel='';$('overlay').classList.remove('open');$('content').querySelectorAll('video').forEach(video=>video.pause())}function readPhoto(file,callback,onError,options={}){if(!file)return;const fr=new FileReader;fr.onerror=()=>onError?.();fr.onload=()=>{const im=new Image;im.onerror=()=>onError?.();im.onload=()=>{const c=document.createElement('canvas');const limit=options.maxDimension||1100;const scale=Math.min(1,limit/im.width,limit/im.height);c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);callback(c.toDataURL('image/jpeg',options.quality??.88),{width:c.width,height:c.height})};im.src=fr.result};fr.readAsDataURL(file)}
 let profileDraft=null;
 function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
 function openProfileEditor(dataUrl){
@@ -298,6 +302,16 @@ function add(postId){
  </form>`,'add');
  $('dtBackToMemories').onclick=feed;
  const form=$('postForm'), submit=document.querySelector('.dt-post-save');
+ const saveStatus=$('dtMemorySaveStatus');
+ const reportSave=message=>{
+  saveStatus.textContent=message;
+  saveStatus.hidden=!message;
+ };
+ form.addEventListener('invalid',event=>{
+  const label={title:'Enter a title.',memoryDate:'Choose a valid memory date.',video:'Check the video link.'};
+  reportSave(label[event.target.name]||'Check the highlighted field.');
+ },true);
+ form.addEventListener('input',()=>reportSave(''));
  const fileInput=form.elements.videoFile,status=$('dtVideoStatus'),remove=$('dtRemoveVideo');
  fileInput.onchange=()=>{
   fileInput.setCustomValidity('');
@@ -323,8 +337,8 @@ function add(postId){
   },()=>{
    if(!form.isConnected||selection!==photoSelection)return;
    if(submit)submit.disabled=false;
-   alert('Could not open that photo. Choose another image.');
-  });
+   reportSave('Could not open that photo. Choose another image.');
+  },{maxDimension:900,quality:.76});
  };
  form.onsubmit=async event=>{
   event.preventDefault();
@@ -332,7 +346,10 @@ function add(postId){
   const role=window.dtRole;
   if(dtAccess.activeId!==dogId||(editing?role!=='adult':role!=='adult'&&role!=='child'))return;
   const title=form.elements.title.value.trim(), day=form.elements.memoryDate.value;
-  if(!title||!day||day>memoryDay())return;
+  if(!title||!day||day>memoryDay()){
+   reportSave(!title?'Enter a title.':'Choose a valid memory date.');
+   return;
+  }
   const date=previous?.date&&day===originalDay&&!isNaN(originalDate)?previous.date:
    day===memoryDay()?new Date().toISOString():new Date(day+'T12:00:00').toISOString();
   const videoInput=form.elements.video,video=window.DailyTalesMemoryVideo(videoInput.value);
@@ -384,7 +401,7 @@ function add(postId){
   state.posts.sort((first,second)=>(Date.parse(second.date)||0)-(Date.parse(first.date)||0));
   if(!save({quiet:true})){
    state.posts=previousPosts;
-   status.textContent='Browser storage is full. Your draft is still open. Try a smaller photo or export a backup before freeing space.';
+   reportSave('Browser storage is full. Your draft is still open.');
    return;
   }
   refresh();feed();
