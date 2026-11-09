@@ -1571,7 +1571,9 @@ save=function(){if(window.dtRole==='child'){
  if(state.profile!==baseline.profile){dtQueue({kind:'photo',image:state.profile,by:dtPerson});state.profile=baseline.profile;alert('Photo change submitted for adult approval.');}
  if(JSON.stringify(state.posts)!==JSON.stringify(baseline.posts)){dtQueue({kind:'posts',posts:JSON.parse(JSON.stringify(state.posts)),by:dtPerson});state.posts=JSON.parse(JSON.stringify(baseline.posts));alert('Post change submitted for adult approval.');}
  }
- dtOriginalSave();if(window.dtRole==='adult')dtSnapshotActive();
+ if(!dtOriginalSave())return false;
+ if(window.dtRole==='adult')dtSnapshotActive();
+ return true;
 };
 saveMeta=function(){dtOriginalSaveMeta();if(window.dtRole==='adult')dtSnapshotActive()};
 function dtEnter(role,person,dogId){dtManualDogPicker=false;dtLoadDog(dogId);window.dtRole=role;window.dtPerson=person;document.body.classList.remove('dt-locked','dt-role-adult','dt-role-child','dt-role-friend');document.body.classList.add('dt-role-'+role);$('dtGate').hidden=true;$('dtRoleStrip').hidden=false;friendPreview=role==='friend';$('dtRoleLabel').textContent=person+' · '+safe(dtDog()?.name||'Dog')+' · '+({adult:'Adult Owner',child:'Child Owner',friend:'Friend View'}[role]);$('dtRoleManage').hidden=role==='friend';$('dtRoleManage').textContent=role==='adult'?(dtFindUser(dtCurrentUsername)?.cloudManaged?'Share & approvals':'Codes & approvals'):'My pending changes';$('ownerModeBtn').disabled=role==='friend';$('ownerModeBtn').hidden=role==='friend';$('friendModeBtn').hidden=role==='friend';syncFriendView();renderTagName();dtRefreshFriends();window.scrollTo(0,0)}
