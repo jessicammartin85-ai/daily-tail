@@ -1,4 +1,4 @@
-import {publicMemoryPosts,sharedVideoIds} from './public-memory-posts.js?v=video-uploads-20261107';
+import {publicMemoryPosts,sharedVideoIds} from './public-memory-posts.js?v=video-thumbnails';
 import {dailyTalesCloudDogStore as dogStore} from './cloud-dog-store.js';
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';

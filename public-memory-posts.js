@@ -2,7 +2,8 @@
 const validId=id=>typeof id==='string'&&/^[A-Za-z0-9_-]{3,128}$/.test(id);
 function safeVideoRef(ref){
  if(!ref||![ref.ownerUid,ref.dogId,ref.id].every(validId))return null;
- return {ownerUid:ref.ownerUid,dogId:ref.dogId,id:ref.id};
+ const thumbnail=window.DailyTalesVideoThumbnail?.(ref.thumbnail);
+ return {ownerUid:ref.ownerUid,dogId:ref.dogId,id:ref.id,...(thumbnail?{thumbnail}:{})};
 }
 export function sharedVideoIds(posts,ownerUid,dogId){
  return posts.map(post=>post.videoUpload).filter(ref=>ref?.ownerUid===ownerUid&&ref.dogId===dogId).map(ref=>ref.id);

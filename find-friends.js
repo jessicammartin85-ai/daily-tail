@@ -1,5 +1,5 @@
 import {registerMessaging,approvedConnections,messageInbox} from './friend-messages.js?v=20261107';
-import {publicMemoryPosts,sharedVideoIds} from './public-memory-posts.js?v=video-uploads-20261107';
+import {publicMemoryPosts,sharedVideoIds} from './public-memory-posts.js?v=video-thumbnails';
 /* Daily Tail opt-in Find Friends directory. No private local profile data is published. */
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -247,7 +247,7 @@ function initFriendsFeed(){
     card.append(heading,title);
     if(post.authorName){const byline=document.createElement('small');byline.className='dt-memory-byline';byline.textContent='By '+post.authorName;card.append(byline);}
     card.append(summary);
-    const video=window.DailyTalesRenderMemoryVideo(post.video,post.videoUpload);
+    const video=window.DailyTalesRenderMemoryVideo(post.video,post.videoUpload,post.photo);
     if(video)card.insertAdjacentHTML('beforeend',video);
     card.append(link);panel.append(card);
    }
