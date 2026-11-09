@@ -243,7 +243,7 @@ function add(postId){
  <label class="field">Title<input name="title" maxlength="100" value="${safe(previous?.title||'')}" required></label>
  <label class="field">Memory date<input name="memoryDate" type="date" value="${originalDay}" max="${today}" required></label>
  <label class="field">Your update<textarea name="story" maxlength="2000" placeholder="What happened?">${safe(previous?.story||previous?.text||'')}</textarea></label>
- <label class="field upload">Upload a video (optional)<input name="videoFile" type="file" accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm"><small>MP4, M4V, MOV, or WebM. Daily Tales compresses large clips up to 60 seconds on your device.</small></label>
+ <label class="field upload">Upload a video (optional)<input name="videoFile" type="file" accept=".mp4,.m4v,.mov,.webm,video/mp4,video/quicktime,video/webm"><small>MP4, M4V, MOV, or WebM. Upload videos up to 100 MB. Keep Daily Tales open until the upload finishes.</small></label>
  <p id="dtVideoStatus" class="muted" role="status">${videoUpload?'A video is attached.':''}</p>
  <button id="dtRemoveVideo" type="button" class="small" ${videoUpload?'':'hidden'}>Remove uploaded video</button>
  <label class="field">Video link (optional)<input name="video" type="url" maxlength="2048" placeholder="https://…" value="${safe(previous?.video||'')}"><small>Paste an HTTPS MP4, WebM, M4V, or YouTube link.</small></label>
