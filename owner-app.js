@@ -22,7 +22,33 @@ const dtSafeStorage=(()=>{
  }
 })();
 
-const KEY='loubear_memorybook_v1';let state={profile:'',posts:[]};try{const saved=JSON.parse(dtSafeStorage.getItem(KEY));if(saved&&Array.isArray(saved.posts))state={...state,...saved}}catch{};const $=id=>document.getElementById(id);let panel='';const APPMETA_KEY='dailytail_app_meta_v1';let appMeta={petName:'Lou Bear'};try{const meta=JSON.parse(dtSafeStorage.getItem(APPMETA_KEY));if(meta&&typeof meta==='object')appMeta={...appMeta,...meta}}catch{};function saveMeta(){try{dtSafeStorage.setItem(APPMETA_KEY,JSON.stringify(appMeta))}catch{}}function renderTagName(){
+const KEY='loubear_memorybook_v1';let state={profile:'',posts:[]};try{const saved=JSON.parse(dtSafeStorage.getItem(KEY));if(saved&&Array.isArray(saved.posts))state={...state,...saved}}catch{};const $=id=>document.getElementById(id);let panel='';const APPMETA_KEY='dailytail_app_meta_v1';let appMeta={petName:'Lou Bear'};try{const meta=JSON.parse(dtSafeStorage.getItem(APPMETA_KEY));if(meta&&typeof meta==='object')appMeta={...appMeta,...meta}}catch{};function saveMeta(){try{dtSafeStorage.setItem(APPMETA_KEY,JSON.stringify(appMeta))}catch{}}let saveNoticeTimer;
+function showSaveNotice(message,{local=true}={}){
+ const temporary=local&&window.__dtPersistentStorage===false;
+ let notice=$('dtSaveNotice');
+ if(!notice){
+  const style=document.createElement('style');
+  style.textContent='#dtSaveNotice{position:fixed;z-index:29000;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;pointer-events:none;font:600 15px/1.35 system-ui,sans-serif}#dtSaveNotice .dt-save-badge{display:flex;align-items:center;gap:10px;padding:12px 18px;background:#194a35;color:#fff;border:1px solid #bcdfcc;border-radius:14px;box-shadow:0 4px 18px #102c3955}#dtSaveNotice .dt-save-temporary{background:#664717;color:#fff;border-color:#f5d28a}';
+  document.head.append(style);
+  notice=document.createElement('div');
+  notice.id='dtSaveNotice';
+  notice.setAttribute('role','status');
+  notice.setAttribute('aria-atomic','true');
+  document.body.append(notice);
+ }
+ const badge=document.createElement('div');
+ badge.className='dt-save-badge'+(temporary?' dt-save-temporary':'');
+ const icon=document.createElement('span');
+ icon.setAttribute('aria-hidden','true');
+ icon.textContent=temporary?'!':'✓';
+ const label=document.createElement('span');
+ label.textContent=temporary?'Changes kept for this session only':message;
+ badge.append(icon,label);
+ notice.replaceChildren(badge);
+ clearTimeout(saveNoticeTimer);
+ saveNoticeTimer=setTimeout(()=>notice.replaceChildren(),4500);
+}
+function renderTagName(){
  const el=$('tagName'), tag=$('tag');if(!el||!tag)return;
  const name=(appMeta.petName||'Lou Bear').trim()||'Lou Bear';
  el.textContent=name;el.title=name;
@@ -47,7 +73,7 @@ const KEY='loubear_memorybook_v1';let state={profile:'',posts:[]};try{const save
  fit();requestAnimationFrame(fit);
  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
 }
-window.addEventListener('resize',renderTagName);function howToUse(){show('How to Use Daily Tail',`<p class="intro">Use this home screen as a quick snapshot of your pet’s day.</p><ul><li><strong>Up Next:</strong> Check off the next activity right from the home screen or tap the activity name to open the full Daily Plan.</li><li><strong>Daily Plan:</strong> View the full schedule for food, potty breaks, naps, training, play, and socialization.</li><li><strong>Training:</strong> See age-appropriate skills, cue guides, and tutorial videos.</li><li><strong>Emergency Info:</strong> Keep veterinary and emergency contact details in one place.</li><li><strong>Recents:</strong> Open the memory feed from the Recents box.</li><li><strong>Profile:</strong> Tap the Profile box to manage the photo, birthday, and breed.</li><li><strong>Tag:</strong> Tap the silver bone tag to change the engraved pet name.</li></ul>`,`howto`)}function editTagName(message=''){show('Edit Tag Name',`<p class="muted">Choose the name engraved on the silver tag.</p><form id="tagNameForm"><label class="field">Pet name<input id="petTagInput" type="text" maxlength="24" value="${safe(appMeta.petName||'Lou Bear')}" placeholder="Lou Bear" autocomplete="off"></label><button class="primary" type="submit">Save name</button><p class="muted" id="tagStatus" role="status" aria-live="polite">${safe(message)}</p></form>`,`tagedit`);$('petTagInput').focus();$('petTagInput').select();$('tagNameForm').onsubmit=e=>{e.preventDefault();const val=($('petTagInput').value||'').trim()||'Lou Bear';appMeta.petName=val;if(typeof dtAccess!=='undefined'&&dtDog()){dtDog().name=val;dtStore()}saveMeta();renderTagName();editTagName('Tag name saved.')}}renderTagName();function save(){try{dtSafeStorage.setItem(KEY,JSON.stringify(state))}catch{alert('Your browser storage is full. Try smaller photos or export the memories for safekeeping.')}}function safe(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function refresh(){const p=$('profileThumb'),placeholder=$('portraitPlaceholder');if(state.profile){p.src=state.profile;p.style.display='block';placeholder.style.display='none'}else{p.removeAttribute('src');p.style.display='none';placeholder.style.display='flex'}const latest=state.posts[0];const heading=$('recentPostTitle'),summary=$('recentPostSummary'),thumb=$('recentPostThumb');if(latest){heading.textContent=latest.title||'Recent memory';const raw=String(latest.story||'').trim();summary.textContent=raw?raw.slice(0,90):'Tap to view this memory and past posts';if(latest.photo){thumb.src=latest.photo;thumb.hidden=false;}else{thumb.hidden=true;thumb.removeAttribute('src');}}else{heading.textContent='Your first memory';summary.textContent='Tap to share or explore memories';thumb.hidden=true;thumb.removeAttribute('src');}}function show(title,body,type){
+window.addEventListener('resize',renderTagName);function howToUse(){show('How to Use Daily Tail',`<p class="intro">Use this home screen as a quick snapshot of your pet’s day.</p><ul><li><strong>Up Next:</strong> Check off the next activity right from the home screen or tap the activity name to open the full Daily Plan.</li><li><strong>Daily Plan:</strong> View the full schedule for food, potty breaks, naps, training, play, and socialization.</li><li><strong>Training:</strong> See age-appropriate skills, cue guides, and tutorial videos.</li><li><strong>Emergency Info:</strong> Keep veterinary and emergency contact details in one place.</li><li><strong>Recents:</strong> Open the memory feed from the Recents box.</li><li><strong>Profile:</strong> Tap the Profile box to manage the photo, birthday, and breed.</li><li><strong>Tag:</strong> Tap the silver bone tag to change the engraved pet name.</li></ul>`,`howto`)}function editTagName(message=''){show('Edit Tag Name',`<p class="muted">Choose the name engraved on the silver tag.</p><form id="tagNameForm"><label class="field">Pet name<input id="petTagInput" type="text" maxlength="24" value="${safe(appMeta.petName||'Lou Bear')}" placeholder="Lou Bear" autocomplete="off"></label><button class="primary" type="submit">Save name</button><p class="muted" id="tagStatus" role="status" aria-live="polite">${safe(message)}</p></form>`,`tagedit`);$('petTagInput').focus();$('petTagInput').select();$('tagNameForm').onsubmit=e=>{e.preventDefault();const val=($('petTagInput').value||'').trim()||'Lou Bear';appMeta.petName=val;if(typeof dtAccess!=='undefined'&&dtDog()){dtDog().name=val;dtStore()}saveMeta();renderTagName();editTagName('Tag name saved.')}}renderTagName();function save(){try{dtSafeStorage.setItem(KEY,JSON.stringify(state));return true}catch{alert('Your browser storage is full. Try smaller photos or export the memories for safekeeping.');return false}}function safe(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function refresh(){const p=$('profileThumb'),placeholder=$('portraitPlaceholder');if(state.profile){p.src=state.profile;p.style.display='block';placeholder.style.display='none'}else{p.removeAttribute('src');p.style.display='none';placeholder.style.display='flex'}const latest=state.posts[0];const heading=$('recentPostTitle'),summary=$('recentPostSummary'),thumb=$('recentPostThumb');if(latest){heading.textContent=latest.title||'Recent memory';const raw=String(latest.story||'').trim();summary.textContent=raw?raw.slice(0,90):'Tap to view this memory and past posts';if(latest.photo){thumb.src=latest.photo;thumb.hidden=false;}else{thumb.hidden=true;thumb.removeAttribute('src');}}else{heading.textContent='Your first memory';summary.textContent='Tap to share or explore memories';thumb.hidden=true;thumb.removeAttribute('src');}}function show(title,body,type){
  panel=type;
  $('sheetTitle').textContent=title;
  const content=$('content'),sheet=content.closest('.sheet');
@@ -175,8 +201,11 @@ function commitProfilePhoto(){
     profile('Photo submitted for adult approval. It will not appear until approved.');
     return;
   }
+  const previousPhoto=state.profile;
   state.profile=saved;
-  save();refresh();profile('Profile photo saved. You can choose another photo to adjust it again.');
+  if(!save()){state.profile=previousPhoto;return;}
+  refresh();profile('Profile photo updated. You can choose another photo to adjust it again.');
+  showSaveNotice('Profile photo saved on this device');
  };
  img.onerror=()=>{const status=$('profileStatus');if(status)status.textContent='Unable to save this photo. Please choose it again.'};
  img.src=draft.src;
@@ -314,9 +343,11 @@ function add(postId){
   }
   if(!form.isConnected||panel!=='add'||dtAccess.activeId!==dogId||window.dtRole!==role)return;
   const changes={title,story,photo,date,video:video?.url||'',videoUpload};
+  let originalPost,newPost;
   if(editing){
    const post=state.posts.find(item=>item.id===postId);
    if(!post)return;
+   originalPost={...post};
    Object.assign(post,changes);
   }else{
    const post={id:Date.now().toString()+Math.random().toString(36).slice(2),...changes,authorName:String(window.dtPerson||'').trim().slice(0,100),likes:0,comments:[]};
@@ -329,14 +360,23 @@ function add(postId){
      }catch(error){status.textContent=error.message;return;}
      finally{uploading=false;submit.disabled=false;}
      if(!form.isConnected||panel!=='add'||dtAccess.activeId!==dogId)return;
+     showSaveNotice('Sent for adult approval',{local:false});
     }else dtQueue({kind:'post',post,by:window.dtPerson||'Child'});
     show('Waiting for approval','<p>Your memory was sent to the adult owner for approval. It will appear after approval.</p>','queued');
     return;
    }
+   newPost=post;
    state.posts.unshift(post);
   }
   state.posts.sort((first,second)=>(Date.parse(second.date)||0)-(Date.parse(first.date)||0));
-  save();refresh();feed();
+  if(!save()){
+   if(editing)state.posts=state.posts.map(item=>item.id===postId?originalPost:item);
+   else state.posts=state.posts.filter(item=>item!==newPost);
+   status.textContent='Memory could not be saved. Your draft is still open.';
+   return;
+  }
+  refresh();feed();
+  showSaveNotice(editing?'Memory changes saved on this device':'Memory saved on this device');
  };
 }
 function feed(){show('Recent memories',`<p class="muted">A shared little scrapbook for photos, videos, updates, hearts, and comments. <button class="small" id="newPost">＋ Add a memory</button></p><div class="feed">${state.posts.length?state.posts.map(post=>`<article class="post" data-id="${safe(post.id)}">${post.photo?`<img src="${post.photo}" alt="Photo shared with this memory">`:''}<div class="post-body"><time>${new Date(post.date).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}</time><h3>${safe(post.title)}</h3>${post.authorName?`<small class="dt-memory-byline">By ${safe(post.authorName)}</small>`:''}${post.story?`<p>${safe(post.story)}</p>`:''}${window.DailyTalesRenderMemoryVideo(post.video,post.videoUpload,post.photo)}<div class="post-actions"><button class="small like" data-id="${safe(post.id)}" aria-label="Love this memory">♡ ${post.likes||0}</button>${window.dtRole==='adult'?`<button type="button" class="small dt-edit-memory" data-id="${safe(post.id)}">Edit</button><button type="button" class="small delete" data-id="${safe(post.id)}">Delete</button>`:''}</div><div class="comments">${(post.comments||[]).map(c=>`<div class="comment">💬 ${safe(c)}</div>`).join('')}<form class="comment-entry" data-id="${safe(post.id)}"><input aria-label="Write a comment" placeholder="Leave a little note..." maxlength="280" required><button class="small" type="submit">Send</button></form></div></div></article>`).join(''):'<div class="empty"><strong>No memories posted yet.</strong><p>Your first photo or little update will appear here.</p></div>'}</div>`,'feed');$('newPost').onclick=()=>add();document.querySelectorAll('.dt-edit-memory').forEach(button=>button.onclick=()=>add(button.dataset.id));document.querySelectorAll('.like').forEach(el=>el.onclick=()=>{let p=state.posts.find(x=>x.id===el.dataset.id);p.likes=(p.likes||0)+1;save();feed()});document.querySelectorAll('.delete').forEach(el=>el.onclick=()=>{if(window.dtRole==='adult'&&confirm('Remove this memory?')){state.posts=state.posts.filter(x=>x.id!==el.dataset.id);save();refresh();feed()}});document.querySelectorAll('.comment-entry').forEach(el=>el.onsubmit=e=>{e.preventDefault();let input=el.querySelector('input'),p=state.posts.find(x=>x.id===el.dataset.id);if(input.value.trim()){p.comments.push(input.value.trim());save();feed()}})}
@@ -355,7 +395,7 @@ function emergencyInfo(message=''){
  <div class="emergency-card"><h3>Quick contacts</h3><div class="emergency-actions">${action(d.vetPhone,'Regular Vet')}${action(d.erPhone,'Emergency Vet')}${action(d.contactPhone,'Family Contact')}</div>${!d.vetPhone&&!d.erPhone&&!d.contactPhone?'<p class="muted">Save phone numbers below to add tap-to-call links.</p>':''}<p class="muted"><strong>Emergency:</strong> For collapse, breathing trouble, seizures, serious injury, or suspected poisoning, contact a veterinarian or emergency clinic immediately. Do not wait for an app response. Do not induce vomiting unless a veterinarian directs you to.</p></div>
  <form id="emergencyForm"><div class="emergency-card"><h3>Veterinary care</h3>${fld('vetName','Regular veterinarian / clinic','Clinic name')}${fld('vetPhone','Regular vet phone','Phone number')}${fld('erName','24-hour emergency clinic','Clinic name')}${fld('erPhone','Emergency vet phone','Phone number')}${fld('erAddress','Emergency clinic address','Street and city')}</div>
  <div class="emergency-card"><h3>Lou’s important details</h3>${fld('contactName','Family emergency contact','Name')}${fld('contactPhone','Family contact phone','Phone number')}${fld('microchip','Microchip number (optional)','Number')}${txt('medications','Current medications / doses','List medications and directions, if any')}${txt('allergies','Allergies or medical alerts','List known allergies or concerns, if any')}${txt('notes','Additional care instructions','Helpful notes for a pet sitter or emergency visit')}</div><button class="primary" type="submit">Save Emergency Info</button><p id="emergencyStatus" class="emergency-status" role="status">${safe(message)}</p></form>`,'emergency');
- $('emergencyForm').onsubmit=e=>{e.preventDefault();const values={};['vetName','vetPhone','erName','erPhone','erAddress','contactName','contactPhone','microchip','medications','allergies','notes'].forEach(k=>values[k]=$('em_'+k).value.trim());try{dtSafeStorage.setItem(EMERGENCY_KEY,JSON.stringify(values));if(dtSafeStorage.getItem(EMERGENCY_KEY)!==JSON.stringify(values))throw Error('not saved');emergencyInfo('Saved.')}catch{$('emergencyStatus').textContent='Could not save. Please try again.'}};
+ $('emergencyForm').onsubmit=e=>{e.preventDefault();const values={};['vetName','vetPhone','erName','erPhone','erAddress','contactName','contactPhone','microchip','medications','allergies','notes'].forEach(k=>values[k]=$('em_'+k).value.trim());try{dtSafeStorage.setItem(EMERGENCY_KEY,JSON.stringify(values));if(dtSafeStorage.getItem(EMERGENCY_KEY)!==JSON.stringify(values))throw Error('not saved');emergencyInfo('Saved on this device.');showSaveNotice('Emergency info saved on this device')}catch{$('emergencyStatus').textContent='Could not save. Please try again.'}};
 }
 function about(){howToUse()}
 $('recent').onclick=feed; if($('emergencyArt')) $('emergencyArt').onclick=()=>emergencyInfo(); $('portraitBtn').onclick=()=>profile();$('tag').onclick=editTagName; if($('appTitleBtn')) $('appTitleBtn').onclick=howToUse; $('close').onclick=close;$('overlay').onclick=e=>{if(e.target===$('overlay'))close()};window.addEventListener('keydown',e=>{if(e.key==='Escape')close()});refresh();renderTagName();
@@ -422,7 +462,7 @@ let state={done:{}};try{state={...state,...JSON.parse(dtSafeStorage.getItem(KEY)
 const day=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const getDOB=()=>{if(window.LouProfile?.dob)return window.LouProfile.dob;if(sessionDOB)return sessionDOB;try{return dtSafeStorage.getItem(DOBKEY)||JSON.parse(dtSafeStorage.getItem(TRAIN))?.dob||''}catch{return ''}};
 function weeks(){let dob=getDOB();if(!dob)return 15;return Math.max(0,Math.floor((new Date().setHours(12,0,0,0)-new Date(dob+'T12:00:00'))/(7*86400000)))}
-function save(){try{dtSafeStorage.setItem(KEY,JSON.stringify(state));window.dispatchEvent(new Event('daily-tail-schedule-change'))}catch{alert('Could not save checklist on this browser.')}}
+function save(){try{dtSafeStorage.setItem(KEY,JSON.stringify(state));window.dispatchEvent(new Event('daily-tail-schedule-change'));return true}catch{alert('Could not save checklist on this browser.');return false}}
 function event(time,title,desc,kind){return{time,title,desc,kind}}
 function plan(w){
  const customized=Array.isArray(state.customPlan),counts={};
@@ -574,7 +614,7 @@ function editSchedule(){
   const arranged=headings.flatMap(group=>changed.filter(row=>row.group===group).sort((a,b)=>activityMinutes(a.entry.time)-activityMinutes(b.entry.time)));
   const grouped=headings.map(group=>[group,arranged.filter(row=>row.group===group).map(row=>row.entry)]);
   const remap=new Map(arranged.map((row,i)=>[row.originalIndex,i]).filter(([old])=>old>=0));
-  const oldDone=state.done||{},migrated={};
+  const oldDone=state.done||{},previousPlan=state.customPlan,migrated={};
   for(const [key,flag] of Object.entries(oldDone)){
    const match=/^(\d{4}-\d\d-\d\d)\|(\d+)$/.exec(key);
    if(!match){migrated[key]=flag;continue;}
@@ -583,8 +623,9 @@ function editSchedule(){
   }
   state.done=migrated;
   state.customPlan=grouped;
-  save();
+  if(!save()){state.done=oldDone;state.customPlan=previousPlan;return;}
   render();
+  showSaveNotice('Daily plan saved on this device');
  };
 }
 
@@ -644,7 +685,7 @@ const $j=id=>document.getElementById(id);
 let entries={};try{const stored=JSON.parse(dtSafeStorage.getItem(JKEY));if(stored&&typeof stored==='object'&&!Array.isArray(stored))entries=stored}catch{}
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 const toMinutes=time=>{const m=/^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(time||'');return m?(Number(m[1])%12)*60+Number(m[2])+(m[3]==='PM'?720:0):0};
-function saveNotes(){const date=$j('journalDate').value||today();entries[date]=$j('journalText').value;try{dtSafeStorage.setItem(JKEY,JSON.stringify(entries));$j('journalStatus').textContent='Saved automatically ✓'}catch{$j('journalStatus').textContent='Could not save. Please export your notes.'}}
+function saveNotes(){const date=$j('journalDate').value||today();entries[date]=$j('journalText').value;try{dtSafeStorage.setItem(JKEY,JSON.stringify(entries));$j('journalStatus').textContent=window.__dtPersistentStorage===false?'Changes kept for this session only':'✓ Notes saved on this device'}catch{$j('journalStatus').textContent='Could not save. Please export your notes.'}}
 function openDate(date){const selected=date||today();$j('journalDate').value=selected;$j('journalText').value=entries[selected]||'';$j('journalStatus').textContent=entries[selected]?'Saved entry loaded':'Ready for notes · autosaves as you type'}
 function updateSnapshot(){const sch=window.DailyTailSchedule;if(!sch)return;
 const all=sch.getEntries(), done=sch.getDone(), key=today();const completed=all.map((e,i)=>({e,i})).filter(({i})=>done[key+'|'+i]);
@@ -826,7 +867,8 @@ openDate(today());updateSnapshot();
     styleVars();
     $('themeUndo').disabled=false;
     $('themePopupUndo').disabled=false;
-    $('themeStatus').textContent='Appearance saved.';
+    $('themeStatus').textContent='Appearance updated.';
+    showSaveNotice('Appearance saved on this device');
    };
   }
   document.querySelectorAll('[name=themeMode]').forEach(input=>input.addEventListener('change',()=>{if(input.checked&&theme.mode!==input.value){rememberTheme();theme.mode=input.value;saveTheme();recolorArtwork();document.getElementById('themeUndo').disabled=false}}));
