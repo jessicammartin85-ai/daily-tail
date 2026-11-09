@@ -9,8 +9,37 @@ let user=null,stopWatch=null,stopJoined=null,cloudDogs=[],ownDogs=[],memberDogs=
 const revisions=new Map(),baseline=new Map();
 const LINK_KEY='daily_tales_v2_linked_uid';
 const baselineKey=uid=>'daily_tales_v2_baselines_'+uid;
-function rememberBaseline(){if(user)try{localStorage.setItem(baselineKey(user.uid),JSON.stringify(Object.fromEntries(baseline)))}catch{}}
+const baselineDigest=async signature=>{
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(signature));
+ return 'sha256:'+Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+};
+let baselineWrite=0;
+async function rememberBaseline(){
+ if(!user)return;
+ const uid=user.uid, write=++baselineWrite;
+ try{
+   const entries=await Promise.all(Array.from(baseline,async ([id,value])=>[id,await baselineDigest(value)]));
+   if(user?.uid===uid&&write===baselineWrite){
+     localStorage.setItem(baselineKey(uid),JSON.stringify(Object.fromEntries(entries)));
+   }
+ }catch(error){console.warn('Could not save the cloud comparison record.',error)}
+}
 function restoreBaseline(uid){try{return new Map(Object.entries(JSON.parse(localStorage.getItem(baselineKey(uid))||'{}')))}catch{return new Map()}}
+async function compactStoredBaseline(account){
+ const key=baselineKey(account.uid);
+ try{
+   const original=localStorage.getItem(key);
+   if(!original)return;
+   const entries=Object.entries(JSON.parse(original));
+   if(!entries.some(([,value])=>typeof value==='string'&&value.startsWith('{')))return;
+   const compact=await Promise.all(entries.map(async ([id,value])=>[
+     id,typeof value==='string'&&value.startsWith('{')?await baselineDigest(value):value
+   ]));
+   if(user===account&&localStorage.getItem(key)===original){
+     localStorage.setItem(key,JSON.stringify(Object.fromEntries(compact)));
+   }
+ }catch(error){console.warn('Could not compact the previous cloud comparison record.',error)}
+}
 const $=id=>document.getElementById(id), local=()=>window.DailyTalesLocalDogs;
 const signature=d=>JSON.stringify({name:d.name,profile:d.profile||{},meta:d.meta||{},extras:d.extras||{}});
 window.DailyTalesSubmitProposal=async item=>{
@@ -133,8 +162,9 @@ function useRemote(){
  for(const d of cloudDogs){revisions.set(d.id,d.revision);baseline.set(d.id,signature(d))}
  rememberBaseline();
 }
-function incoming(dogs){
- if(!user)return;
+async function incoming(dogs){
+ const account=user;
+ if(!account)return;
  const revoked=cloudDogs.filter(d=>d.ownerUid&&d.ownerUid!==user.uid&&!dogs.some(current=>current.id===d.id));
  cloudDogs=dogs;
  if(revoked.length&&local()?.removeCloudAccess?.(user.uid,revoked.map(d=>d.id))){location.reload();return;}
@@ -150,7 +180,11 @@ function incoming(dogs){
      revisions.set(d.id,d.revision);
      const old=current.get(d.id),last=previous.get(d.id);
      if(old&&signature(old)!==signature(d)){
-       if(last===undefined||last!==signature(old)){
+       const currentSignature=signature(old);
+       const comparable=typeof last==='string'&&last.startsWith('sha256:')?
+         await baselineDigest(currentSignature):currentSignature;
+       if(user!==account)return;
+       if(last===undefined||last!==comparable||signature(getLocal().find(item=>item.id===d.id)||{})!==currentSignature){
          paused=true;showSetup('conflict');
          status('This device has changes that may not be online. Choose which copy to keep.',true);
          return;
@@ -228,10 +262,15 @@ onAuthStateChanged(auth,u=>{
  user=u;connected=false;paused=false;initialized=false;saving=false;
  cloudDogs=[];ownDogs=[];memberDogs=[];revisions.clear();baseline.clear();lastChange=0;hideSetup();
  if(!u)return;
- const update=()=>incoming([
-   ...ownDogs.map(d=>({...d,ownerUid:u.uid,role:'adult'})),
-   ...memberDogs.filter(d=>!ownDogs.some(o=>o.id===d.id))
- ]);
+ void compactStoredBaseline(u);
+ let pending=Promise.resolve();
+ const update=()=>{
+   const dogs=[
+     ...ownDogs.map(d=>({...d,ownerUid:u.uid,role:'adult'})),
+     ...memberDogs.filter(d=>!ownDogs.some(o=>o.id===d.id))
+   ];
+   pending=pending.then(()=>user===u?incoming(dogs):undefined).catch(err=>{if(user===u)error(err)});
+ };
  const error=e=>{status('Your cloud dogs could not load: '+e.message,true);showSetup('conflict')};
  stopWatch=store.watchDogs(dogs=>{ownDogs=dogs;update()},error);
  stopJoined=store.watchJoinedDogs(dogs=>{memberDogs=dogs;update()},error);
