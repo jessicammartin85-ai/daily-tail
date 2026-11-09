@@ -20,6 +20,11 @@ window.DailyTalesSubmitProposal=async item=>{
  catch(err){status('Could not submit child approval request: '+err.message,true);showSetup('conflict')}
 };
 
+window.DailyTalesSubmitVideoProposal=async item=>{
+ const dog=cloudDogs.find(d=>d.id===item.dogId);
+ if(!user||dog?.role!=='child')throw Error('Open your synced Child Owner profile to submit this video.');
+ await store.submitChildProposal(dog.ownerUid,item);
+};
 function getLocal(){return local()?.list()||[]}
 function status(t,bad=false){
  const el=$('dtCloudSetupStatus');

@@ -35,7 +35,7 @@ function show(title,body,type){
  const scroller=type==='add'?content:sheet;
  if(scroller)scroller.scrollTop=0;
  $('close').focus({preventScroll:true});
-}function close(){panel='';$('overlay').classList.remove('open')}
+}function close(){panel='';$('overlay').classList.remove('open');$('content').querySelectorAll('video').forEach(video=>video.pause())}
 el('close').onclick=close;
 el('overlay').onclick=e=>{if(e.target===el('overlay'))close()};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});

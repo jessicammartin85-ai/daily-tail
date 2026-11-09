@@ -17,16 +17,53 @@
   }catch{}
   return null;
  };
- window.DailyTalesRenderMemoryVideo=value=>{
+ customElements.define('dt-uploaded-video',class extends HTMLElement{
+  connectedCallback(){
+   const button=document.createElement('button');
+   button.type='button';button.className='small';button.textContent='▶ Play uploaded video';
+   const status=document.createElement('p');status.setAttribute('role','status');
+   status.hidden=true;
+   this.replaceChildren(button,status);
+   button.onclick=async()=>{
+    button.disabled=true;status.hidden=false;status.textContent='Loading video…';
+    try{
+     const {readVideo}=await import('./memory-video-upload.js?v=2');
+     const blob=await readVideo(this.dataset);
+     if(!this.isConnected||!this.contains(button))return;
+     this.url=URL.createObjectURL(blob);
+     const video=document.createElement('video');
+     video.className='dt-memory-video';video.controls=true;video.playsInline=true;
+     video.setAttribute('aria-label','Uploaded memory video');
+     video.onerror=()=>{status.hidden=false;status.textContent='This video format cannot play in this browser.';};
+     video.src=this.url;
+     button.replaceWith(video);status.hidden=true;
+     void video.play().catch(()=>{});
+    }catch{
+     status.textContent='This video could not be loaded. Try again.';
+     button.disabled=false;
+    }
+   };
+  }
+  disconnectedCallback(){
+   this.querySelector('video')?.pause();
+   if(this.url)URL.revokeObjectURL(this.url);
+   this.url=null;
+  }
+ });
+ window.DailyTalesRenderMemoryVideo=(value,upload)=>{
+  const id=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{3,128}$/.test(value);
+  const attached=upload&&[upload.ownerUid,upload.dogId,upload.id].every(id)
+   ?`<dt-uploaded-video data-owner-uid="${upload.ownerUid}" data-dog-id="${upload.dogId}" data-id="${upload.id}"></dt-uploaded-video>`:'';
+
   const video=window.DailyTalesMemoryVideo(value);
-  if(!video)return '';
-  return video.inline
+  if(!video)return attached;
+  return attached+(video.inline
    ?`<video class="dt-memory-video" controls playsinline preload="none" src="${safe(video.url)}" aria-label="Memory video"></video>`
-   :`<p><a href="${safe(video.url)}" target="_blank" rel="noopener noreferrer">▶ Watch video on YouTube</a></p>`;
+   :`<p><a href="${safe(video.url)}" target="_blank" rel="noopener noreferrer">▶ Watch video on YouTube</a></p>`);
  };
  window.DailyTalesSharedMemories=(posts,name,show)=>{
  const image=v=>typeof v==='string'&&/^(data:image\/(png|jpeg|webp);base64,|https:\/\/)/i.test(v)?v:'';
- const cards=posts.map(post=>`<article class="post dt-shared-post">${image(post.photo)?`<img src="${safe(image(post.photo))}" alt="Memory photo">`:''}<div class="post-body"><time>${safe(post.date&&!isNaN(new Date(post.date))?new Date(post.date).toLocaleDateString():'')}</time><h3>${safe(post.title||'Memory')}</h3>${post.authorName?`<small class="dt-memory-byline">By ${safe(post.authorName)}</small>`:''}${post.story||post.text?`<p>${safe(post.story||post.text)}</p>`:''}${window.DailyTalesRenderMemoryVideo(post.video)}</div></article>`).join('');
+ const cards=posts.map(post=>`<article class="post dt-shared-post">${image(post.photo)?`<img src="${safe(image(post.photo))}" alt="Memory photo">`:''}<div class="post-body"><time>${safe(post.date&&!isNaN(new Date(post.date))?new Date(post.date).toLocaleDateString():'')}</time><h3>${safe(post.title||'Memory')}</h3>${post.authorName?`<small class="dt-memory-byline">By ${safe(post.authorName)}</small>`:''}${post.story||post.text?`<p>${safe(post.story||post.text)}</p>`:''}${window.DailyTalesRenderMemoryVideo(post.video,post.videoUpload)}</div></article>`).join('');
  show('Shared memories',`<p class="intro">Moments ${safe(name||'this dog')}'s family has chosen to share.</p><div class="feed">${cards||'<div class="empty"><strong>No shared memories yet.</strong><p>Check back for new moments.</p></div>'}</div>`, 'friend-feed');
  window.DailyTalesVisiblePosts=posts;
  queueMicrotask(()=>window.DailyTalesEnhancePostFeed?.(posts));

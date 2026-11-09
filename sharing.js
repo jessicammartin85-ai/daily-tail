@@ -1,4 +1,4 @@
-import {publicMemoryPosts} from './public-memory-posts.js?v=memory-video-20261107';
+import {publicMemoryPosts,sharedVideoIds} from './public-memory-posts.js?v=video-uploads-20261107';
 import {dailyTalesCloudDogStore as dogStore} from './cloud-dog-store.js';
 import {getApps,initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -91,13 +91,14 @@ async function publish(d){
  if(!user||!d||!isAdult())throw Error('Sign in and open the Adult Owner view.');
  if(typeof window.dtSnapshotActive==='function')window.dtSnapshotActive();
  const refreshed=dog();if(refreshed?.id===d.id)d=refreshed;
- const m=d.meta||{},p=d.profile||{};
+ const m=d.meta||{},p=d.profile||{},ownerUid=d.ownerUid||user.uid;
  const pref=(()=>{try{return JSON.parse(localStorage.getItem('daily_tail_public_preferences_v1')||'{}')}catch{return {}}})();
  const payload={name:String(d.name||'Dog'),breed:String(m.breed||''),dob:String(m.dob||''),personality:String(m.personality||''),favorites:String(m.favorites||''),cuteFact:String(m.cuteFact||''),photo:p.profile?.length<400000?p.profile||'':'',posts:pref.memories?await publicMemoryPosts(p.posts):[],updatedAt:serverTimestamp()};
  payload.postIds=payload.posts.map(p=>p.id).filter(Boolean);
+ if(payload.posts.some(p=>p.videoUpload))payload.videoIds=sharedVideoIds(payload.posts,ownerUid,d.id);
  if(JSON.stringify({...payload,updatedAt:null}).length>850000)throw Error('Shared profile is too large for Firestore. Reduce photo size.');
- await setDoc(doc(db,'users',profileOwner(),'sharedProfiles',d.id),payload);
- if(profileOwner()===user.uid)await setDoc(doc(db,'users',user.uid,'dogAccounts',d.id),{accountName:user.displayName||'',accountEmail:user.email||''});
+ await setDoc(doc(db,'users',ownerUid,'sharedProfiles',d.id),payload);
+ if(ownerUid===user.uid)await setDoc(doc(db,'users',user.uid,'dogAccounts',d.id),{accountName:user.displayName||'',accountEmail:user.email||''});
  return d;
 }
 function sharedSectionFields(dog,previous){
@@ -122,7 +123,7 @@ async function createInvitation(){
     ownerUid:profileOwner(),dogId:current.id,active:true,name:p.name||current.name,
     breed:p.breed||'',dob:p.dob||'',personality:p.personality||'',
     favorites:p.favorites||'',cuteFact:p.cuteFact||'',photo:p.photo||'',
-    posts:Array.isArray(p.posts)?p.posts:[],postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()
+    posts:Array.isArray(p.posts)?p.posts:[],...(p.videoIds?{videoIds:p.videoIds}:{}),postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()
    });
    await setDoc(linkRef,{shareId,createdAt:serverTimestamp()});
    $('shareLink').value=location.origin+location.pathname.replace(/[^/]*$/,'')+'friend.html?share='+encodeURIComponent(shareId);
@@ -182,8 +183,13 @@ async function decideChildProposal(record,approve){
        if(typeof changes.image!=='string')throw Error('Invalid submitted photo.');
        current.profile={...(current.profile||{}),profile:changes.image};
      }else if(proposal.kind==='post'){
-       if(!Array.isArray(changes.posts))throw Error('Invalid submitted posts.');
-       current.profile={...(current.profile||{}),posts:changes.posts};
+       if(changes.post?.id&&typeof changes.post.title==='string'){
+        const posts=[...(current.profile?.posts||[])];
+        if(!posts.some(post=>post.id===changes.post.id))posts.push(changes.post);
+        posts.sort((first,second)=>(Date.parse(second.date)||0)-(Date.parse(first.date)||0));
+        current.profile={...(current.profile||{}),posts};
+       }else if(Array.isArray(changes.posts))current.profile={...(current.profile||{}),posts:changes.posts};
+       else throw Error('Invalid submitted posts.');
      }else if(proposal.kind==='profile'){
        current.meta={...(current.meta||{}),...(changes.changes||{})};
      }
@@ -348,10 +354,12 @@ window.DailyTalesRefreshPublic=async dogId=>{
  let d;
  try{const info=JSON.parse(localStorage.getItem('daily_tail_roles_v2')||'{}');d=info.dogs?.find(x=>x.id===dogId)}catch{}
  if(!d)return;
- const link=await getDoc(doc(db,'users',profileOwner(),'publicShareLinks',d.id));
- if(!link.exists()||!link.data().shareId)return;
+ const ownerUid=d.ownerUid||user.uid;
  const shared=await publish(d);
- const source=await getDoc(doc(db,'users',profileOwner(),'sharedProfiles',d.id));
+ if(ownerUid!==user.uid)return;
+ const link=await getDoc(doc(db,'users',ownerUid,'publicShareLinks',d.id));
+ if(!link.exists()||!link.data().shareId)return;
+ const source=await getDoc(doc(db,'users',ownerUid,'sharedProfiles',d.id));
  if(!source.exists())return;
  const p=source.data(),ref=doc(db,'publicProfiles',link.data().shareId);
  const existing=await getDoc(ref);
@@ -359,7 +367,7 @@ window.DailyTalesRefreshPublic=async dogId=>{
  const latest=dog()?.id===dogId?dog():shared;
  await updateDoc(ref,{...sharedSectionFields(latest,existing.data()),name:p.name||shared.name,breed:p.breed||'',dob:p.dob||'',
    personality:p.personality||'',favorites:p.favorites||'',cuteFact:p.cuteFact||'',
-   photo:p.photo||'',posts:p.posts||[],postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()});
+   photo:p.photo||'',posts:p.posts||[],...(p.videoIds||existing.data().videoIds?{videoIds:p.videoIds||[]}:{}),postIds:(p.posts||[]).map(post=>post.id).filter(Boolean),updatedAt:serverTimestamp()});
 };
 function init(){
  const btn=document.createElement('button');btn.id='shareLaunch';btn.textContent='🐾 Share';document.body.append(btn);

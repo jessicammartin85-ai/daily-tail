@@ -39,6 +39,21 @@ service cloud.firestore {
         || isPublicPost(ownerUid, dogId, postId);
     }
 
+    function canReadVideo(ownerUid, dogId, videoId, uploader) {
+      let shared = /databases/$(database)/documents/users/$(ownerUid)/sharedProfiles/$(dogId);
+      let link = /databases/$(database)/documents/users/$(ownerUid)/publicShareLinks/$(dogId);
+      return isDogAdmin(ownerUid, dogId)
+        || (isDogMember(ownerUid, dogId) && (uploader == request.auth.uid
+          || (exists(shared) && get(shared).data.get('videoIds', []).hasAny([videoId]))))
+        || (exists(link) && isPublishedVideo(ownerUid, dogId, videoId, get(link).data.shareId));
+    }
+    function isPublishedVideo(ownerUid, dogId, videoId, shareId) {
+      let profile = /databases/$(database)/documents/publicProfiles/$(shareId);
+      return exists(profile) && get(profile).data.active == true
+        && get(profile).data.ownerUid == ownerUid && get(profile).data.dogId == dogId
+        && get(profile).data.get('videoIds', []).hasAny([videoId]);
+    }
+
     // The original cloud sync snapshot belongs only to its Firebase account.
     // Do not grant invited members access to this private subtree.
     match /users/{ownerUid} {
@@ -46,6 +61,48 @@ service cloud.firestore {
 
       match /{privateDocument=**} {
         allow read, write: if isOwner(ownerUid);
+      }
+
+      match /dogVideos/{dogId}/uploads/{videoId} {
+        function uploadPath() {
+          return /databases/$(database)/documents/users/$(ownerUid)/dogVideos/$(dogId)/uploads/$(videoId);
+        }
+        function canUploadVideo() {
+          return isDogAdmin(ownerUid, dogId) || hasDogRole(ownerUid, dogId, 'child');
+        }
+        function ownsPendingVideo(upload) {
+          return canUploadVideo() && upload.uploader == request.auth.uid && upload.get('ready', true) == false;
+        }
+        allow get: if ownsPendingVideo(resource.data)
+          || (resource.data.get('ready', true) == true
+            && canReadVideo(ownerUid, dogId, videoId, resource.data.uploader));
+        allow create: if canUploadVideo()
+          && request.resource.data.uploader == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uploader','type','count','size','ready'])
+          && request.resource.data.ready == false
+          && request.resource.data.type in ['video/mp4','video/webm','video/quicktime']
+          && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 147
+          && request.resource.data.size is int && request.resource.data.size >= 1 && request.resource.data.size <= 104857600
+          && request.resource.data.size <= request.resource.data.count * 716800
+          && request.resource.data.size > (request.resource.data.count - 1) * 716800;
+        allow update: if ownsPendingVideo(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ready'])
+          && request.resource.data.ready == true;
+        allow delete: if ownsPendingVideo(resource.data);
+        match /parts/{part} {
+          function upload() {
+            return get(uploadPath()).data;
+          }
+          allow get: if upload().get('ready', true) == true
+            && canReadVideo(ownerUid, dogId, videoId, upload().uploader);
+          allow create: if ownsPendingVideo(upload())
+            && part.matches('0|[1-9][0-9]{0,2}') && int(part) < upload().count
+            && request.resource.data.keys().hasOnly(['data'])
+            && request.resource.data.data is bytes
+            && request.resource.data.data.size() == (int(part) == upload().count - 1
+              ? upload().size - int(part) * 716800 : 716800);
+          allow delete: if ownsPendingVideo(upload());
+        }
       }
 
       // One heart per authenticated account. No child can change dog data here.
@@ -190,7 +247,7 @@ service cloud.firestore {
         allow create, delete: if isDogAdmin(ownerUid, dogId);
         allow update: if isOwner(ownerUid)
           || (hasDogRole(ownerUid, dogId, 'adult')
-            && request.resource.data.keys().hasOnly(['name', 'breed', 'dob', 'personality', 'favorites', 'cuteFact', 'photo', 'posts', 'postIds', 'updatedAt']));
+            && request.resource.data.keys().hasOnly(['name', 'breed', 'dob', 'personality', 'favorites', 'cuteFact', 'photo', 'posts', 'postIds', 'videoIds', 'updatedAt']));
       }
 
       match /joinRequests/{requestId} {
@@ -252,7 +309,7 @@ service cloud.firestore {
         && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts','hostingIds'])
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
-          'favorites','cuteFact','photo','posts','postIds','updatedAt','sharedSections'
+          'favorites','cuteFact','photo','posts','postIds','videoIds','updatedAt','sharedSections'
         ]);
       allow update: if signedIn()
         && resource.data.ownerUid == request.auth.uid
@@ -262,7 +319,7 @@ service cloud.firestore {
         && request.resource.data.get('sharedSections', {}).keys().hasOnly(['training','hosting','attending','gifts','hostingIds'])
         && request.resource.data.keys().hasOnly([
           'ownerUid','dogId','active','name','breed','dob','personality',
-          'favorites','cuteFact','photo','posts','postIds','updatedAt','sharedSections'
+          'favorites','cuteFact','photo','posts','postIds','videoIds','updatedAt','sharedSections'
         ]);
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
     }
